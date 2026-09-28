@@ -5,7 +5,7 @@ using DSVHVN.Domain.Enums;
 
 namespace DSVHVN.Tests.Integration;
 
-/// <summary>Nhật ký kiểm toán qua HTTP: các thao tác nền tảng sinh đúng mã hành động; chỉ ADMIN xem, lọc được.</summary>
+/// <summary>Nhật ký thao tác qua HTTP: các thao tác nền tảng sinh đúng mã hành động; chỉ ADMIN xem, lọc được.</summary>
 public sealed class AuditLogApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
     private readonly PlatformClient _api = new(factory);
@@ -38,7 +38,7 @@ public sealed class AuditLogApiTests(ApiFactory factory) : IClassFixture<ApiFact
             "/api/v1/admin/audit-logs?action=LOGIN&actorRole=ORG_ADMIN&pageSize=100", admin);
         Assert.Equal(HttpStatusCode.OK, logins.StatusCode);
         Assert.Contains(loginsBody.Data!.Items, l => l.UserId == org.OrgAdmins.Single().Id);
-        Assert.All(loginsBody.Data.Items, l => Assert.Equal("Đăng nhập", l.ActionLabel));
+        Assert.All(loginsBody.Data.Items, l => Assert.Equal("Đăng nhập web quản trị", l.ActionLabel));
     }
 
     [Fact]

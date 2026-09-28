@@ -9,7 +9,10 @@ using Microsoft.Extensions.Logging;
 
 namespace DSVHVN.Application.Auth;
 
-/// <summary>Đăng nhập, đặt mật khẩu qua email (hai nhánh) và đổi mật khẩu trong hồ sơ.</summary>
+/// <summary>
+/// Đăng nhập web quản trị, đặt mật khẩu qua email (hai nhánh) và đổi mật khẩu trong hồ sơ.
+/// Web quản trị chỉ nhận ba vai trò người lớn; tài khoản học sinh đăng nhập ở đây nhận đúng thông điệp sai thông tin đăng nhập.
+/// </summary>
 public sealed class AuthService(
     IAppDbContext db,
     RequestValidator validator,
@@ -32,8 +35,9 @@ public sealed class AuthService(
         await validator.EnsureValidAsync(request, ct);
         var identifier = request.EmailOrUsername!.Trim().ToLowerInvariant();
 
-        // Username không chứa '@' nên có '@' là email.
-        var users = db.Users.Include(u => u.Organization).Where(u => u.DeletedAt == null);
+        // Username người lớn không chứa '@' nên có '@' là email. Tài khoản học sinh coi như không tồn tại ở web quản trị.
+        var users = db.Users.Include(u => u.Organization)
+            .Where(u => u.DeletedAt == null && u.RoleId != Roles.StudentId);
         var user = identifier.Contains('@')
             ? await users.SingleOrDefaultAsync(u => u.Email == identifier, ct)
             : await users.SingleOrDefaultAsync(u => u.Username == identifier, ct);
@@ -76,6 +80,7 @@ public sealed class AuthService(
 
     /// <summary>
     /// Nhánh quên mật khẩu: luôn trả cùng một câu (kể cả email không có, tài khoản bị khóa, vượt 3 yêu cầu/giờ).
+    /// Chỉ tài khoản người lớn có email; học sinh quên mật khẩu thì giáo viên đặt lại.
     /// Liên kết mới hạn 30 phút và vô hiệu mọi liên kết cũ chưa dùng.
     /// </summary>
     public async Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct)
@@ -90,7 +95,7 @@ public sealed class AuthService(
         }
 
         var user = await db.Users.Include(u => u.Organization)
-            .SingleOrDefaultAsync(u => u.Email == email && u.DeletedAt == null, ct);
+            .SingleOrDefaultAsync(u => u.Email == email && u.DeletedAt == null && u.RoleId != Roles.StudentId, ct);
         if (user is null || AccountAccess.BlockedReason(user) is not null) return;
 
         var token = await passwordTokens.IssueAsync(user.Id, AccountRules.ForgotPasswordLinkLifetime, ct);
@@ -130,6 +135,7 @@ public sealed class AuthService(
 
         var user = token.User!;
         user.PasswordHash = hasher.Hash(request.NewPassword!);
+        user.MustChangePassword = false;
         await db.SaveChangesAsync(ct);
         await passwordTokens.RevokeAllAsync(user.Id, ct);
         await tx.CommitAsync(ct);
@@ -138,8 +144,8 @@ public sealed class AuthService(
     }
 
     /// <summary>
-    /// Tab Đổi mật khẩu của hồ sơ: phải nhập đúng mật khẩu hiện tại. Dấu bảo mật đổi nên mọi token cũ bị từ chối;
-    /// phiên đang dùng nhận access token mới.
+    /// Tab Đổi mật khẩu của hồ sơ: phải nhập đúng mật khẩu hiện tại, mật khẩu mới phải khác mật khẩu hiện tại.
+    /// Đổi xong thì tắt cờ buộc đổi mật khẩu; dấu bảo mật đổi nên mọi token cũ bị từ chối, phiên đang dùng nhận access token mới.
     /// </summary>
     public async Task<AccessTokenDto> ChangePasswordAsync(Actor actor, ChangePasswordRequest request, CancellationToken ct)
     {
@@ -150,8 +156,11 @@ public sealed class AuthService(
         if (user.PasswordHash is null || hasher.Verify(user.PasswordHash, request.CurrentPassword!) == PasswordCheck.Failed)
             throw AppException.Validation("currentPassword",
                 Messages.Invalid("Mật khẩu hiện tại", "không khớp với mật khẩu đang dùng"));
+        if (request.NewPassword == request.CurrentPassword)
+            throw AppException.Validation("newPassword", Messages.SamePassword);
 
         user.PasswordHash = hasher.Hash(request.NewPassword!);
+        user.MustChangePassword = false;
         await db.SaveChangesAsync(ct);
         return IssueAccessToken(user);
     }
@@ -159,8 +168,9 @@ public sealed class AuthService(
     private async Task<PasswordResetToken> FindUsableTokenAsync(string rawToken, CancellationToken ct)
     {
         var token = await passwordTokens.FindUsableAsync(rawToken, ct);
-        // Tài khoản đã xóa mềm, bị khóa, ngừng dùng hoặc thuộc trường đã ngừng: liên kết không còn dùng được.
-        if (token?.User is null || token.User.DeletedAt is not null || AccountAccess.BlockedReason(token.User) is not null)
+        // Tài khoản đã xóa mềm, bị khóa, ngừng dùng, thuộc trường đã ngừng hoặc là học sinh: liên kết không còn dùng được.
+        if (token?.User is null || token.User.DeletedAt is not null || token.User.IsStudent
+            || AccountAccess.BlockedReason(token.User) is not null)
             throw AppException.BusinessRule(Messages.PasswordLinkInvalid);
         return token;
     }

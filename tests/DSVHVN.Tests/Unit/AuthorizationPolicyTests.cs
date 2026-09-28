@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DSVHVN.Tests.Unit;
 
-/// <summary>Ma trận 3 vai trò × 4 policy, dựng đúng cấu hình <see cref="Policies.Register"/> mà Api dùng.</summary>
+/// <summary>Ma trận 4 vai trò × 6 policy, dựng đúng cấu hình <see cref="Policies.Register"/> mà Api dùng.</summary>
 public sealed class AuthorizationPolicyTests : IDisposable
 {
     private readonly ServiceProvider _services;
@@ -27,20 +27,33 @@ public sealed class AuthorizationPolicyTests : IDisposable
 
     private static readonly ClaimsPrincipal Guest = new(new ClaimsIdentity());
 
+    // Web quản trị chỉ nhận ba vai trò người lớn; học sinh chỉ vào khu học.
     public static TheoryData<string, RoleCode, bool> Matrix => new()
     {
         { Policies.Authenticated, RoleCode.ADMIN, true },
         { Policies.Authenticated, RoleCode.ORG_ADMIN, true },
         { Policies.Authenticated, RoleCode.TEACHER, true },
+        { Policies.Authenticated, RoleCode.STUDENT, true },
+        { Policies.Staff, RoleCode.ADMIN, true },
+        { Policies.Staff, RoleCode.ORG_ADMIN, true },
+        { Policies.Staff, RoleCode.TEACHER, true },
+        { Policies.Staff, RoleCode.STUDENT, false },
         { Policies.Admin, RoleCode.ADMIN, true },
         { Policies.Admin, RoleCode.ORG_ADMIN, false },
         { Policies.Admin, RoleCode.TEACHER, false },
+        { Policies.Admin, RoleCode.STUDENT, false },
         { Policies.OrgAdmin, RoleCode.ADMIN, false },
         { Policies.OrgAdmin, RoleCode.ORG_ADMIN, true },
         { Policies.OrgAdmin, RoleCode.TEACHER, false },
+        { Policies.OrgAdmin, RoleCode.STUDENT, false },
         { Policies.Teacher, RoleCode.ADMIN, false },
         { Policies.Teacher, RoleCode.ORG_ADMIN, false },
         { Policies.Teacher, RoleCode.TEACHER, true },
+        { Policies.Teacher, RoleCode.STUDENT, false },
+        { Policies.Student, RoleCode.ADMIN, false },
+        { Policies.Student, RoleCode.ORG_ADMIN, false },
+        { Policies.Student, RoleCode.TEACHER, false },
+        { Policies.Student, RoleCode.STUDENT, true },
     };
 
     [Theory]
@@ -53,9 +66,11 @@ public sealed class AuthorizationPolicyTests : IDisposable
 
     [Theory]
     [InlineData(Policies.Authenticated)]
+    [InlineData(Policies.Staff)]
     [InlineData(Policies.Admin)]
     [InlineData(Policies.OrgAdmin)]
     [InlineData(Policies.Teacher)]
+    [InlineData(Policies.Student)]
     public async Task Guest_is_denied_every_policy(string policy)
     {
         var result = await _authz.AuthorizeAsync(Guest, resource: null, policy);

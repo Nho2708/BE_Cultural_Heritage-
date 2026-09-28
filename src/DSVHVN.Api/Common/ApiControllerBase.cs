@@ -35,7 +35,7 @@ public abstract class ApiControllerBase : ControllerBase
         }
     }
 
-    /// <summary>IP của yêu cầu cho nhật ký kiểm toán; IPv4 ánh xạ trong IPv6 đổi về dạng IPv4.</summary>
+    /// <summary>IP của yêu cầu cho nhật ký thao tác; IPv4 ánh xạ trong IPv6 đổi về dạng IPv4.</summary>
     protected string? ClientIp
     {
         get

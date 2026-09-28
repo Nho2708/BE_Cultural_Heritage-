@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DSVHVN.Application.Audit;
 
-/// <summary>Bộ lọc của màn hình Nhật ký kiểm toán: người làm (id hoặc từ khóa tên đăng nhập/họ tên), vai trò, hành động, đối tượng, khoảng thời gian.</summary>
+/// <summary>Bộ lọc của màn hình Nhật ký thao tác: người làm (id hoặc từ khóa tên đăng nhập/họ tên), vai trò, hành động, đối tượng, khoảng thời gian.</summary>
 public sealed record AuditLogQuery(
     long? UserId,
     string? Actor,
@@ -33,7 +33,7 @@ public sealed record AuditLogDto(
     string? NewValue,
     string? IpAddress);
 
-/// <summary>Xem nhật ký kiểm toán (chỉ ADMIN, chỉ đọc).</summary>
+/// <summary>Xem nhật ký thao tác (chỉ quản trị hệ thống, chỉ đọc).</summary>
 public sealed class AuditLogService(IAppDbContext db)
 {
     public async Task<PagedResult<AuditLogDto>> ListAsync(AuditLogQuery query, CancellationToken ct)

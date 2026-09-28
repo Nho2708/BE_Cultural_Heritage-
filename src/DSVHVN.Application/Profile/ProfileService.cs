@@ -23,7 +23,7 @@ public sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProf
     }
 }
 
-/// <summary>Quản lý hồ sơ cá nhân, dùng chung cho 3 vai trò.</summary>
+/// <summary>Quản lý hồ sơ cá nhân trên web quản trị, dùng chung cho ba vai trò người lớn.</summary>
 public sealed class ProfileService(IAppDbContext db, RequestValidator validator)
 {
     public async Task<ProfileDto> GetAsync(Actor actor, CancellationToken ct)

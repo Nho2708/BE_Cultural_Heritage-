@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DSVHVN.Tests.Unit;
 
-/// <summary>Đăng nhập, đặt mật khẩu qua email và đổi mật khẩu ở tầng service: quy tắc mật khẩu, chống dò mật khẩu, liên kết đặt mật khẩu, nhật ký kiểm toán.</summary>
+/// <summary>Đăng nhập, đặt mật khẩu qua email và đổi mật khẩu ở tầng service: quy tắc mật khẩu, chống dò mật khẩu, liên kết đặt mật khẩu, nhật ký thao tác.</summary>
 public sealed class AuthServiceTests : IDisposable
 {
     private const string Password = ServiceHarness.Password;
@@ -245,5 +245,46 @@ public sealed class AuthServiceTests : IDisposable
         Assert.False(string.IsNullOrEmpty(token.AccessToken));
         Assert.NotEqual(before, after);
         Assert.NotNull(await Login("giaovien.a", "MatKhauMoi2026"));
+    }
+
+    [Fact]
+    public async Task Student_accounts_cannot_sign_in_to_the_admin_web_and_get_the_same_invalid_credentials()
+    {
+        var teacher = await TeacherAsync("giaovien.lan");
+        // Mã viết thường vì SQLite so chuỗi phân biệt hoa thường (SQL Server không phân biệt, kiểm ở lớp kiểm thử CSDL tạm);
+        // đúng mật khẩu vẫn bị từ chối, nghĩa là bị chặn theo vai trò chứ không phải do không tìm thấy.
+        var (student, _) = await _h.AddStudentAsync(teacher.OrganizationId!.Value, teacher.Id, "hs8k2qx7");
+
+        var byCode = await LoginFails("hs8k2qx7");
+        var unknown = await LoginFails("khongtontai");
+
+        Assert.Equal((401, "INVALID_CREDENTIALS"), (byCode.StatusCode, byCode.AppMessage.Code));
+        Assert.Equal(unknown.AppMessage, byCode.AppMessage);
+        var logins = await _h.QueryAsync(db => db.AuditLogs.CountAsync(l => l.UserId == student.Id));
+        Assert.Equal(0, logins);
+    }
+
+    [Fact]
+    public async Task Change_password_rejects_the_same_password_and_clears_the_forced_change_flag()
+    {
+        var user = await TeacherAsync();
+        await _h.QueryAsync(async db =>
+        {
+            (await db.Users.SingleAsync(u => u.Id == user.Id)).MustChangePassword = true;
+            return await db.SaveChangesAsync();
+        });
+        var actor = new Actor(user.Id, RoleCode.TEACHER, user.OrganizationId, Ip);
+
+        var profile = await Login("giaovien.a");
+        Assert.True(profile.User.MustChangePassword);
+
+        var same = await Assert.ThrowsAsync<AppException>(() => _h.Service<AuthService, AccessTokenDto>(s =>
+            s.ChangePasswordAsync(actor, new ChangePasswordRequest(Password, Password), default)));
+        Assert.Equal((400, "SAME_PASSWORD"), (same.StatusCode, same.AppMessage.Code));
+        Assert.Equal("Mật khẩu mới phải khác mật khẩu cũ.", same.Errors!["newPassword"]);
+
+        await _h.Service<AuthService, AccessTokenDto>(s =>
+            s.ChangePasswordAsync(actor, new ChangePasswordRequest(Password, "MatKhauMoi2026"), default));
+        Assert.False((await Login("giaovien.a", "MatKhauMoi2026")).User.MustChangePassword);
     }
 }

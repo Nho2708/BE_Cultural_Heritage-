@@ -12,6 +12,7 @@ public static class MessageCodes
     public const string Required = "REQUIRED";
     public const string Invalid = "INVALID";
     public const string PasswordPolicy = "PASSWORD_POLICY";
+    public const string SamePassword = "SAME_PASSWORD";
     public const string Duplicate = "DUPLICATE";
     public const string InvalidCredentials = "INVALID_CREDENTIALS";
     public const string AccountBlocked = "ACCOUNT_BLOCKED";
@@ -41,6 +42,9 @@ public static class Messages
     /// <summary>Mật khẩu không đạt quy tắc 8-64 ký tự, có chữ hoa, chữ thường và chữ số.</summary>
     public static readonly AppMessage PasswordPolicy =
         new(MessageCodes.PasswordPolicy, "Mật khẩu phải dài 8-64 ký tự, có chữ hoa, chữ thường và chữ số.");
+
+    /// <summary>Tự đổi mật khẩu: mật khẩu mới trùng mật khẩu hiện tại.</summary>
+    public static readonly AppMessage SamePassword = new(MessageCodes.SamePassword, "Mật khẩu mới phải khác mật khẩu cũ.");
 
     /// <summary>Email hoặc tên đăng nhập đã có tài khoản khác dùng.</summary>
     public static AppMessage Taken(string field, string value) =>

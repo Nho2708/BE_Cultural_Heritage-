@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DSVHVN.Api.Controllers;
 
-/// <summary>Xem nhật ký kiểm toán. Chỉ ADMIN, chỉ đọc: không có endpoint sửa, xóa.</summary>
+/// <summary>Xem nhật ký thao tác. Chỉ ADMIN, chỉ đọc: không có endpoint sửa, xóa.</summary>
 [Route("api/v1/admin/audit-logs")]
 [Authorize(Policy = Policies.Admin)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
