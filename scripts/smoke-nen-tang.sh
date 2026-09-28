@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke test luồng nền tảng tổ chức trên API đang chạy, mặc định http://localhost:5080 với CSDL sep490_dsvhvn_v2_dev.
+# Smoke test luồng nền tảng tổ chức trên API đang chạy, mặc định http://localhost:5080 với CSDL sep490_dsvhvn_v3_dev.
 #
 # Body JSON có chữ tiếng Việt luôn đi qua FILE (curl --data-binary @file, đường dẫn tương đối): trên Windows, đối số
 # dòng lệnh bị đổi bảng mã và hỏng dấu. Liên kết đặt mật khẩu lấy từ log của API (thư giả IEmailSender ghi ra log).
