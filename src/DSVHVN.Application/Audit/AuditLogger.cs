@@ -9,7 +9,7 @@ using DSVHVN.Domain.Enums;
 namespace DSVHVN.Application.Audit;
 
 /// <summary>
-/// Dịch vụ ghi nhật ký kiểm toán dùng chung cho mọi luồng. Bản ghi được thêm vào cùng DbContext với
+/// Dịch vụ ghi nhật ký thao tác dùng chung cho mọi chức năng. Bản ghi được thêm vào cùng DbContext với
 /// thay đổi nghiệp vụ nên lưu cùng lần SaveChanges (cùng giao dịch). Bảng chỉ thêm: DbContext chặn sửa, xóa.
 /// </summary>
 public interface IAuditLogger
@@ -50,12 +50,12 @@ public sealed class AuditLogger(IAppDbContext db) : IAuditLogger
     private static string? ToJson(object? value) => value is null ? null : JsonSerializer.Serialize(value, Json);
 }
 
-/// <summary>Nhãn tiếng Việt của mã hành động cho màn hình Nhật ký kiểm toán; giao diện chỉ tiếng Việt.</summary>
+/// <summary>Nhãn tiếng Việt của mã thao tác và vai trò cho màn hình Nhật ký thao tác; giao diện chỉ tiếng Việt.</summary>
 public static class AuditLabels
 {
     public static string Of(AuditAction action) => action switch
     {
-        AuditAction.LOGIN => "Đăng nhập",
+        AuditAction.LOGIN => "Đăng nhập web quản trị",
         AuditAction.LOGIN_LOCKED_OUT => "Tạm khóa đăng nhập do sai 5 lần",
         AuditAction.ORG_CREATED => "Tạo trường",
         AuditAction.ORG_DEACTIVATED => "Ngừng trường",
@@ -65,7 +65,10 @@ public static class AuditLabels
         AuditAction.ACCOUNT_DELETED => "Xóa tài khoản giáo viên",
         AuditAction.HERITAGE_PUBLISHED => "Xuất bản di sản",
         AuditAction.HERITAGE_ARCHIVED => "Ẩn di sản",
-        AuditAction.STUDENT_DEACTIVATED => "Vô hiệu học sinh",
+        AuditAction.STUDENT_ACCOUNTS_CREATED => "Thêm học sinh và tạo tài khoản",
+        AuditAction.STUDENT_PASSWORD_RESET => "Đặt lại mật khẩu học sinh",
+        AuditAction.STUDENT_DEACTIVATED => "Vô hiệu hoặc xóa học sinh",
+        AuditAction.STUDENT_REACTIVATED => "Mở lại học sinh",
         AuditAction.QUIZ_PUBLISHED => "Phát hành bài kiểm tra",
         AuditAction.QUIZ_CLOSED => "Đóng bài kiểm tra",
         AuditAction.QUESTION_HIDDEN => "Ẩn câu hỏi",
@@ -81,6 +84,7 @@ public static class AuditLabels
         ActorRole.ADMIN => "Quản trị hệ thống",
         ActorRole.ORG_ADMIN => "Quản trị trường",
         ActorRole.TEACHER => "Giáo viên",
+        ActorRole.STUDENT => "Học sinh",
         ActorRole.SYSTEM => "Hệ thống",
         _ => role.ToString(),
     };

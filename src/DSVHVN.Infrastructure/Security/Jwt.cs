@@ -31,7 +31,7 @@ public static class JwtClaimNames
     public const string Username = "preferred_username";
     public const string Name = "name";
 
-    /// <summary>Mã vai trò: ADMIN, ORG_ADMIN, TEACHER.</summary>
+    /// <summary>Mã vai trò: ADMIN, ORG_ADMIN, TEACHER, STUDENT.</summary>
     public const string Role = "role";
 
     /// <summary>Id trường; không có với ADMIN.</summary>

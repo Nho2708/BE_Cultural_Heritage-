@@ -20,28 +20,39 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace DSVHVN.Tests.Integration;
 
 /// <summary>
-/// Chạy cả Api thật (middleware, JWT, kiểm tài khoản mỗi yêu cầu, policy, controller) trên SQLite trong bộ nhớ.
-/// Lược đồ tạo bằng EnsureCreated từ cùng model EF; migration SQL Server được kiểm riêng khi áp vào LocalDB.
+/// Chạy cả Api thật (middleware, JWT, kiểm tài khoản mỗi yêu cầu, policy, controller). Mặc định trên SQLite trong bộ nhớ,
+/// lược đồ tạo bằng EnsureCreated từ cùng model EF. Lớp con <see cref="SqlServerApiFactory"/> chạy trên một database tạm
+/// của SQL Server LocalDB tạo bằng chính migration và tự xóa khi xong.
 /// Seed như môi trường thật: gói "Miễn phí" (ở đây 2 giáo viên) và một ADMIN lấy mật khẩu từ cấu hình.
 /// </summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory : WebApplicationFactory<Program>
 {
     public const string AdminUsername = "admin.test";
     public const string AdminEmail = "admin@test.local";
     public const string AdminPassword = "SeedPass2026";
 
     private readonly SqliteConnection _connection = new("DataSource=:memory:");
+    private readonly string? _sqlServerConnection;
+
+    public ApiFactory() { }
+
+    /// <param name="sqlServerConnection">Chuỗi kết nối SQL Server; có thì dùng SQL Server và áp migration thay cho SQLite.</param>
+    protected ApiFactory(string sqlServerConnection) => _sqlServerConnection = sqlServerConnection;
 
     public CapturingEmailSender Mail { get; } = new();
 
+    /// <summary>Cấu hình thêm của lớp con (vd đường dẫn tệp dữ liệu di sản).</summary>
+    protected virtual IEnumerable<KeyValuePair<string, string?>> ExtraSettings => [];
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        _connection.Open();
+        var sqlServer = _sqlServerConnection is not null;
+        if (!sqlServer) _connection.Open();
         builder.UseEnvironment("Testing");
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:Default"] = "sqlite-in-memory",
-            ["Database:InitMode"] = "EnsureCreated",
+            ["ConnectionStrings:Default"] = _sqlServerConnection ?? "sqlite-in-memory",
+            ["Database:InitMode"] = sqlServer ? "Migrate" : "EnsureCreated",
             ["Jwt:SigningKey"] = "integration-test-signing-key-0123456789-abcdef",
             ["Seed:FreePlan:DurationDays"] = "30",
             ["Seed:FreePlan:MaxTeachers"] = "2",
@@ -50,13 +61,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             ["Seed:Admins:0:Username"] = AdminUsername,
             ["Seed:Admins:0:Email"] = AdminEmail,
             ["Seed:Admins:0:FullName"] = "Quản trị kiểm thử",
-        }));
+        }.Concat(ExtraSettings)));
 
         builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<DbContextOptions<AppDbContext>>();
-            services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
-            services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));
+            if (!sqlServer)
+            {
+                services.RemoveAll<DbContextOptions<AppDbContext>>();
+                services.RemoveAll<IDbContextOptionsConfiguration<AppDbContext>>();
+                services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));
+            }
 
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(Mail);
