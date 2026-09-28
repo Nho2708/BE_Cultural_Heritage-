@@ -13,7 +13,7 @@ public sealed class RulesTests
     [InlineData("abc")]
     [InlineData("nguyen.van_an")]
     [InlineData("GiaoVien01")]
-    public void Username_accepts_BR01(string username) => Assert.True(UsernamePolicy.IsSatisfiedBy(username));
+    public void Username_accepts_letters_digits_dot_and_underscore(string username) => Assert.True(UsernamePolicy.IsSatisfiedBy(username));
 
     [Theory]
     [InlineData(null)]
@@ -42,7 +42,7 @@ public sealed class RulesTests
     }
 
     [Fact]
-    public void Subscription_end_date_and_effective_window_follow_BR31()
+    public void Subscription_end_date_and_effective_window_follow_vietnam_calendar_days()
     {
         var start = new DateOnly(2026, 9, 29);
         var sub = new Subscription
@@ -78,7 +78,20 @@ public sealed class RulesTests
     }
 
     [Theory]
+    [InlineData(1, 1)]
+    [InlineData(5, 1)]
+    [InlineData(6, 2)]
+    [InlineData(9, 2)]
+    [InlineData(10, 3)]
+    [InlineData(12, 3)]
+    public void School_level_is_derived_from_the_grade(byte grade, int level) =>
+        Assert.Equal(level, DSVHVN.Domain.Classes.SchoolClass.SchoolLevelOf(grade));
+
+    [Theory]
     [InlineData("OrganizationId", "organization_id")]
+    [InlineData("MustChangePassword", "must_change_password")]
+    [InlineData("AiGenerationId", "ai_generation_id")]
+    [InlineData("ShowAnswersAfterSubmit", "show_answers_after_submit")]
     [InlineData("MaxAiRequests", "max_ai_requests")]
     [InlineData("IpAddress", "ip_address")]
     [InlineData("Id", "id")]

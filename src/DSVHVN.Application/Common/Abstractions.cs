@@ -1,14 +1,21 @@
 using DSVHVN.Domain.Audit;
 using DSVHVN.Domain.Billing;
+using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Enums;
+using DSVHVN.Domain.Heritages;
 using DSVHVN.Domain.Identity;
+using DSVHVN.Domain.Lessons;
 using DSVHVN.Domain.Organizations;
+using DSVHVN.Domain.Questions;
+using DSVHVN.Domain.Quizzes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace DSVHVN.Application.Common;
 
-/// <summary>Cổng vào CSDL cho tầng Application. Mỗi luồng thêm DbSet của mình cùng migration mới của luồng.</summary>
+/// <summary>
+/// Cổng vào CSDL cho tầng Application: đủ 27 bảng của CSDL v3. Thay đổi lược đồ về sau đi qua migration mới.
+/// </summary>
 public interface IAppDbContext
 {
     DbSet<Organization> Organizations { get; }
@@ -16,8 +23,34 @@ public interface IAppDbContext
     DbSet<User> Users { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<AuditLog> AuditLogs { get; }
+
+    DbSet<SchoolClass> Classes { get; }
+    DbSet<Student> Students { get; }
+
+    DbSet<Province> Provinces { get; }
+    DbSet<Heritage> Heritages { get; }
+    DbSet<Timeline> Timelines { get; }
+    DbSet<TimelineEvent> Events { get; }
+    DbSet<Media> Media { get; }
+    DbSet<HeritageReference> HeritageReferences { get; }
+
+    DbSet<Lesson> Lessons { get; }
+    DbSet<LessonHeritage> LessonHeritages { get; }
+    DbSet<AiGeneration> AiGenerations { get; }
+
+    DbSet<Question> Questions { get; }
+    DbSet<Answer> Answers { get; }
+
+    DbSet<Quiz> Quizzes { get; }
+    DbSet<QuizQuestion> QuizQuestions { get; }
+    DbSet<Attempt> Attempts { get; }
+    DbSet<AttemptAnswer> AttemptAnswers { get; }
+
     DbSet<Plan> Plans { get; }
     DbSet<Subscription> Subscriptions { get; }
+    DbSet<Invoice> Invoices { get; }
+    DbSet<PaymentProvider> PaymentProviders { get; }
+    DbSet<Payment> Payments { get; }
 
     /// <summary>Mở giao dịch cho thao tác nhiều bước (tạo trường, tạo giáo viên trong hạn mức).</summary>
     DatabaseFacade Database { get; }
@@ -72,10 +105,10 @@ public interface IEmailSender
     Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default);
 }
 
-/// <summary>Soạn hai loại thư đặt mật khẩu (hệ thống chỉ có hai loại thư).</summary>
+/// <summary>Soạn hai loại thư đặt mật khẩu (hệ thống chỉ có hai loại thư, chỉ gửi cho tài khoản có email).</summary>
 public interface IAccountMailer
 {
-    /// <summary>Tài khoản mới do ADMIN hoặc ORG_ADMIN tạo: liên kết đặt mật khẩu lần đầu, hạn 48 giờ.</summary>
+    /// <summary>Tài khoản mới do quản trị hệ thống hoặc quản trị trường tạo: liên kết đặt mật khẩu lần đầu, hạn 48 giờ.</summary>
     Task SendFirstPasswordLinkAsync(string email, string fullName, string username, string? organizationName,
         string rawToken, DateTime expiresAt, CancellationToken cancellationToken = default);
 

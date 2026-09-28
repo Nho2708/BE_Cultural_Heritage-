@@ -3,7 +3,7 @@ using DSVHVN.Domain.Identity;
 
 namespace DSVHVN.Application.Auth;
 
-/// <summary>Màn hình Đăng nhập: một ô "Email hoặc tên đăng nhập" + mật khẩu.</summary>
+/// <summary>Màn hình Đăng nhập của web quản trị: một ô "Email hoặc tên đăng nhập" + mật khẩu.</summary>
 public sealed record LoginRequest(string? EmailOrUsername, string? Password);
 
 public sealed record ForgotPasswordRequest(string? Email);
@@ -17,29 +17,34 @@ public sealed record SetPasswordRequest(string? Token, string? NewPassword);
 public sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 
 /// <summary>Kết quả kiểm liên kết: tài khoản sẽ được đặt mật khẩu và hạn của liên kết.</summary>
-public sealed record PasswordTokenInfoDto(string Username, DateTime ExpiresAt);
+public sealed record PasswordTokenInfoDto(string? Username, DateTime? ExpiresAt);
 
 public sealed record OrganizationRefDto(long Id, string Name);
 
-/// <summary>Hồ sơ trả cho giao diện (tab Thông tin của màn hình Hồ sơ; điều hướng theo vai trò sau đăng nhập).</summary>
+/// <summary>
+/// Hồ sơ trả cho giao diện (tab Thông tin của màn hình Hồ sơ; điều hướng theo vai trò sau đăng nhập).
+/// Các trường theo cột CSDL được NULL khai báo nullable; tài khoản do ứng dụng tạo luôn có tên đăng nhập, họ tên,
+/// trạng thái và thời điểm tạo. <see cref="MustChangePassword"/> bật thì giao diện buộc đổi mật khẩu trước khi làm việc khác.
+/// </summary>
 public sealed record ProfileDto(
     long Id,
-    string Username,
-    string Email,
-    string FullName,
+    string? Username,
+    string? Email,
+    string? FullName,
     string? Phone,
     string? AvatarUrl,
     RoleCode Role,
     string RoleName,
-    UserStatus Status,
+    UserStatus? Status,
+    bool MustChangePassword,
     OrganizationRefDto? Organization,
     DateTime? LastLoginAt,
-    DateTime CreatedAt)
+    DateTime? CreatedAt)
 {
     /// <summary><paramref name="user"/> phải đã nạp <see cref="User.Organization"/> nếu có trường.</summary>
     public static ProfileDto From(User user) => new(
         user.Id, user.Username, user.Email, user.FullName, user.Phone, user.AvatarUrl,
-        user.RoleCode, Roles.NameOf(user.RoleCode), user.Status,
+        user.RoleCode, Roles.NameOf(user.RoleCode), user.Status, user.MustChangePassword,
         user.Organization is null ? null : new OrganizationRefDto(user.Organization.Id, user.Organization.Name),
         user.LastLoginAt, user.CreatedAt);
 }

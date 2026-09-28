@@ -24,7 +24,7 @@ public static class SecureTokens
 /// </summary>
 public static class SecurityStamps
 {
-    public static string From(string passwordHash) => SecureTokens.Hash(passwordHash)[..16];
+    public static string From(string? passwordHash) => SecureTokens.Hash(passwordHash ?? string.Empty)[..16];
 }
 
 public static class EmailAddress

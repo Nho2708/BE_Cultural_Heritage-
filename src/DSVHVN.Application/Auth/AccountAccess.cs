@@ -10,8 +10,11 @@ namespace DSVHVN.Application.Auth;
 /// </summary>
 public static class AccountAccess
 {
-    /// <summary>Lý do chặn (phần <c>{ly_do}</c> của thông điệp không đăng nhập được), hoặc null nếu tài khoản dùng được. Tài khoản đã xóa mềm không đi qua đây.</summary>
-    public static string? BlockedReason(UserStatus status, bool organizationDeactivated) =>
+    /// <summary>
+    /// Lý do chặn (phần <c>{ly_do}</c> của thông điệp không đăng nhập được), hoặc null nếu tài khoản dùng được.
+    /// Trạng thái NULL coi như ngừng sử dụng. Tài khoản đã xóa mềm không đi qua đây.
+    /// </summary>
+    public static string? BlockedReason(UserStatus? status, bool organizationDeactivated) =>
         organizationDeactivated
             ? Messages.SignInBlockedReasons.OrganizationDeactivated
             : status switch
