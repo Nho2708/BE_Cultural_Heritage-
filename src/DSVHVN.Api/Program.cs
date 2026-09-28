@@ -38,7 +38,7 @@ builder.Services.AddSwaggerGen(o =>
         Title = "DSVHVN API",
         Version = "v1",
         Description = "Nền tảng giáo dục di sản văn hóa cho trường học — nền tảng: đăng nhập, đặt mật khẩu qua email, hồ sơ, " +
-            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký kiểm toán.",
+            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác. CSDL v3 đủ 27 bảng.",
     });
     o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -62,6 +62,9 @@ var app = builder.Build();
 // Thiếu khóa ký JWT ngoài Development/Testing thì dừng ngay lúc khởi động, không đợi yêu cầu đầu tiên.
 _ = app.Services.GetRequiredService<JwtSigningKeyProvider>();
 await app.Services.InitializeDatabaseAsync();
+
+// "dotnet run --project src/DSVHVN.Api -- --chi-khoi-tao-csdl": chỉ tạo/cập nhật CSDL và nạp dữ liệu khởi tạo rồi thoát.
+if (args.Contains("--chi-khoi-tao-csdl")) return;
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();

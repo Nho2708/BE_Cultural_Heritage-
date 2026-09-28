@@ -3,9 +3,11 @@ using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Identity;
 using DSVHVN.Domain.Rules;
+using DSVHVN.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace DSVHVN.Infrastructure.Persistence;
@@ -13,8 +15,9 @@ namespace DSVHVN.Infrastructure.Persistence;
 /// <summary>
 /// Chạy lúc khởi động Api:
 /// 1) khởi tạo CSDL theo <c>Database:InitMode</c> (None | Migrate | EnsureCreated — EnsureCreated chỉ dùng cho kiểm thử);
-/// 2) seed idempotent gói "Miễn phí" theo môi trường và các tài khoản ADMIN (mỗi thành viên một).
-/// 3 vai trò nằm trong migration (dữ liệu cố định). Mật khẩu ADMIN chỉ lấy từ cấu hình (User Secrets hoặc biến môi trường),
+/// 2) seed idempotent gói "Miễn phí" theo môi trường và các tài khoản ADMIN (mỗi thành viên một);
+/// 3) nạp 34 tỉnh/thành và di sản từ tệp JSON khi cấu hình <c>Seed:HeritageData</c> (chỉ đặt ở Development).
+/// 4 vai trò nằm trong migration (dữ liệu cố định). Mật khẩu ADMIN chỉ lấy từ cấu hình (User Secrets hoặc biến môi trường),
 /// không có trong mã nguồn; thiếu mật khẩu thì bỏ qua tài khoản đó và ghi cảnh báo. Không có chức năng tạo ADMIN trên giao diện.
 /// </summary>
 public static class DatabaseInitializer
@@ -44,6 +47,43 @@ public static class DatabaseInitializer
 
         await SeedFreePlanAsync(db, config, logger, ct);
         await SeedAdminsAsync(db, config, sp.GetRequiredService<IPasswordHasher>(), logger, ct);
+        await SeedHeritageDataAsync(db, config, sp.GetService<IHostEnvironment>()?.ContentRootPath, logger, ct);
+    }
+
+    /// <summary>
+    /// <c>Seed:HeritageData:ProvincesFile</c> và <c>Seed:HeritageData:HeritagesFile</c>: đường dẫn tệp JSON (tương đối theo
+    /// thư mục gốc của Api). Không cấu hình thì bỏ qua; cấu hình mà thiếu tệp thì ghi cảnh báo và bỏ qua.
+    /// </summary>
+    private static async Task SeedHeritageDataAsync(AppDbContext db, IConfiguration config, string? contentRoot, ILogger logger,
+        CancellationToken ct)
+    {
+        var section = config.GetSection("Seed:HeritageData");
+        var provincesFile = Resolve(section["ProvincesFile"], contentRoot);
+        var heritagesFile = Resolve(section["HeritagesFile"], contentRoot);
+        if (provincesFile is null || heritagesFile is null) return;
+        if (!File.Exists(provincesFile) || !File.Exists(heritagesFile))
+        {
+            logger.LogWarning("Không thấy tệp dữ liệu di sản ({Provinces}, {Heritages}), bỏ qua bước nạp di sản",
+                provincesFile, heritagesFile);
+            return;
+        }
+
+        var result = await HeritageDataSeeder.SeedAsync(db, provincesFile, heritagesFile, ct);
+        logger.LogInformation(
+            "Nạp dữ liệu di sản: thêm {Provinces} tỉnh (đã có {ProvincesExisting}), {Heritages} di sản (đã có {HeritagesExisting}), " +
+            "{Timelines} giai đoạn, {Events} sự kiện, {Media} ảnh, {References} nguồn",
+            result.ProvincesAdded, result.ProvincesExisting, result.HeritagesAdded, result.HeritagesExisting,
+            result.TimelinesAdded, result.EventsAdded, result.MediaAdded, result.ReferencesAdded);
+        if (result.IgnoredFields.Count > 0)
+            logger.LogInformation("Trường trong tệp không có cột tương ứng, không lưu: {Fields}", string.Join(", ", result.IgnoredFields));
+        foreach (var rejected in result.Rejected)
+            logger.LogWarning("Bỏ qua vì không khớp cột: {Reason}", rejected);
+    }
+
+    private static string? Resolve(string? path, string? contentRoot)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        return Path.IsPathRooted(path) || contentRoot is null ? path : Path.GetFullPath(Path.Combine(contentRoot, path));
     }
 
     /// <summary>
@@ -114,6 +154,7 @@ public static class DatabaseInitializer
                 Username = username,
                 Email = email,
                 PasswordHash = hasher.Hash(password),
+                MustChangePassword = false,
                 FullName = entry["FullName"] is { Length: > 0 } name ? name.Trim() : Roles.NameOf(RoleCode.ADMIN),
                 Status = UserStatus.ACTIVE,
             });
