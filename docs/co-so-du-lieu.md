@@ -17,7 +17,7 @@ SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `Kh
 |---|---|
 | Tên | Bảng, cột `snake_case` đúng DBML (đổi tự động từ tên thuộc tính C#); khóa ngoại `fk_{bảng}_{cột}` như khối Ref của DBML; khóa chính `PK_{bảng}` |
 | Kiểu | `nvarchar(n)` / `nvarchar(max)`; `datetime2(3)` lưu UTC (đọc ra gắn `Kind=Utc`); `date` cho ngày của gói; `decimal(p,s)` đúng DBML; `tinyint` cho khối lớp; `smallint` cho tháng, ngày của sự kiện |
-| NULL / NOT NULL | Đúng DBML cho mọi cột, **trừ 32 khóa ngoại bắt buộc về nghiệp vụ khai báo NOT NULL** (DBML để ngỏ; đặc tả mô hình dữ liệu của nhóm chốt làm ở migration). 8 khóa ngoại được NULL: `users.organization_id`, `heritages.province_id`, `media.heritage_id`, `media.event_id`, `questions.ai_generation_id`, `questions.reviewed_by`, `attempt_answers.answer_id`, `audit_logs.user_id`. Thuộc tính C# nullable đúng theo cột |
+| NULL / NOT NULL | Đúng DBML cho mọi cột. **32 khóa ngoại bắt buộc về nghiệp vụ là NOT NULL** (DBML ghi `not null` từ 29/09/2026, theo đặc tả mô hình dữ liệu của nhóm). 8 khóa ngoại được NULL: `users.organization_id`, `heritages.province_id`, `media.heritage_id`, `media.event_id`, `questions.ai_generation_id`, `questions.reviewed_by`, `attempt_answers.answer_id`, `audit_logs.user_id`. Thuộc tính C# nullable đúng theo cột |
 | DEFAULT | Chỉ 8 cột `bit` có DEFAULT như DBML (`must_change_password`, `is_correct` ×2, `shuffle_questions`, `show_answers_after_submit` = 0; `students.is_active`, `plans.is_active`, `payment_providers.is_active` = 1). Ứng dụng luôn gửi giá trị khi thêm dòng. `created_at` không có DEFAULT (DBML không quy định): DbContext tự điền giờ UTC |
 | Enum | `nvarchar(20)` + CHECK `CK_{bảng}_{cột}` liệt kê đúng giá trị; EF `HasConversion<string>()`. `roles.code`, `audit_logs.actor_role`, `audit_logs.action` là chuỗi không CHECK |
 | CHECK khác | `CK_classes_grade` (khối 1-12), `CK_media_owner` (ảnh thuộc đúng một trong di sản hoặc sự kiện) |
@@ -92,10 +92,9 @@ CHECK; UNIQUE và bộ lọc; chỉ mục thường; collation), rồi xóa data
 
 Khác biệt cấu trúc ngoài dự kiến: **0**. Kiểu, độ dài, DEFAULT, biểu thức CHECK, bộ lọc UNIQUE, thứ tự cột, khóa chính đều khớp.
 
-Khác biệt có chủ đích (29):
-- 28 cột khóa ngoại NULL ở DBML, NOT NULL ở migration (32 khóa ngoại bắt buộc; 4 cột còn lại nằm trong khóa chính kép của
-  `lesson_heritages`, `quiz_questions` nên hai bên đều NOT NULL).
-- `password_reset_tokens.user_id`: NO ACTION ở DBML (công cụ không xuất ON DELETE), CASCADE ở migration theo ghi chú của DBML.
+Khác biệt có chủ đích: **0** (so lại ngày 29/09/2026). Trước đó có 29 khác biệt: 28 cột khóa ngoại bắt buộc để ngỏ NULL ở DBML
+và `password_reset_tokens.user_id` chỉ ghi Cascade bằng chữ. DBML nay khai báo `not null` cho 28 cột đó và `[delete: cascade]`
+cho khóa ngoại này, nên database tạo từ DBML và database do migration tạo khớp nhau về cấu trúc.
 
 Khác biệt kỹ thuật, không đổi ý nghĩa lược đồ: tên khóa chính, tên CHECK của cột enum và tên UNIQUE (DBML để SQL Server tự
 đặt tên, migration đặt `PK_`, `CK_`, `UX_`); 8 UNIQUE một cột khai báo bằng constraint ở DBML, bằng unique index ở migration;
