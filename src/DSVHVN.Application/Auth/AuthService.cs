@@ -44,8 +44,8 @@ public sealed class AuthService(
             throw AppException.Forbidden(Messages.CannotSignIn(Messages.SignInBlockedReasons.TemporaryLock(remaining)));
 
         var check = PasswordCheck.Failed;
-        if (user is null) hasher.VerifyAgainstDummy(request.Password!);
-        else check = hasher.Verify(user.PasswordHash, request.Password!);
+        if (user?.PasswordHash is { } passwordHash) check = hasher.Verify(passwordHash, request.Password!);
+        else hasher.VerifyAgainstDummy(request.Password!);
 
         if (user is null || check == PasswordCheck.Failed)
         {
@@ -98,7 +98,7 @@ public sealed class AuthService(
 
         try
         {
-            await mailer.SendResetPasswordLinkAsync(user.Email, user.FullName, token.RawToken, token.ExpiresAt, ct);
+            await mailer.SendResetPasswordLinkAsync(email, user.FullName ?? string.Empty, token.RawToken, token.ExpiresAt, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -147,7 +147,7 @@ public sealed class AuthService(
         var user = await db.Users.SingleOrDefaultAsync(u => u.Id == actor.UserId && u.DeletedAt == null, ct)
                    ?? throw AppException.Unauthorized(Messages.Forbidden);
 
-        if (hasher.Verify(user.PasswordHash, request.CurrentPassword!) == PasswordCheck.Failed)
+        if (user.PasswordHash is null || hasher.Verify(user.PasswordHash, request.CurrentPassword!) == PasswordCheck.Failed)
             throw AppException.Validation("currentPassword",
                 Messages.Invalid("Mật khẩu hiện tại", "không khớp với mật khẩu đang dùng"));
 
@@ -168,7 +168,8 @@ public sealed class AuthService(
     private AccessTokenDto IssueAccessToken(User user)
     {
         var issued = tokenIssuer.CreateAccessToken(new AccessTokenSubject(
-            user.Id, user.Username, user.FullName, user.RoleCode, user.OrganizationId, SecurityStamps.From(user.PasswordHash)));
+            user.Id, user.Username ?? string.Empty, user.FullName ?? string.Empty, user.RoleCode, user.OrganizationId,
+            SecurityStamps.From(user.PasswordHash)));
         return new AccessTokenDto("Bearer", issued.Token, issued.ExpiresAt);
     }
 

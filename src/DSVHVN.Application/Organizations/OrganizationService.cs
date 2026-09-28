@@ -115,7 +115,7 @@ public sealed class OrganizationService(
         }
 
         await provisioner.SendFirstPasswordLinkAsync(orgAdmin, org.Name, ct);
-        return new Created<OrganizationDetailDto>(await ToDetailAsync(org, ct), orgAdmin.User.Email);
+        return new Created<OrganizationDetailDto>(await ToDetailAsync(org, ct), orgAdmin.Email);
     }
 
     /// <summary>ADMIN sửa thông tin trường (cả tên). Trường đã ngừng thì không sửa.</summary>
@@ -159,7 +159,7 @@ public sealed class OrganizationService(
         }
 
         await provisioner.SendFirstPasswordLinkAsync(account, org.Name, ct);
-        return new Created<AccountDto>(AccountDto.From(account.User), account.User.Email);
+        return new Created<AccountDto>(AccountDto.From(account.User), account.Email);
     }
 
     public async Task<AccountDto> LockOrgAdminAsync(long organizationId, long userId, Actor actor, CancellationToken ct)

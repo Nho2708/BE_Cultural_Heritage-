@@ -11,13 +11,16 @@ namespace DSVHVN.Application.Billing;
 public sealed record SubscriptionDto(
     long Id,
     int PlanId,
-    string PlanName,
-    SubscriptionStatus Status,
+    string? PlanName,
+    SubscriptionStatus? Status,
     DateOnly? StartDate,
     DateOnly? EndDate,
     bool IsEffective);
 
-/// <summary>Bộ đếm "x / max_teachers giáo viên" (màn hình Giáo viên của trường). <see cref="Max"/> null khi trường không có gói hiệu lực.</summary>
+/// <summary>
+/// Bộ đếm "x / max_teachers giáo viên" (màn hình Giáo viên của trường). <see cref="Max"/> null khi trường không có gói hiệu lực
+/// (hoặc gói chưa khai báo hạn mức — khi đó không thêm được giáo viên).
+/// </summary>
 public sealed record TeacherQuotaDto(int Used, int? Max, string? PlanName, bool CanAddTeacher);
 
 /// <summary>
@@ -59,7 +62,7 @@ public sealed class PlanGuard(IAppDbContext db, TimeProvider clock)
     {
         var used = await CountTeachersAsync(organizationId, ct);
         var plan = (await GetEffectiveAsync(organizationId, ct))?.Plan;
-        return new TeacherQuotaDto(used, plan?.MaxTeachers, plan?.Name, plan is not null && used < plan.MaxTeachers);
+        return new TeacherQuotaDto(used, plan?.MaxTeachers, plan?.Name, plan is not null && used < MaxTeachersOf(plan));
     }
 
     /// <summary>
@@ -71,9 +74,13 @@ public sealed class PlanGuard(IAppDbContext db, TimeProvider clock)
         var plan = (await GetEffectiveAsync(organizationId, ct))?.Plan
                    ?? throw AppException.BusinessRule(Messages.Blocked("thêm giáo viên", "Trường chưa có gói dịch vụ còn hiệu lực."));
         var used = await CountTeachersAsync(organizationId, ct);
-        if (used >= plan.MaxTeachers)
-            throw AppException.BusinessRule(Messages.TeacherLimitReached(used, plan.MaxTeachers, plan.Name));
+        var max = MaxTeachersOf(plan);
+        if (used >= max)
+            throw AppException.BusinessRule(Messages.TeacherLimitReached(used, max, plan.Name ?? string.Empty));
     }
+
+    /// <summary>Hạn mức giáo viên của gói; cột được NULL trong CSDL, gói chưa khai báo hạn mức coi như 0 (không thêm được).</summary>
+    private static int MaxTeachersOf(Plan plan) => plan.MaxTeachers ?? 0;
 
     /// <summary>
     /// Trường mới nhận ngay gói "Miễn phí" ACTIVE từ hôm nay, không qua VNPay, không có hóa đơn.
@@ -85,13 +92,14 @@ public sealed class PlanGuard(IAppDbContext db, TimeProvider clock)
         var plans = await db.Plans.AsNoTracking().ToListAsync(ct);
         var free = plans.Where(p => p.Price == 0m).OrderBy(p => p.Id).FirstOrDefault()
                    ?? throw new InvalidOperationException("Chưa seed gói \"Miễn phí\" (plans giá 0).");
+        var durationDays = free.DurationDays ?? throw new InvalidOperationException("Gói \"Miễn phí\" chưa có thời hạn (duration_days).");
         var today = Today();
         var subscription = new Subscription
         {
             OrganizationId = organizationId,
             PlanId = free.Id,
             StartDate = today,
-            EndDate = Subscription.EndDateFor(today, free.DurationDays),
+            EndDate = Subscription.EndDateFor(today, durationDays),
             Status = SubscriptionStatus.ACTIVE,
         };
         db.Subscriptions.Add(subscription);
@@ -99,5 +107,5 @@ public sealed class PlanGuard(IAppDbContext db, TimeProvider clock)
     }
 
     public static SubscriptionDto ToDto(Subscription s, DateOnly today) =>
-        new(s.Id, s.PlanId, s.Plan?.Name ?? string.Empty, s.Status, s.StartDate, s.EndDate, s.IsEffectiveOn(today));
+        new(s.Id, s.PlanId, s.Plan?.Name, s.Status, s.StartDate, s.EndDate, s.IsEffectiveOn(today));
 }

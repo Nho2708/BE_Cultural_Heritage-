@@ -10,7 +10,7 @@ public sealed class PasswordPolicyTests
     [InlineData("MatKhau2026")]
     [InlineData("Mật-khẩu-Việt-9")]           // chữ có dấu vẫn tính hoa/thường
     [InlineData("Aa1!@#$%^&*()")]
-    public void Accepts_passwords_meeting_BR02(string password) =>
+    public void Accepts_passwords_meeting_the_password_rule(string password) =>
         Assert.True(PasswordPolicy.IsSatisfiedBy(password));
 
     [Theory]
@@ -21,7 +21,7 @@ public sealed class PasswordPolicyTests
     [InlineData("ABCDEFG1")]                 // thiếu chữ thường
     [InlineData("Abcdefgh")]                 // thiếu chữ số
     [InlineData("12345678")]
-    public void Rejects_passwords_violating_BR02(string? password) =>
+    public void Rejects_passwords_violating_the_password_rule(string? password) =>
         Assert.False(PasswordPolicy.IsSatisfiedBy(password));
 
     [Fact]

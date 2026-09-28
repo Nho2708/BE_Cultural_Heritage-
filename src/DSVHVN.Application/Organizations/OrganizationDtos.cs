@@ -42,7 +42,7 @@ public sealed record OrganizationSummaryDto(
     bool HasEffectivePlan,
     int TeacherCount,
     OrganizationState Status,
-    DateTime CreatedAt,
+    DateTime? CreatedAt,
     DateTime? DeactivatedAt);
 
 /// <summary>Chi tiết trường (xem/sửa): thông tin trường, quản trị trường, gói hiện tại (chỉ đọc), số giáo viên.</summary>
@@ -53,7 +53,7 @@ public sealed record OrganizationDetailDto(
     string? Phone,
     string? Email,
     OrganizationState Status,
-    DateTime CreatedAt,
+    DateTime? CreatedAt,
     DateTime? UpdatedAt,
     DateTime? DeactivatedAt,
     SubscriptionDto? Subscription,

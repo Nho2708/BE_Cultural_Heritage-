@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DSVHVN.Tests.Unit;
 
-/// <summary>Quản lý trường và giáo viên ở tầng service: gói Miễn phí cho trường mới, liên kết 48 giờ, phạm vi theo trường, hạn mức giáo viên, nhật ký kiểm toán, kiểm gói và hạn mức.</summary>
+/// <summary>Quản lý trường và giáo viên ở tầng service: gói Miễn phí cho trường mới, liên kết 48 giờ, phạm vi theo trường, hạn mức giáo viên, nhật ký thao tác, kiểm gói và hạn mức.</summary>
 public sealed class OrganizationServiceTests : IDisposable
 {
     private readonly ServiceHarness _h = new(freePlanMaxTeachers: 2);
@@ -141,7 +141,7 @@ public sealed class OrganizationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Creating_a_teacher_without_an_effective_plan_is_blocked_by_BR34()
+    public async Task Creating_a_teacher_without_an_effective_plan_is_blocked()
     {
         var org = (await CreateOrg()).Data;
         var orgAdmin = OrgAdminOf(org);

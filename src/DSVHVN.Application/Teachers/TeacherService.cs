@@ -35,7 +35,9 @@ public sealed class TeacherService(
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
             var keyword = query.Keyword.Trim();
-            teachers = teachers.Where(u => u.FullName.Contains(keyword) || u.Username.Contains(keyword) || u.Email.Contains(keyword));
+            teachers = teachers.Where(u => (u.FullName != null && u.FullName.Contains(keyword))
+                                           || (u.Username != null && u.Username.Contains(keyword))
+                                           || (u.Email != null && u.Email.Contains(keyword)));
         }
         if (query.Status is { } status) teachers = teachers.Where(u => u.Status == status);
 
@@ -68,7 +70,7 @@ public sealed class TeacherService(
         }
 
         await provisioner.SendFirstPasswordLinkAsync(account, orgName, ct);
-        return new Created<AccountDto>(AccountDto.From(account.User), account.User.Email);
+        return new Created<AccountDto>(AccountDto.From(account.User), account.Email);
     }
 
     public async Task<AccountDto> LockAsync(Actor actor, long id, CancellationToken ct)

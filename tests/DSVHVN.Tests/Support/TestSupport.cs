@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using DSVHVN.Application;
 using DSVHVN.Application.Common;
 using DSVHVN.Domain.Billing;
+using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Identity;
 using DSVHVN.Domain.Organizations;
@@ -149,7 +150,7 @@ public sealed class ServiceHarness : IDisposable
                 db.Subscriptions.Add(new Subscription
                 {
                     OrganizationId = org.Id, PlanId = plan.Id, Status = SubscriptionStatus.ACTIVE,
-                    StartDate = today, EndDate = Subscription.EndDateFor(today, plan.DurationDays),
+                    StartDate = today, EndDate = Subscription.EndDateFor(today, plan.DurationDays!.Value),
                 });
                 await db.SaveChangesAsync();
             }
@@ -173,6 +174,47 @@ public sealed class ServiceHarness : IDisposable
             db.Users.Add(user);
             await db.SaveChangesAsync();
             return user;
+        });
+
+    /// <summary>
+    /// Học sinh có tài khoản như cách giáo viên thêm vào lớp: vai trò học sinh, tên đăng nhập = mã học sinh, không email,
+    /// buộc đổi mật khẩu. Lớp 8A1 của giáo viên được tạo lần đầu gọi.
+    /// </summary>
+    public Task<(User Account, Student Student)> AddStudentAsync(long organizationId, long teacherId,
+        string studentCode = "HS8K2QX7", string fullName = "Nguyễn Văn An") =>
+        QueryAsync(async db =>
+        {
+            var schoolClass = await db.Classes.FirstOrDefaultAsync(c => c.TeacherId == teacherId);
+            if (schoolClass is null)
+            {
+                schoolClass = new SchoolClass
+                {
+                    OrganizationId = organizationId, TeacherId = teacherId, Name = "8A1", Grade = 8, SchoolYear = "2026-2027",
+                };
+                db.Classes.Add(schoolClass);
+            }
+
+            var account = new User
+            {
+                OrganizationId = organizationId,
+                RoleId = Roles.StudentId,
+                Username = studentCode,
+                Email = null,
+                PasswordHash = Hasher.Hash(Password),
+                MustChangePassword = true,
+                FullName = fullName,
+                Status = UserStatus.ACTIVE,
+            };
+            db.Users.Add(account);
+            await db.SaveChangesAsync();
+
+            var student = new Student
+            {
+                ClassId = schoolClass.Id, UserId = account.Id, StudentCode = studentCode, FullName = fullName, IsActive = true,
+            };
+            db.Students.Add(student);
+            await db.SaveChangesAsync();
+            return (account, student);
         });
 
     public void Dispose()

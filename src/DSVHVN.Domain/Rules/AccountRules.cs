@@ -21,7 +21,7 @@ public static class AccountRules
     /// <summary>Tối đa 3 yêu cầu quên mật khẩu mỗi giờ cho mỗi email.</summary>
     public const int MaxForgotPasswordRequestsPerHour = 3;
 
-    // Độ dài theo cột của DBML v2.
+    // Độ dài theo cột của CSDL v3.
     public const int UsernameMinLength = 3;
     public const int UsernameMaxLength = 50;
     public const int EmailMaxLength = 255;

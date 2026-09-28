@@ -2,33 +2,71 @@ using System.Text;
 using DSVHVN.Application.Common;
 using DSVHVN.Domain.Audit;
 using DSVHVN.Domain.Billing;
+using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Common;
+using DSVHVN.Domain.Heritages;
 using DSVHVN.Domain.Identity;
+using DSVHVN.Domain.Lessons;
 using DSVHVN.Domain.Organizations;
+using DSVHVN.Domain.Questions;
+using DSVHVN.Domain.Quizzes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DSVHVN.Infrastructure.Persistence;
 
 /// <summary>
-/// DbContext của toàn hệ thống. Lược đồ chỉ đổi qua migration EF Core theo luồng:
-/// Luồng nền tảng tạo 7 bảng organizations, roles, users, password_reset_tokens, audit_logs, plans, subscriptions.
-/// Tên bảng, tên cột giữ đúng DBML v2 (snake_case) — xem <see cref="ApplySnakeCaseNames"/>.
-/// Cấu hình riêng SQL Server (collation Vietnamese_CI_AI, mặc định SYSUTCDATETIME()) chỉ áp khi provider là SQL Server
-/// để kiểm thử chạy được trên SQLite.
+/// DbContext của toàn hệ thống: đủ 27 bảng của CSDL v3 (doc/database/dsvhvn-v3.dbml), 8 nhóm.
+/// Lược đồ chỉ đổi qua migration EF Core mới. Tên bảng, tên cột giữ đúng DBML (snake_case) — xem <see cref="ApplySnakeCaseNames"/>.
+/// Cấu hình riêng SQL Server (collation Vietnamese_CI_AI) chỉ áp khi provider là SQL Server để kiểm thử chạy được trên SQLite.
 /// </summary>
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider clock)
     : DbContext(options), IAppDbContext
 {
     public const string VietnameseCollation = "Vietnamese_CI_AI";
 
+    // 1. Auth / Tổ chức
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<User> Users => Set<User>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    // 2. Lớp / Học sinh
+    public DbSet<SchoolClass> Classes => Set<SchoolClass>();
+    public DbSet<Student> Students => Set<Student>();
+
+    // 3. Di sản
+    public DbSet<Province> Provinces => Set<Province>();
+    public DbSet<Heritage> Heritages => Set<Heritage>();
+    public DbSet<Timeline> Timelines => Set<Timeline>();
+    public DbSet<TimelineEvent> Events => Set<TimelineEvent>();
+    public DbSet<Media> Media => Set<Media>();
+    public DbSet<HeritageReference> HeritageReferences => Set<HeritageReference>();
+
+    // 4. Bài học + AI
+    public DbSet<Lesson> Lessons => Set<Lesson>();
+    public DbSet<LessonHeritage> LessonHeritages => Set<LessonHeritage>();
+    public DbSet<AiGeneration> AiGenerations => Set<AiGeneration>();
+
+    // 5. Ngân hàng câu hỏi
+    public DbSet<Question> Questions => Set<Question>();
+    public DbSet<Answer> Answers => Set<Answer>();
+
+    // 6. Quiz
+    public DbSet<Quiz> Quizzes => Set<Quiz>();
+    public DbSet<QuizQuestion> QuizQuestions => Set<QuizQuestion>();
+
+    // 7. Làm bài / Kết quả
+    public DbSet<Attempt> Attempts => Set<Attempt>();
+    public DbSet<AttemptAnswer> AttemptAnswers => Set<AttemptAnswer>();
+
+    // 8. Thanh toán
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<PaymentProvider> PaymentProviders => Set<PaymentProvider>();
+    public DbSet<Payment> Payments => Set<Payment>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -39,18 +77,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        var isSqlServer = Database.IsSqlServer();
-        if (isSqlServer) modelBuilder.UseCollation(VietnameseCollation);
+        if (Database.IsSqlServer()) modelBuilder.UseCollation(VietnameseCollation);
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         ApplySnakeCaseNames(modelBuilder);
-
-        if (!isSqlServer) return;
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        {
-            if (!typeof(IHasCreatedAt).IsAssignableFrom(entity.ClrType)) continue;
-            entity.FindProperty(nameof(IHasCreatedAt.CreatedAt))?.SetDefaultValueSql("SYSUTCDATETIME()");
-        }
     }
 
     /// <summary>
@@ -85,16 +115,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
         now = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMillisecond));
         foreach (var entry in ChangeTracker.Entries())
         {
-            if (entry.Entity is AuditLog)
+            if (entry.Entity is AuditLog log)
             {
                 // audit_logs chỉ thêm, không sửa, không xóa.
                 if (entry.State is EntityState.Modified or EntityState.Deleted)
-                    throw new InvalidOperationException("Nhật ký kiểm toán chỉ được thêm, không sửa, không xóa.");
-                if (entry.State == EntityState.Added) ((AuditLog)entry.Entity).CreatedAt = now;
+                    throw new InvalidOperationException("Nhật ký thao tác chỉ được thêm, không sửa, không xóa.");
+                if (entry.State == EntityState.Added) log.CreatedAt = now;
                 continue;
             }
 
-            if (entry.State == EntityState.Added && entry.Entity is IHasCreatedAt created && created.CreatedAt == default)
+            if (entry.State == EntityState.Added && entry.Entity is IHasCreatedAt created && created.CreatedAt is null)
                 created.CreatedAt = now;
             if (entry.State == EntityState.Modified && entry.Entity is IHasUpdatedAt updated)
                 updated.UpdatedAt = now;
@@ -102,7 +132,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
     }
 
     /// <summary>
-    /// Giữ nguyên tên của DBML v2: cột snake_case (OrganizationId → organization_id), khóa ngoại
+    /// Giữ nguyên tên của CSDL v3: cột snake_case (OrganizationId → organization_id), khóa ngoại
     /// <c>fk_{bảng}_{cột}</c> như khối Ref của DBML, khóa chính <c>PK_{bảng}</c>. Tên bảng khai báo trong từng cấu hình.
     /// </summary>
     private static void ApplySnakeCaseNames(ModelBuilder modelBuilder)

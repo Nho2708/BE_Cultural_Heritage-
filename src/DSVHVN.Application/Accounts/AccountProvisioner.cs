@@ -29,28 +29,36 @@ public sealed class NewAccountRequestValidator : AbstractValidator<NewAccountReq
     }
 }
 
-/// <summary>Dòng tài khoản ở màn hình Giáo viên của trường và Chi tiết trường (quản trị trường).</summary>
+/// <summary>
+/// Dòng tài khoản ở màn hình Giáo viên của trường và Chi tiết trường (quản trị trường). Trường theo cột CSDL được NULL
+/// khai báo nullable; tài khoản người lớn do ứng dụng tạo luôn có tên đăng nhập, email, họ tên, trạng thái.
+/// </summary>
 public sealed record AccountDto(
     long Id,
-    string Username,
-    string Email,
-    string FullName,
+    string? Username,
+    string? Email,
+    string? FullName,
     string? Phone,
     RoleCode Role,
-    UserStatus Status,
+    UserStatus? Status,
     DateTime? LastLoginAt,
-    DateTime CreatedAt)
+    DateTime? CreatedAt)
 {
     public static AccountDto From(User u) =>
         new(u.Id, u.Username, u.Email, u.FullName, u.Phone, u.RoleCode, u.Status, u.LastLoginAt, u.CreatedAt);
 }
 
 /// <summary>Tài khoản vừa tạo và liên kết đặt mật khẩu lần đầu chưa gửi (gửi sau khi giao dịch đã commit).</summary>
-public sealed record ProvisionedAccount(User User, IssuedPasswordToken Token);
+public sealed record ProvisionedAccount(User User, IssuedPasswordToken Token)
+{
+    /// <summary>Email nhận liên kết; tài khoản người lớn luôn được tạo kèm email.</summary>
+    public string Email => User.Email ?? throw new InvalidOperationException("Tài khoản người lớn phải có email.");
+}
 
 /// <summary>
-/// Tạo tài khoản ORG_ADMIN (ADMIN làm) hoặc TEACHER (ORG_ADMIN làm):
-/// mật khẩu ngẫu nhiên không ai biết, liên kết đặt mật khẩu lần đầu 48 giờ, ghi ACCOUNT_CREATED.
+/// Tạo tài khoản ORG_ADMIN (quản trị hệ thống làm) hoặc TEACHER (quản trị trường làm): bắt buộc có email,
+/// mật khẩu ngẫu nhiên không ai biết, không buộc đổi mật khẩu (người dùng tự đặt qua liên kết đặt mật khẩu lần đầu 48 giờ),
+/// ghi ACCOUNT_CREATED.
 /// Không tự mở giao dịch: người gọi bọc cùng các bước khác (tạo trường, kiểm hạn mức) trong một giao dịch.
 /// </summary>
 public sealed class AccountProvisioner(
@@ -95,6 +103,7 @@ public sealed class AccountProvisioner(
             Username = UsernamePolicy.Normalize(request.Username),
             Email = EmailAddress.Normalize(request.Email),
             PasswordHash = hasher.Hash(SecureTokens.UnknownPassword()),
+            MustChangePassword = false,
             FullName = request.FullName!.Trim(),
             Phone = ValidationRules.TrimToNull(request.Phone),
             Status = UserStatus.ACTIVE,
@@ -137,8 +146,8 @@ public sealed class AccountProvisioner(
     {
         try
         {
-            await mailer.SendFirstPasswordLinkAsync(account.User.Email, account.User.FullName, account.User.Username,
-                organizationName, account.Token.RawToken, account.Token.ExpiresAt, ct);
+            await mailer.SendFirstPasswordLinkAsync(account.Email, account.User.FullName ?? string.Empty,
+                account.User.Username ?? string.Empty, organizationName, account.Token.RawToken, account.Token.ExpiresAt, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
