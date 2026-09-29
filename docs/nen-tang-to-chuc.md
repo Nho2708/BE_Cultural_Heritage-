@@ -10,7 +10,7 @@ thuộc các luồng sau, lược đồ đã có sẵn.
 | Chức năng | Đăng nhập web quản trị · Đặt mật khẩu qua email · Hồ sơ cá nhân · Quản lý thông tin trường · Quản lý tài khoản giáo viên · Xem nhật ký thao tác |
 | Quy tắc nghiệp vụ | Bốn vai trò, tài khoản do cấp trên tạo (không tự đăng ký); người lớn bắt buộc có email, học sinh không có email; mật khẩu 8-64 ký tự có chữ hoa, chữ thường, chữ số, tự đổi thì phải khác mật khẩu hiện tại; chống dò mật khẩu; liên kết đặt mật khẩu; phạm vi theo vai trò và trường; hạn mức giáo viên; nhật ký thao tác; gói "Miễn phí", đăng ký ACTIVE khi tạo trường, gói hiệu lực; chặn tạo giáo viên khi không có gói hiệu lực |
 | Màn hình phục vụ | Đăng nhập, Đặt mật khẩu, Hồ sơ, Thông tin trường (tab Thông tin trường), Giáo viên của trường, biểu mẫu tài khoản, Quản lý trường, Chi tiết trường, Nhật ký thao tác |
-| Chức năng nền | Kiểm gói và hạn mức (phần `max_teachers`) · thư đặt mật khẩu (bản giả) · ghi nhật ký · xác thực, phân quyền, tách dữ liệu theo trường |
+| Chức năng nền | Kiểm gói và hạn mức (phần `max_teachers`) · thư đặt mật khẩu (ghi log hoặc gửi thật qua SMTP, [gui-thu.md](gui-thu.md)) · ghi nhật ký · xác thực, phân quyền, tách dữ liệu theo trường |
 | Nguồn | `doc/huong-moi/05-quyet-dinh-can-chot.md` · `doc/database/dsvhvn-v3.dbml` · đặc tả nội bộ của nhóm |
 
 ## 1. Cấu trúc solution
@@ -22,7 +22,7 @@ src/DSVHVN.Application     AuthService, ProfileService, OrganizationService (ADM
                            AccountProvisioner, AccountActions, PasswordTokenService, PlanGuard (kiểm gói và hạn mức),
                            AuditLogger + AuditLogService, validator FluentValidation, danh mục thông điệp (Messages, MessageCodes)
 src/DSVHVN.Infrastructure  EF Core 9 SQL Server (AppDbContext 27 bảng, cấu hình theo nhóm bảng, migration KhoiTaoCsdl, seed,
-                           nạp dữ liệu tỉnh/thành và di sản), JWT, PBKDF2, bộ đếm khóa đăng nhập trong bộ nhớ, thư giả ghi log
+                           nạp dữ liệu tỉnh/thành và di sản), JWT, PBKDF2, bộ đếm khóa đăng nhập trong bộ nhớ, gửi thư (ghi log hoặc SMTP)
 src/DSVHVN.Api             Controllers, middleware (Correlation Id, khuôn phản hồi, header bảo mật), policy theo 4 vai trò
 tests/DSVHVN.Tests         xUnit: Unit/ (SQLite trong bộ nhớ) + Integration/ (WebApplicationFactory trên SQLite trong bộ nhớ,
                            và trên database tạm của SQL Server LocalDB tự xóa khi xong)
@@ -145,9 +145,10 @@ Seed lúc khởi động (`DatabaseInitializer`, idempotent, chạy sau `Databas
 | `Jwt:SigningKey` | trống (Development/Testing sinh khóa ngẫu nhiên mỗi lần chạy) | Môi trường khác bắt buộc, ≥ 32 byte |
 | `Jwt:AccessTokenMinutes` | 480 | Access token 8 giờ |
 | `App:FrontendBaseUrl`, `App:SetPasswordPath` | `http://localhost:5173`, `/dat-mat-khau` | Liên kết trong thư: `{FrontendBaseUrl}{SetPasswordPath}?token=…` (màn hình Đặt mật khẩu) |
+| `Email:Mode` | `Log` | `Log`: không gửi, ghi thư ra log. `Smtp`: gửi thật qua `Email:Smtp:*`; mật khẩu chỉ đặt trong User Secrets hoặc biến môi trường. Chi tiết ở [gui-thu.md](gui-thu.md) |
 | `Cors:AllowedOrigins` | `http://localhost:5173` | Chỉ mở cho origin của ứng dụng React |
 
-Email: `IEmailSender` bản giả `ConsoleEmailSender` ghi nguyên thư (kể cả liên kết có token) ra log — chỉ dùng ở máy phát triển; gửi qua SMTP thật thuộc luồng sau.
+Email: `IEmailSender` có hai bản chọn theo `Email:Mode` — `LogEmailSender` (mặc định) ghi nguyên thư (kể cả liên kết có token) ra log, chỉ dùng ở máy phát triển; `SmtpEmailSender` gửi thật qua MailKit, thư HTML kèm bản chữ thuần, log không chứa token. Cách bật Gmail và lưu ý: [gui-thu.md](gui-thu.md).
 
 ## 5. Chạy và kiểm thử
 
@@ -160,7 +161,7 @@ dotnet test                                                                    #
 API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-nen-tang.sh
 ```
 
-Kiểm thử tự động: **133 test** (107 unit, 26 integration). Unit chạy service thật trên SQLite trong bộ nhớ với đồng hồ tua được (hạn 30 phút/48 giờ, tạm khóa 15 phút, hết hạn gói, ngày Việt Nam), kèm quy ước CSDL (27 bảng, 40 khóa ngoại, 19 CHECK, UNIQUE có lọc, DEFAULT của cột bit, học sinh không email) và ma trận 4 vai trò × 6 policy. Integration chạy cả Api qua HTTP: tách dữ liệu hai trường (404), khóa có hiệu lực ngay, đổi mật khẩu vô hiệu token cũ, ngừng trường, nhật ký; 5 test chạy trên database tạm của SQL Server LocalDB (tạo bằng migration, tự xóa): lược đồ, dữ liệu di sản, luồng web quản trị, tài khoản học sinh bị từ chối ở web quản trị, UNIQUE có lọc của bài học và thanh toán. Smoke test trên LocalDB: [smoke-nen-tang.md](smoke-nen-tang.md).
+Kiểm thử tự động: **166 test** (140 unit, 26 integration). Unit chạy service thật trên SQLite trong bộ nhớ với đồng hồ tua được (hạn 30 phút/48 giờ, tạm khóa 15 phút, hết hạn gói, ngày Việt Nam), kèm quy ước CSDL (27 bảng, 40 khóa ngoại, 19 CHECK, UNIQUE có lọc, DEFAULT của cột bit, học sinh không email) và ma trận 4 vai trò × 6 policy, nội dung hai loại thư, chọn bản gửi theo `Email:Mode`, kiểm cấu hình SMTP, gửi qua một máy chủ SMTP giả trên loopback (không ra mạng), lỗi gửi thư không làm hỏng tài khoản đã tạo. Integration chạy cả Api qua HTTP: tách dữ liệu hai trường (404), khóa có hiệu lực ngay, đổi mật khẩu vô hiệu token cũ, ngừng trường, nhật ký; 5 test chạy trên database tạm của SQL Server LocalDB (tạo bằng migration, tự xóa): lược đồ, dữ liệu di sản, luồng web quản trị, tài khoản học sinh bị từ chối ở web quản trị, UNIQUE có lọc của bài học và thanh toán. Smoke test trên LocalDB: [smoke-nen-tang.md](smoke-nen-tang.md).
 
 ## 6. Quyết định hiện thực và điểm lệch cần biết
 
@@ -173,7 +174,7 @@ Kiểm thử tự động: **133 test** (107 unit, 26 integration). Unit chạy 
 | 5 | Chặn tạo giáo viên khi không có gói hiệu lực | 422 `BLOCKED` "Không thể thêm giáo viên. Trường chưa có gói dịch vụ còn hiệu lực." | Câu banner gói hết hạn cần `{ngay_het_han}`, không hợp làm lỗi API |
 | 6 | Token cũ bị vô hiệu khi đổi mật khẩu | Claim `sst` = 16 ký tự hex SHA-256 của `password_hash`, đối chiếu mỗi yêu cầu | Không có refresh token nên không có danh sách phiên để thu hồi; không thêm cột |
 | 7 | Khóa, xóa mềm, ngừng trường vô hiệu liên kết đặt mật khẩu chưa dùng | Ghi `used_at` | Mở khóa xong, người dùng lấy liên kết mới ở "Quên mật khẩu" |
-| 8 | Chưa làm ở luồng này | Đếm lượt AI → khi có `ai_generations`; tác vụ nền ACTIVE → EXPIRED, "Kích hoạt gói Miễn phí", mua gói → luồng gói dịch vụ; SMTP thật; giao diện → repo frontend | Gói quá `end_date` vẫn bị coi là không hiệu lực vì `PlanGuard` so ngày trực tiếp |
+| 8 | Chưa làm ở luồng này | Đếm lượt AI → khi có `ai_generations`; tác vụ nền ACTIVE → EXPIRED, "Kích hoạt gói Miễn phí", mua gói → luồng gói dịch vụ; giao diện → repo frontend | Gói quá `end_date` vẫn bị coi là không hiệu lực vì `PlanGuard` so ngày trực tiếp |
 | 9 | Thứ tự trường trong lỗi trùng | Kiểm email trước username | Mỗi lần báo một trường; giao diện hiện dưới đúng ô |
 | 10 | `errorCode` đặt theo nghĩa | `REQUIRED`, `INVALID_CREDENTIALS`, `ACCOUNT_BLOCKED`… (bảng ở mục 2) | Giao diện xử lý theo mã, không theo câu chữ |
 | 11 | Tài khoản học sinh ở web quản trị | Truy vấn đăng nhập bỏ qua vai trò học sinh → cùng câu sai thông tin đăng nhập; hồ sơ, đổi mật khẩu dùng policy `Staff` (học sinh 403) | Web quản trị chỉ nhận ba vai trò người lớn; không cho biết mã học sinh có tồn tại |

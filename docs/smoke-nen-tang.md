@@ -5,7 +5,7 @@
 | Ngày chạy | 28/09/2026 (giờ Việt Nam), sau khi dựng CSDL v3 |
 | CSDL | `(localdb)\MSSQLLocalDB` · database tạm `dsvhvn_kiem_thu_smoke` (chuỗi kết nối qua biến môi trường `ConnectionStrings__Default`, đã xóa sau khi chạy) · collation `Vietnamese_CI_AI` · migration `20260928164123_KhoiTaoCsdl` |
 | API | `dotnet run --no-launch-profile` (Development, `http://localhost:5088`), mật khẩu ADMIN seed từ User Secrets `Seed:AdminPassword` |
-| Lệnh | `BASE=http://localhost:5088 API_LOG=… ADMIN_PASSWORD=… bash scripts/smoke-nen-tang.sh` — body JSON tiếng Việt đi qua tệp (`curl --data-binary @file`), liên kết đặt mật khẩu đọc từ log thư giả |
+| Lệnh | `BASE=http://localhost:5088 API_LOG=… ADMIN_PASSWORD=… bash scripts/smoke-nen-tang.sh` — body JSON tiếng Việt đi qua tệp (`curl --data-binary @file`), liên kết đặt mật khẩu đọc từ log thư (API chạy với `Email:Mode = Log`, mặc định) |
 | Kết quả | **39/39 bước đúng mã HTTP và mã thông điệp** |
 
 Log khởi động của lần chạy: áp migration khởi tạo; seed gói Miễn phí (365 ngày, 10 giáo viên, 300 lượt AI); seed 4 ADMIN; nạp

@@ -2,7 +2,8 @@
 # Smoke test luồng nền tảng tổ chức trên API đang chạy, mặc định http://localhost:5080 với CSDL sep490_dsvhvn_v3_dev.
 #
 # Body JSON có chữ tiếng Việt luôn đi qua FILE (curl --data-binary @file, đường dẫn tương đối): trên Windows, đối số
-# dòng lệnh bị đổi bảng mã và hỏng dấu. Liên kết đặt mật khẩu lấy từ log của API (thư giả IEmailSender ghi ra log).
+# dòng lệnh bị đổi bảng mã và hỏng dấu. Liên kết đặt mật khẩu lấy từ log của API: chạy API với Email:Mode = Log
+# (mặc định) để thư được ghi ra log thay vì gửi đi.
 #
 # Dùng:
 #   dotnet run --project src/DSVHVN.Api --launch-profile http > api.log 2>&1 &     # Seed:AdminPassword đã cấu hình
@@ -30,7 +31,7 @@ d=json.load(open(sys.argv[1],encoding='utf-8'))['data']
 for k in sys.argv[2].split('.'): d=d[int(k)] if isinstance(d,list) else d[k]
 print(d)" "$1" "$2"; }
 
-# Token trong thư giả mới nhất gửi tới email (chờ tối đa 5 giây cho log ghi xong).
+# Token trong thư mới nhất ghi ra log cho email (chờ tối đa 5 giây cho log ghi xong).
 mail_token() { python -c "
 import re,sys,time
 email=sys.argv[2].lower()
