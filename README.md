@@ -13,6 +13,7 @@ tên cột giữ đúng DBML (`snake_case`) — xem [docs/co-so-du-lieu.md](docs
 |---|---|---|
 | Cơ sở dữ liệu v3: 27 bảng, migration khởi tạo, nạp 34 tỉnh/thành và di sản đợt 1, đối chiếu với DBML | Xong | [docs/co-so-du-lieu.md](docs/co-so-du-lieu.md) |
 | Nền tảng: đăng nhập web quản trị bằng email/username, đặt mật khẩu qua email, hồ sơ, ADMIN quản lý trường, ORG_ADMIN quản lý giáo viên, nhật ký thao tác | Xong phần backend | [docs/nen-tang-to-chuc.md](docs/nen-tang-to-chuc.md) · [docs/smoke-nen-tang.md](docs/smoke-nen-tang.md) |
+| Gửi thư đặt mật khẩu: ghi ra log (mặc định) hoặc gửi thật qua SMTP (Gmail…), bật/tắt bằng `Email:Mode` | Xong | [docs/gui-thu.md](docs/gui-thu.md) |
 
 ## Cấu trúc
 
@@ -20,7 +21,7 @@ tên cột giữ đúng DBML (`snake_case`) — xem [docs/co-so-du-lieu.md](docs
 src/DSVHVN.Domain          Thực thể đủ 27 bảng theo CSDL v3, enum, quy tắc nghiệp vụ thuần
 src/DSVHVN.Application     Dịch vụ nghiệp vụ, kiểm gói và hạn mức, validator, danh mục thông điệp tiếng Việt, nhật ký thao tác
 src/DSVHVN.Infrastructure  EF Core (DbContext, cấu hình theo nhóm bảng, migration, seed, nạp dữ liệu di sản), JWT,
-                           băm mật khẩu PBKDF2, email giả
+                           băm mật khẩu PBKDF2, gửi thư (ghi log hoặc SMTP qua MailKit)
 src/DSVHVN.Api             Controllers, middleware, phân quyền 4 vai trò (ADMIN, ORG_ADMIN, TEACHER, STUDENT)
 tests/DSVHVN.Tests         xUnit: unit + integration (WebApplicationFactory trên SQLite trong bộ nhớ và trên database tạm
                            của SQL Server LocalDB, tự xóa khi xong)
@@ -50,5 +51,22 @@ CSDL dev: `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Viet
 `sep490_dsvhvn_dev`, `sep490_dsvhvn_v2_dev`). Dùng CSDL khác thì đặt biến môi trường
 `ConnectionStrings__Default` (cả cho `dotnet-ef` lẫn Api). Dữ liệu di sản đọc từ thư mục `doc/du-lieu-di-san` của nhóm nằm cạnh
 repo (`Seed:HeritageData:*` trong `appsettings.Development.json`); máy không có thư mục này thì bước nạp di sản được bỏ qua.
-Thư đặt mật khẩu hiện là bản giả ghi ra log (có liên kết kèm token). Chi tiết endpoint, cấu hình và quyết định hiện thực ở
-[docs/nen-tang-to-chuc.md](docs/nen-tang-to-chuc.md).
+Chi tiết endpoint, cấu hình và quyết định hiện thực ở [docs/nen-tang-to-chuc.md](docs/nen-tang-to-chuc.md).
+
+## Thư đặt mật khẩu
+
+Mặc định `Email:Mode = Log`: thư **không gửi đi**, nội dung (kể cả liên kết có token) ghi ra log để dev và smoke test không cần
+SMTP. Bật gửi thật qua Gmail (cần bật Xác minh 2 bước và tạo Mật khẩu ứng dụng 16 ký tự, nhập liền không khoảng trắng):
+
+```bash
+dotnet user-secrets set "Email:Mode" "Smtp" --project src/DSVHVN.Api
+dotnet user-secrets set "Email:Smtp:Host" "smtp.gmail.com" --project src/DSVHVN.Api
+dotnet user-secrets set "Email:Smtp:Port" "587" --project src/DSVHVN.Api
+dotnet user-secrets set "Email:Smtp:Username" "<tai-khoan>@gmail.com" --project src/DSVHVN.Api
+dotnet user-secrets set "Email:Smtp:Password" "<app-password>" --project src/DSVHVN.Api
+dotnet user-secrets set "Email:Smtp:FromAddress" "<tai-khoan>@gmail.com" --project src/DSVHVN.Api
+```
+
+Mật khẩu SMTP không ghi vào appsettings; ngoài Development đặt bằng biến môi trường `Email__Smtp__Password`. Thiếu cấu hình bắt
+buộc thì API dừng lúc khởi động và báo mục còn thiếu. Email `*.local` của 4 tài khoản quản trị mẫu **không nhận được thư**; thử
+bằng trường hoặc giáo viên tạo với email thật. Chi tiết, cách tắt và các lưu ý: [docs/gui-thu.md](docs/gui-thu.md).
