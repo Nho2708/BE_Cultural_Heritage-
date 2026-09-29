@@ -2,8 +2,9 @@
 
 Phần backend của luồng Kho di sản, chỉ dành cho **quản trị hệ thống** (ADMIN): biên soạn nội dung di sản từ nguồn Cục Di sản
 văn hóa, dựng timeline riêng cho từng di sản, quản lý thư viện ảnh kèm ghi công và khai báo nguồn tham chiếu. Trang công khai
-của web học tập (luồng Khám phá di sản) chưa có; luồng này chỉ cấp API cho web quản trị. Chạy trên CSDL v3, **không thêm bảng
-hay cột** ([co-so-du-lieu.md](co-so-du-lieu.md)).
+của web học tập là luồng Khám phá di sản ([kham-pha-di-san.md](kham-pha-di-san.md)); luồng này chỉ cấp API cho web quản trị. Chạy trên CSDL v3,
+**không thêm bảng hay cột** ([co-so-du-lieu.md](co-so-du-lieu.md)); hai cột tìm kiếm không dấu của `heritages` do luồng Khám phá di sản thêm sau
+và tự cập nhật mỗi khi lưu di sản.
 
 | Mục | Giá trị |
 |---|---|
