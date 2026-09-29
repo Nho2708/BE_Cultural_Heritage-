@@ -39,6 +39,10 @@ internal sealed class HeritageConfiguration : IEntityTypeConfiguration<Heritage>
         b.Property(x => x.PlaceId).HasMaxLength(255);
         b.Property(x => x.ThumbnailUrl).HasMaxLength(500);
         b.Property(x => x.Status).AsEnumText();
+        // Hai cột tìm kiếm không dấu (migration riêng): collation Vietnamese_CI_AI không coi ă, â, ê, ô, ơ, ư, đ là chữ có dấu.
+        // Dữ liệu gấp bằng SearchText.Fold nên so khớp theo mã nhị phân là đủ, không cần collation tiếng Việt.
+        b.Property(x => x.SearchName).HasMaxLength(260);   // tên tối đa 255 ký tự đã gấp, cộng dấu cách đầu
+        b.Property(x => x.SearchText);
         b.HasIndex(x => x.Slug).IsPlainUnique("UX_heritages_slug");
 
         b.HasOne(x => x.Province).WithMany().HasForeignKey(x => x.ProvinceId).OnDelete(DeleteBehavior.Restrict);

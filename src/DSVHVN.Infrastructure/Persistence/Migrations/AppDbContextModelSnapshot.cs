@@ -532,6 +532,15 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("recognized_year");
 
+                    b.Property<string>("SearchName")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)")
+                        .HasColumnName("search_name");
+
+                    b.Property<string>("SearchText")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("search_text");
+
                     b.Property<string>("ShortDescription")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)")

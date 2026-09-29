@@ -10,6 +10,7 @@ using DSVHVN.Domain.Lessons;
 using DSVHVN.Domain.Organizations;
 using DSVHVN.Domain.Questions;
 using DSVHVN.Domain.Quizzes;
+using DSVHVN.Domain.Rules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -124,11 +125,30 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
                 continue;
             }
 
+            if (entry.Entity is Heritage heritage && entry.State is EntityState.Added or EntityState.Modified)
+                RefreshSearchText(entry, heritage);
+
             if (entry.State == EntityState.Added && entry.Entity is IHasCreatedAt created && created.CreatedAt is null)
                 created.CreatedAt = now;
             if (entry.State == EntityState.Modified && entry.Entity is IHasUpdatedAt updated)
                 updated.UpdatedAt = now;
         }
+    }
+
+    /// <summary>
+    /// Tính lại hai cột tìm kiếm không dấu khi di sản mới thêm, khi tên, mô tả ngắn, địa chỉ hoặc nội dung đổi, hoặc khi cột còn trống
+    /// (dữ liệu có trước migration thêm cột). Mọi đường ghi di sản (API, nạp dữ liệu) đi qua đây nên hai cột luôn khớp nội dung.
+    /// </summary>
+    private static void RefreshSearchText(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry, Heritage heritage)
+    {
+        var changed = entry.State == EntityState.Added || heritage.SearchText is null
+            || entry.Property(nameof(Heritage.Name)).IsModified
+            || entry.Property(nameof(Heritage.ShortDescription)).IsModified
+            || entry.Property(nameof(Heritage.Address)).IsModified
+            || entry.Property(nameof(Heritage.Content)).IsModified;
+        if (!changed) return;
+        heritage.SearchName = SearchText.ComposeName(heritage.Name);
+        heritage.SearchText = SearchText.Compose(heritage.Name, heritage.ShortDescription, heritage.Address, heritage.Content);
     }
 
     /// <summary>

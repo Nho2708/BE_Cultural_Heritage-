@@ -59,6 +59,15 @@ public class Heritage : IHasCreatedAt, IHasUpdatedAt, ISoftDeletable
 
     public ContentStatus? Status { get; set; }
 
+    /// <summary>
+    /// Tên đã gấp (chữ thường không dấu, có dấu cách đứng đầu, xem <c>SearchText.ComposeName</c>) để tìm theo tên không dấu. Cột thêm bằng migration riêng,
+    /// do hệ thống tự tính mỗi khi lưu di sản; không nhập tay, không trả ra API.
+    /// </summary>
+    public string? SearchName { get; set; }
+
+    /// <summary>Tên, mô tả ngắn, địa chỉ và nội dung đã gấp và nối lại (xem <c>SearchText.Compose</c>) để tìm từ khóa có dấu lẫn không dấu.</summary>
+    public string? SearchText { get; set; }
+
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
