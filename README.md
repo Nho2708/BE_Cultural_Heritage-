@@ -15,6 +15,7 @@ tên cột giữ đúng DBML (`snake_case`) — xem [docs/co-so-du-lieu.md](docs
 | Nền tảng: đăng nhập web quản trị bằng email/username, đặt mật khẩu qua email, hồ sơ, ADMIN quản lý trường, ORG_ADMIN quản lý giáo viên, nhật ký thao tác | Xong phần backend | [docs/nen-tang-to-chuc.md](docs/nen-tang-to-chuc.md) · [docs/smoke-nen-tang.md](docs/smoke-nen-tang.md) |
 | Gửi thư đặt mật khẩu: ghi ra log (mặc định) hoặc gửi thật qua SMTP (Gmail…), bật/tắt bằng `Email:Mode` | Xong | [docs/gui-thu.md](docs/gui-thu.md) |
 | Kho di sản (ADMIN): quản lý di sản (bản nháp, xuất bản khi đủ điều kiện, ẩn, hiện lại, xóa mềm), timeline (giai đoạn, sự kiện), ảnh có ghi công, ảnh đại diện, nguồn tham chiếu, danh sách 34 tỉnh; ghi nhật ký xuất bản và ẩn | Xong phần backend | [docs/kho-di-san.md](docs/kho-di-san.md) |
+| Khám phá di sản công khai (khách và học sinh, không đăng nhập): trang chủ, tìm kiếm và lọc có/không dấu, bản đồ, chi tiết, timeline; danh sách tỉnh mở cho khách; giới hạn 300 yêu cầu/phút/IP | Xong phần backend | [docs/kham-pha-di-san.md](docs/kham-pha-di-san.md) |
 
 ## Cấu trúc
 
