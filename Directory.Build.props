@@ -1,0 +1,13 @@
+<Project>
+  <!-- Ap cho moi project trong solution: doi o day la doi o ca 5 project. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <SatelliteResourceLanguages>vi</SatelliteResourceLanguages>
+  </PropertyGroup>
+</Project>

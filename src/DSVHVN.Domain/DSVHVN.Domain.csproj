@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DSVHVN.Domain</RootNamespace>
+  </PropertyGroup>
+
+</Project>
