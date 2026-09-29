@@ -38,7 +38,7 @@ builder.Services.AddSwaggerGen(o =>
         Title = "DSVHVN API",
         Version = "v1",
         Description = "Nền tảng giáo dục di sản văn hóa cho trường học — nền tảng: đăng nhập, đặt mật khẩu qua email, hồ sơ, " +
-            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác. CSDL v3 đủ 27 bảng.",
+            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác, kho di sản (ADMIN). CSDL v3 đủ 27 bảng.",
     });
     o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
