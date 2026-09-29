@@ -21,6 +21,7 @@ builder.Services
 builder.Services.AddJwtAuthentication();
 builder.Services.AddAuthorization(Policies.Register);
 builder.Services.AddHealthChecks();
+builder.Services.AddPublicRateLimit();
 
 // CORS chỉ mở cho origin của ứng dụng React, không dùng "*".
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -38,7 +39,7 @@ builder.Services.AddSwaggerGen(o =>
         Title = "DSVHVN API",
         Version = "v1",
         Description = "Nền tảng giáo dục di sản văn hóa cho trường học — nền tảng: đăng nhập, đặt mật khẩu qua email, hồ sơ, " +
-            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác, kho di sản (ADMIN). CSDL v3 đủ 27 bảng.",
+            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác, kho di sản (ADMIN), khám phá di sản công khai (/api/v1/public, không cần đăng nhập). CSDL v3 đủ 27 bảng.",
     });
     o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -87,6 +88,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("web");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

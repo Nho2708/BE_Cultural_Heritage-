@@ -25,6 +25,7 @@ public static class MessageCodes
     public const string TeacherLimitReached = "TEACHER_LIMIT_REACHED";
     public const string NotReady = "NOT_READY";
     public const string SystemError = "SYSTEM_ERROR";
+    public const string TooManyRequests = "TOO_MANY_REQUESTS";
 }
 
 /// <summary>
@@ -111,6 +112,13 @@ public static class Messages
     public static AppMessage TeacherLimitReached(int used, int max, string planName) => new(MessageCodes.TeacherLimitReached,
         $"Trường đã dùng {used}/{max} tài khoản giáo viên của gói {planName}. " +
         "Hãy nâng cấp gói hoặc xóa tài khoản không còn dùng để thêm giáo viên.");
+
+    /// <summary>
+    /// 429: vượt giới hạn yêu cầu của API công khai (300 yêu cầu mỗi phút mỗi địa chỉ IP). Danh mục thông điệp chưa có câu riêng;
+    /// câu này không xưng hô vì người gọi có thể là khách hoặc học sinh.
+    /// </summary>
+    public static AppMessage TooManyRequests(int seconds) =>
+        new(MessageCodes.TooManyRequests, $"Có quá nhiều yêu cầu gửi tới trong thời gian ngắn. Vui lòng thử lại sau {Math.Max(1, seconds)} giây.");
 
     /// <summary>Lỗi hệ thống ngoài dự kiến.</summary>
     public static readonly AppMessage SystemError =
