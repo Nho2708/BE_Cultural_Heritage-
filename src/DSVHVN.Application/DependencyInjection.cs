@@ -3,6 +3,7 @@ using DSVHVN.Application.Audit;
 using DSVHVN.Application.Auth;
 using DSVHVN.Application.Billing;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Heritages;
 using DSVHVN.Application.Organizations;
 using DSVHVN.Application.Profile;
 using DSVHVN.Application.Teachers;
@@ -28,6 +29,10 @@ public static class DependencyInjection
         services.AddScoped<OrganizationService>();
         services.AddScoped<MyOrganizationService>();
         services.AddScoped<TeacherService>();
+        services.AddScoped<HeritageService>();
+        services.AddScoped<TimelineService>();
+        services.AddScoped<HeritageMediaService>();
+        services.AddScoped<HeritageReferenceService>();
         return services;
     }
 }
