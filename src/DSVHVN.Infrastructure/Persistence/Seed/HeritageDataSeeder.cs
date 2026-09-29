@@ -28,6 +28,9 @@ public sealed class HeritageSeedResult
 /// Nạp danh mục 34 tỉnh/thành và các di sản (kèm giai đoạn, sự kiện, ảnh, nguồn) từ tệp JSON của nhóm dữ liệu vào bảng
 /// <c>provinces</c>, <c>heritages</c>, <c>timelines</c>, <c>events</c>, <c>media</c>, <c>heritage_references</c>.
 /// Chạy lại được: tỉnh đã có mã thì bỏ qua, di sản đã có slug thì bỏ qua cả di sản (không ghi đè, không nhân đôi).
+/// Mọi di sản nạp vào luôn ở trạng thái DRAFT (bỏ qua <c>status</c> trong tệp): di sản chỉ lên PUBLISHED qua màn hình quản trị
+/// sau khi người khác người nhập đã kiểm. Loại nguồn <c>GOV_WEBSITE</c> và <c>UNESCO</c> của tệp được quy đổi về <c>WEBSITE</c>
+/// (cơ quan ghi trong tiêu đề nguồn) vì <c>source_type</c> chỉ nhận GOV_DOC, WEBSITE, BOOK.
 /// Dữ liệu không khớp cột thì không ép (không cắt chuỗi, không đoán giá trị): bỏ qua di sản đó và ghi lý do vào kết quả.
 /// </summary>
 public static class HeritageDataSeeder
@@ -140,7 +143,7 @@ public static class HeritageDataSeeder
             Longitude = s.Longitude,
             PlaceId = s.PlaceId,
             ThumbnailUrl = s.ThumbnailUrl,
-            Status = ParseEnum<ContentStatus>(s.Status, "status", problems),
+            Status = ContentStatus.DRAFT,
             Timelines = (s.Timelines ?? []).Select(t => new Timeline
             {
                 Name = t.Name,
@@ -155,10 +158,14 @@ public static class HeritageDataSeeder
             {
                 Title = r.Title,
                 Url = r.Url,
-                SourceType = r.SourceType,
+                SourceType = NormalizeSourceType(r.SourceType),
             }).ToList(),
         };
     }
+
+    /// <summary>Quy đổi loại nguồn của tệp dữ liệu về ba giá trị được phép.</summary>
+    private static string? NormalizeSourceType(string? sourceType) =>
+        sourceType is "GOV_WEBSITE" or "UNESCO" ? "WEBSITE" : sourceType;
 
     private static TimelineEvent ToEvent(EventJson e, List<string> problems)
     {
