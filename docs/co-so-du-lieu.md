@@ -6,8 +6,8 @@ SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `Kh
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
-| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2) |
-| Số liệu | 27 bảng · 233 cột · 40 khóa ngoại · 19 CHECK · 4 UNIQUE có lọc · 10 UNIQUE thường · 15 kiểu enum (17 cột) |
+| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3) |
+| Số liệu | 27 bảng · 233 cột theo DBML (+ 2 cột tìm kiếm của migration thứ ba = 235 trong database) · 40 khóa ngoại · 19 CHECK · 4 UNIQUE có lọc · 10 UNIQUE thường · 15 kiểu enum (17 cột) |
 | Dữ liệu khởi tạo trong migration | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
 
@@ -101,6 +101,13 @@ Khác biệt có chủ đích: **0** (so lại ngày 29/09/2026). Trước đó 
 và `password_reset_tokens.user_id` chỉ ghi Cascade bằng chữ. DBML nay khai báo `not null` cho 28 cột đó và `[delete: cascade]`
 cho khóa ngoại này, nên database tạo từ DBML và database do migration tạo khớp nhau về cấu trúc.
 
+**Hai cột thêm ngoài DBML (29/09/2026, luồng Khám phá di sản công khai)**: `heritages.search_name nvarchar(260)` và
+`heritages.search_text nvarchar(max)`, cùng NULL được, do migration `ThemCotTimKiemKhongDauChoDiSan` thêm. Lý do: collation
+`Vietnamese_CI_AI` chỉ bỏ dấu thanh, còn coi ă, â, ê, ô, ơ, ư, đ là chữ riêng nên "thang long" không tìm ra "Thăng Long". Hai cột
+lưu tên (và tên, mô tả ngắn, địa chỉ, nội dung) đã chuẩn hóa thành chữ thường không dấu, do ứng dụng tự tính mỗi khi lưu di sản
+và điền cho dữ liệu cũ lúc khởi động; không nhập tay, không trả ra API. Bảng so sánh trên là của thiết kế DBML (233 cột); DBML cần
+thêm hai cột này để khớp lại (việc của nhóm cơ sở dữ liệu, không sửa trong repo này). Chi tiết: [kham-pha-di-san.md](kham-pha-di-san.md).
+
 Khác biệt kỹ thuật, không đổi ý nghĩa lược đồ: tên khóa chính, tên CHECK của cột enum và tên UNIQUE (DBML để SQL Server tự
 đặt tên, migration đặt `PK_`, `CK_`, `UX_`); 8 UNIQUE một cột khai báo bằng constraint ở DBML, bằng unique index ở migration;
 35 chỉ mục thường chỉ có ở migration (34 chỉ mục trên cột khóa ngoại + `IX_audit_logs_created_at`).
@@ -108,7 +115,7 @@ Khác biệt kỹ thuật, không đổi ý nghĩa lược đồ: tên khóa ch�
 ## 4. Kiểm thử trên SQL Server
 
 Ngoài bộ test trên SQLite trong bộ nhớ, lớp `SqlServerDatabaseTests` chạy trên **database tạm của LocalDB** (tên
-`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (27 bảng, 233 cột, 40 khóa ngoại,
+`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (27 bảng, 235 cột = 233 của DBML + 2 cột tìm kiếm, 40 khóa ngoại,
 một Cascade, 19 CHECK, 4 UNIQUE có lọc đúng điều kiện, 8 khóa ngoại được NULL, 17 cột enum `nvarchar(20)`, DEFAULT của cột bit,
 collation), dữ liệu di sản, luồng web quản trị qua HTTP và các ràng buộc của tài khoản học sinh, bài học, thanh toán; xong thì
 xóa database tạm. Máy không có LocalDB thì các test này được bỏ qua (Skip); không có thư mục dữ liệu di sản thì bỏ qua riêng

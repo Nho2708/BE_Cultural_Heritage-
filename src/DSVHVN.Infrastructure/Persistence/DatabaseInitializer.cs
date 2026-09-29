@@ -48,6 +48,26 @@ public static class DatabaseInitializer
         await SeedFreePlanAsync(db, config, logger, ct);
         await SeedAdminsAsync(db, config, sp.GetRequiredService<IPasswordHasher>(), logger, ct);
         await SeedHeritageDataAsync(db, config, sp.GetService<IHostEnvironment>()?.ContentRootPath, logger, ct);
+        await BackfillHeritageSearchTextAsync(db, logger, ct);
+    }
+
+    /// <summary>
+    /// Điền hai cột tìm kiếm không dấu cho di sản có trước migration thêm cột (còn trống). Dùng ExecuteUpdate để không chạm
+    /// <c>updated_at</c> (thứ tự "mới cập nhật" của di sản nổi bật không bị xáo). Di sản lưu qua ứng dụng đã được điền sẵn nên
+    /// bước này không làm gì sau lần đầu.
+    /// </summary>
+    private static async Task BackfillHeritageSearchTextAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var rows = await db.Heritages.AsNoTracking().Where(h => h.SearchText == null)
+            .Select(h => new { h.Id, h.Name, h.ShortDescription, h.Address, h.Content }).ToListAsync(ct);
+        foreach (var row in rows)
+        {
+            var name = SearchText.ComposeName(row.Name);
+            var text = SearchText.Compose(row.Name, row.ShortDescription, row.Address, row.Content);
+            await db.Heritages.Where(h => h.Id == row.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(h => h.SearchName, name).SetProperty(h => h.SearchText, text), ct);
+        }
+        if (rows.Count > 0) logger.LogInformation("Điền cột tìm kiếm không dấu cho {Count} di sản", rows.Count);
     }
 
     /// <summary>
