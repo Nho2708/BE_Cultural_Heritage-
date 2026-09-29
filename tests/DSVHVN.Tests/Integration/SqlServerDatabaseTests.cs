@@ -95,17 +95,17 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         });
         Assert.Equal([34, 20, 37, 158, 64, 110], counts);
 
-        var (hanoi, withoutTones, withoutLetterMarks, published) = await factory.WithDbAsync(async db => (
+        var (hanoi, withoutTones, withoutLetterMarks, drafts) = await factory.WithDbAsync(async db => (
             (await db.Provinces.SingleAsync(p => p.Code == "01")).Name,
             await db.Heritages.CountAsync(h => h.Name!.Contains("hoang thanh")),
             await db.Heritages.CountAsync(h => h.Name!.Contains("thang long")),
-            await db.Heritages.CountAsync(h => h.Status == ContentStatus.PUBLISHED)));
+            await db.Heritages.CountAsync(h => h.Status == ContentStatus.DRAFT)));
         Assert.Equal("Thành phố Hà Nội", hanoi);
         // Vietnamese_CI_AI bỏ qua dấu thanh ("hoang thanh" tìm ra "Hoàng thành") nhưng coi ă, â, ê, ô, ơ, ư, đ là chữ riêng:
         // "thang long" không tìm ra "Thăng Long". Chức năng tìm kiếm cần tự chuẩn hóa nếu muốn tìm được cả trường hợp này.
         Assert.Equal(1, withoutTones);
         Assert.Equal(0, withoutLetterMarks);
-        Assert.Equal(20, published);
+        Assert.Equal(20, drafts);       // nạp luôn vào DRAFT; chỉ lên PUBLISHED qua màn hình quản trị
 
         // Chạy lại không nhân đôi dữ liệu; trường không có cột được liệt kê, không lưu.
         var again = await factory.WithDbAsync(db => HeritageDataSeeder.SeedAsync(db,
