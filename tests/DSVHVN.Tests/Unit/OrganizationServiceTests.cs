@@ -58,10 +58,10 @@ public sealed class OrganizationServiceTests : IDisposable
         var orgAdmin = Assert.Single(org.OrgAdmins);
         Assert.Equal(("hanh.a", RoleCode.ORG_ADMIN, UserStatus.ACTIVE), (orgAdmin.Username, orgAdmin.Role, orgAdmin.Status));
 
-        var mail = _h.Mail.LastTo("hanh.a@truong.edu.vn")!.Value;
-        Assert.Contains("48 giờ", mail.Body);
-        Assert.Contains("Tên đăng nhập: hanh.a", mail.Body);
-        Assert.Contains("Trường Tiểu học Lê Lợi a", mail.Body);
+        var mail = _h.Mail.LastTo("hanh.a@truong.edu.vn")!;
+        Assert.Contains("48 giờ", mail.TextBody);
+        Assert.Contains("Tên đăng nhập: hanh.a", mail.TextBody);
+        Assert.Contains("Trường Tiểu học Lê Lợi a", mail.TextBody);
 
         var actions = await _h.QueryAsync(db => db.AuditLogs.OrderBy(l => l.Id).Select(l => new { l.Action, l.TargetType, l.UserId, l.ActorRole }).ToListAsync());
         Assert.Equal([AuditAction.ORG_CREATED, AuditAction.ACCOUNT_CREATED], actions.Select(a => a.Action));
