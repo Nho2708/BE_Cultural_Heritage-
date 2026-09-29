@@ -6,7 +6,7 @@ SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `Kh
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
-| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` |
+| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2) |
 | Số liệu | 27 bảng · 233 cột · 40 khóa ngoại · 19 CHECK · 4 UNIQUE có lọc · 10 UNIQUE thường · 15 kiểu enum (17 cột) |
 | Dữ liệu khởi tạo trong migration | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
@@ -58,6 +58,11 @@ Khóa cấu hình `Seed:HeritageData:ProvincesFile` và `Seed:HeritageData:Herit
 `src/DSVHVN.Api`). `appsettings.Development.json` trỏ tới `../../../doc/du-lieu-di-san/provinces.json` và
 `../../../doc/du-lieu-di-san/seed-dot-1.json` (thư mục dữ liệu của nhóm nằm cạnh repo). Máy không có thư mục này thì đặt lại
 đường dẫn bằng User Secrets hoặc biến môi trường `Seed__HeritageData__ProvincesFile`; không thấy tệp thì bỏ qua và ghi cảnh báo.
+
+Từ luồng Kho di sản, lần nạp **luôn ghi di sản ở DRAFT** (bỏ qua `status` trong tệp) và quy đổi loại nguồn `GOV_WEBSITE`, `UNESCO` về `WEBSITE`
+(`source_type` chỉ nhận `GOV_DOC`, `WEBSITE`, `BOOK`); di sản chỉ lên PUBLISHED qua chức năng xuất bản của quản trị hệ thống
+([kho-di-san.md](kho-di-san.md)). Migration `ChuanHoaLoaiNguonThamChieu` (chỉ sửa dữ liệu, không đổi lược đồ) đưa hai loại nguồn cũ về `WEBSITE`
+ở database đã nạp từ trước.
 
 - Tỉnh đã có mã thì bỏ qua; di sản đã có slug thì bỏ qua cả di sản (kèm giai đoạn, sự kiện, ảnh, nguồn).
 - Dữ liệu không vừa cột (chuỗi quá độ dài, số thập phân không vừa `decimal(p,s)`, giá trị enum lạ, sự kiện thiếu năm) thì
