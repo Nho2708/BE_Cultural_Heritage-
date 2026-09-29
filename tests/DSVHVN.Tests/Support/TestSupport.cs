@@ -33,30 +33,34 @@ public sealed class MutableTimeProvider(DateTimeOffset start) : TimeProvider
     public void Set(DateTimeOffset value) => _now = value;
 }
 
-/// <summary>Giữ thư lại (thay bản ghi log) để kiểm thử đọc token trong liên kết đặt mật khẩu.</summary>
+/// <summary>
+/// Giữ thư lại (thay bản ghi log) để kiểm thử đọc token trong liên kết đặt mật khẩu. Bật <see cref="FailWith"/> để giả
+/// máy chủ SMTP từ chối hoặc mất mạng.
+/// </summary>
 public sealed class CapturingEmailSender : IEmailSender
 {
-    public ConcurrentQueue<(string To, string Subject, string Body)> Sent { get; } = new();
+    public ConcurrentQueue<EmailMessage> Sent { get; } = new();
 
-    public Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
+    /// <summary>Có giá trị thì mọi lần gửi ném ngoại lệ này và không giữ thư.</summary>
+    public Exception? FailWith { get; set; }
+
+    public Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
-        Sent.Enqueue((to, subject, body));
+        if (FailWith is { } error) return Task.FromException(error);
+        Sent.Enqueue(message);
         return Task.CompletedTask;
     }
 
     public int CountTo(string email) => Sent.Count(m => string.Equals(m.To, email, StringComparison.OrdinalIgnoreCase));
 
-    public (string To, string Subject, string Body)? LastTo(string email)
-    {
-        var mail = Sent.LastOrDefault(m => string.Equals(m.To, email, StringComparison.OrdinalIgnoreCase));
-        return mail.Body is null ? null : mail;
-    }
+    public EmailMessage? LastTo(string email) =>
+        Sent.LastOrDefault(m => string.Equals(m.To, email, StringComparison.OrdinalIgnoreCase));
 
     public string? LastTokenFor(string email)
     {
         var mail = LastTo(email);
         if (mail is null) return null;
-        var match = Regex.Match(mail.Value.Body, @"token=([A-Za-z0-9_\-%]+)");
+        var match = Regex.Match(mail.TextBody, @"token=([A-Za-z0-9_\-%]+)");
         return match.Success ? Uri.UnescapeDataString(match.Groups[1].Value) : null;
     }
 }
