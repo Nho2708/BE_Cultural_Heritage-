@@ -158,7 +158,7 @@ public sealed class AuthServiceTests : IDisposable
         await Forgot("giaovien.a@example.vn");
         var second = _h.Mail.LastTokenFor("giaovien.a@example.vn")!;
         Assert.NotEqual(first, second);
-        Assert.Contains("30 phút", _h.Mail.LastTo("giaovien.a@example.vn")!.Value.Body);
+        Assert.Contains("30 phút", _h.Mail.LastTo("giaovien.a@example.vn")!.TextBody);
 
         var stale = await Assert.ThrowsAsync<AppException>(() => SetPassword(first, "MatKhauMoi2026"));
         Assert.Equal((422, "PASSWORD_LINK_INVALID"), (stale.StatusCode, stale.AppMessage.Code));

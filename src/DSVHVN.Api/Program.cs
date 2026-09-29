@@ -61,6 +61,8 @@ var app = builder.Build();
 
 // Thiếu khóa ký JWT ngoài Development/Testing thì dừng ngay lúc khởi động, không đợi yêu cầu đầu tiên.
 _ = app.Services.GetRequiredService<JwtSigningKeyProvider>();
+// Email:Mode = Smtp mà thiếu cấu hình bắt buộc (Host, FromAddress, Password…) cũng dừng ngay, thông báo liệt kê mục còn thiếu.
+_ = app.Services.GetRequiredService<IEmailSender>();
 await app.Services.InitializeDatabaseAsync();
 
 // "dotnet run --project src/DSVHVN.Api -- --chi-khoi-tao-csdl": chỉ tạo/cập nhật CSDL và nạp dữ liệu khởi tạo rồi thoát.
