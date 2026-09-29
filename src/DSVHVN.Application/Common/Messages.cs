@@ -23,6 +23,7 @@ public static class MessageCodes
     public const string Forbidden = "FORBIDDEN";
     public const string Blocked = "BLOCKED";
     public const string TeacherLimitReached = "TEACHER_LIMIT_REACHED";
+    public const string NotReady = "NOT_READY";
     public const string SystemError = "SYSTEM_ERROR";
 }
 
@@ -84,6 +85,9 @@ public static class Messages
     public static AppMessage PasswordLinkSent(string email) =>
         new(MessageCodes.PasswordLinkSent, $"Đã gửi email đặt mật khẩu tới {email}. Liên kết có hiệu lực 48 giờ.");
 
+    /// <summary>Giá trị trùng với dữ liệu đã có (vd đường dẫn di sản), báo dưới ô nhập kèm mã trùng.</summary>
+    public static AppMessage Duplicate(string field, string rule) => new(MessageCodes.Duplicate, $"{field} không hợp lệ: {rule}.");
+
     /// <summary>Thao tác thành công.</summary>
     public static AppMessage Success(string action) => new(MessageCodes.Success, $"{action} thành công.");
 
@@ -98,6 +102,10 @@ public static class Messages
     /// (danh mục không có câu riêng cho 404), không cho biết đối tượng có tồn tại ở trường khác hay không.
     /// </summary>
     public static AppMessage NotFound(string action, string target) => Blocked(action, $"Không tìm thấy {target}.");
+
+    /// <summary>Xuất bản di sản (hoặc lưu di sản đang xuất bản) khi chưa đủ điều kiện: liệt kê phần còn thiếu.</summary>
+    public static AppMessage NotReady(string action, IEnumerable<string> missing) =>
+        new(MessageCodes.NotReady, $"Chưa đủ điều kiện {action}. Còn thiếu: {string.Join(", ", missing)}.");
 
     /// <summary>Tạo giáo viên khi trường đã đủ <c>max_teachers</c> của gói.</summary>
     public static AppMessage TeacherLimitReached(int used, int max, string planName) => new(MessageCodes.TeacherLimitReached,
