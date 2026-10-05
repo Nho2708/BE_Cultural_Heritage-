@@ -41,6 +41,9 @@ public static class JwtClaimNames
     public const string SecurityStamp = "sst";
 
     public const string TokenId = "jti";
+
+    /// <summary>Cấp học 1, 2, 3 của lớp (chỉ token của học sinh), để chọn bộ giao diện; giá trị chuẩn lấy từ thông tin học sinh.</summary>
+    public const string SchoolLevel = "lvl";
 }
 
 /// <summary>
@@ -92,6 +95,8 @@ public sealed class JwtTokenIssuer(IOptions<JwtOptions> options, JwtSigningKeyPr
         };
         if (subject.OrganizationId is { } orgId)
             claims[JwtClaimNames.Organization] = orgId.ToString(CultureInfo.InvariantCulture);
+        if (subject.SchoolLevel is { } level)
+            claims[JwtClaimNames.SchoolLevel] = level;
 
         var token = Handler.CreateToken(new SecurityTokenDescriptor
         {

@@ -61,7 +61,37 @@ public interface IAppDbContext
     /// </summary>
     Task LockOrganizationAsync(long organizationId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Khóa dòng <c>classes</c> tới hết giao dịch hiện tại để các thao tác đếm-rồi-thêm của cùng một lớp
+    /// (sĩ số tối đa 60 học sinh đang hoạt động) chạy tuần tự. Phải gọi bên trong giao dịch.
+    /// </summary>
+    Task LockClassAsync(long classId, CancellationToken cancellationToken);
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>Một dòng đọc từ tệp hoặc văn bản danh sách học sinh: số dòng trong nguồn (dòng 1 là dòng đầu) và nội dung ô họ tên.</summary>
+public sealed record ListRow(int RowNumber, string? Value);
+
+/// <summary>Tệp tải về cho giáo viên (tệp mẫu danh sách học sinh).</summary>
+public sealed record DownloadFile(byte[] Content, string ContentType, string FileName);
+
+/// <summary>
+/// Đọc tệp danh sách học sinh (<c>.xlsx</c> hoặc <c>.csv</c> UTF-8) và dựng tệp mẫu. Chỉ lấy cột đầu tiên (họ tên) của
+/// bảng tính đầu tiên, giữ nguyên mọi dòng kể cả dòng tiêu đề và dòng trống (người gọi tự bỏ tiêu đề, cắt dòng trống cuối). Tệp sai loại hoặc không đọc được thì ném <see cref="AppException"/> 400.
+/// </summary>
+public interface IStudentListFile
+{
+    IReadOnlyList<ListRow> Read(Stream content, string fileName);
+
+    /// <summary>Tệp mẫu một cột "Họ và tên", không có dòng mẫu để giáo viên quên xóa cũng không tạo thêm học sinh ngoài ý muốn.</summary>
+    DownloadFile BuildTemplate(StudentListFormat format);
+}
+
+public enum StudentListFormat
+{
+    Xlsx,
+    Csv,
 }
 
 public enum PasswordCheck
@@ -82,14 +112,15 @@ public interface IPasswordHasher
     void VerifyAgainstDummy(string password);
 }
 
-/// <summary>Thông tin đưa vào access token. <see cref="SecurityStamp"/> đổi khi mật khẩu đổi (xem <see cref="SecurityStamps"/>).</summary>
+/// <summary>Thông tin đưa vào access token. <see cref="SecurityStamp"/> đổi khi mật khẩu đổi (xem <see cref="SecurityStamps"/>). <see cref="SchoolLevel"/> (1, 2, 3) chỉ có với học sinh: cấp học của lớp lúc phát token.</summary>
 public sealed record AccessTokenSubject(
     long UserId,
     string Username,
     string FullName,
     RoleCode Role,
     long? OrganizationId,
-    string SecurityStamp);
+    string SecurityStamp,
+    int? SchoolLevel = null);
 
 public sealed record IssuedAccessToken(string Token, DateTime ExpiresAt);
 

@@ -97,6 +97,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
             $"SELECT id FROM organizations WITH (UPDLOCK, HOLDLOCK) WHERE id = {organizationId}", cancellationToken);
     }
 
+    /// <summary>Như <see cref="LockOrganizationAsync"/> nhưng khóa dòng lớp, để thêm học sinh và mở lại học sinh vào cùng một lớp chạy tuần tự.</summary>
+    public async Task LockClassAsync(long classId, CancellationToken cancellationToken)
+    {
+        if (Database.CurrentTransaction is null)
+            throw new InvalidOperationException("LockClassAsync phải được gọi bên trong giao dịch.");
+        if (!Database.IsSqlServer()) return;
+        await Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT id FROM classes WITH (UPDLOCK, HOLDLOCK) WHERE id = {classId}", cancellationToken);
+    }
+
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         StampAndGuard();
