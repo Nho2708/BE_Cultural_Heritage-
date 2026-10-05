@@ -39,6 +39,9 @@ public class Lesson : IHasCreatedAt, IHasUpdatedAt, ISoftDeletable
     public DateTime? DeletedAt { get; set; }
 
     public List<LessonHeritage> Heritages { get; set; } = [];
+
+    /// <summary>Các phần nội dung theo khung của cấp, xếp theo <see cref="LessonSection.SortOrder"/> (CSDL v4).</summary>
+    public List<LessonSection> Sections { get; set; } = [];
 }
 
 /// <summary>Bảng <c>lesson_heritages</c>: nối bài học với di sản (nhiều - nhiều), khóa chính kép.</summary>
@@ -52,8 +55,48 @@ public class LessonHeritage
 }
 
 /// <summary>
-/// Bảng <c>ai_generations</c>: nhật ký mỗi lần gọi AI (tóm tắt bài học, tạo câu hỏi). Truy vết đầu vào, tham số, kết quả thô;
-/// cũng là cơ sở đếm lượt AI theo gói.
+/// Bảng <c>lesson_sections</c> (CSDL v4): một phần nội dung của bài học theo khung của cấp, xếp theo <see cref="SortOrder"/> thành
+/// luồng học. Cấp 1: chuyện kể từng bước (STORY, mỗi bước kèm một hình) và hình (IMAGE); cấp 2: bài đọc, hình có chú thích, mốc
+/// thời gian; cấp 3: bài đọc, trích tư liệu gốc có nguồn, mốc thời gian, câu hỏi gợi suy nghĩ. AI soạn, giáo viên sửa rồi xuất bản.
+/// Tách bảng (thay vì một cột JSON) để sửa, xếp lại từng phần và nối mốc thời gian tới sự kiện của di sản.
+/// </summary>
+public class LessonSection : IHasCreatedAt, IHasUpdatedAt
+{
+    public long Id { get; set; }
+
+    public long LessonId { get; set; }
+    public Lesson? Lesson { get; set; }
+
+    public LessonSectionType SectionType { get; set; }
+
+    public string? Title { get; set; }
+
+    /// <summary>Nội dung chữ: đoạn chuyện, đoạn bài đọc, nội dung mốc, đoạn trích, câu hỏi gợi suy nghĩ, chú thích hình.</summary>
+    public string? Body { get; set; }
+
+    /// <summary>Hình của phần; bắt buộc với IMAGE, của bước câu chuyện thì giáo viên chọn trong thư viện ảnh của các di sản của bài.</summary>
+    public string? ImageUrl { get; set; }
+
+    /// <summary>Năm của mốc, bắt buộc với MILESTONE; năm âm là trước Công nguyên.</summary>
+    public int? MilestoneYear { get; set; }
+
+    /// <summary>Sự kiện của di sản mà mốc lấy từ; NULL khi giáo viên tự viết mốc.</summary>
+    public long? EventId { get; set; }
+    public TimelineEvent? Event { get; set; }
+
+    /// <summary>Nguồn của đoạn trích, bắt buộc với SOURCE_EXCERPT.</summary>
+    public string? SourceCitation { get; set; }
+
+    public int SortOrder { get; set; }
+
+    public DateTime? CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Bảng <c>ai_generations</c>: nhật ký mỗi lần gọi AI. Mỗi dòng thuộc đúng một bài học (soạn nội dung bài, tạo câu hỏi; do giáo viên
+/// yêu cầu) hoặc một di sản (dịch, tóm tắt; do quản trị hệ thống yêu cầu). Truy vết đầu vào, tham số, kết quả thô;
+/// các dòng của giáo viên cũng là cơ sở đếm lượt AI theo gói.
 /// </summary>
 public class AiGeneration : IHasCreatedAt
 {
@@ -61,10 +104,15 @@ public class AiGeneration : IHasCreatedAt
 
     public AiTaskType? TaskType { get; set; }
 
-    public long LessonId { get; set; }
+    /// <summary>Bài học liên quan, với soạn nội dung bài và tạo câu hỏi; NULL khi dịch, tóm tắt di sản.</summary>
+    public long? LessonId { get; set; }
     public Lesson? Lesson { get; set; }
 
-    /// <summary>Giáo viên yêu cầu.</summary>
+    /// <summary>Di sản được dịch hoặc tóm tắt (CSDL v4); NULL với tác vụ của bài học.</summary>
+    public long? HeritageId { get; set; }
+    public Heritage? Heritage { get; set; }
+
+    /// <summary>Người yêu cầu: giáo viên với tác vụ bài học, quản trị hệ thống với tác vụ di sản.</summary>
     public long RequestedBy { get; set; }
     public User? Requester { get; set; }
 

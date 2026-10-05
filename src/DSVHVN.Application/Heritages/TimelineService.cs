@@ -53,10 +53,21 @@ public sealed class TimelineService(IAppDbContext db, RequestValidator validator
         var events = await db.Events.Where(e => e.TimelineId == timelineId).ToListAsync(ct);
         var eventIds = events.Select(e => e.Id).ToList();
         db.Media.RemoveRange(await db.Media.Where(m => m.EventId != null && eventIds.Contains(m.EventId.Value)).ToListAsync(ct));
+        await DetachFromLessonsAsync(eventIds, ct);
         db.Events.RemoveRange(events);
         db.Timelines.Remove(timeline);
         timeline.Heritage!.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Mốc thời gian của bài học có thể nối tới sự kiện của di sản (<c>lesson_sections.event_id</c>). Xóa sự kiện thì mốc trong bài giữ nguyên
+    /// năm và nội dung, chỉ gỡ liên kết tới sự kiện đã xóa.
+    /// </summary>
+    private async Task DetachFromLessonsAsync(IReadOnlyCollection<long> eventIds, CancellationToken ct)
+    {
+        var linked = await db.LessonSections.Where(s => s.EventId != null && eventIds.Contains(s.EventId.Value)).ToListAsync(ct);
+        foreach (var section in linked) section.EventId = null;
     }
 
     /// <summary>Đặt thứ tự các giai đoạn của di sản: <c>Ids</c> là toàn bộ giai đoạn theo thứ tự hiển thị mới; thứ tự lưu là 1, 2, 3...</summary>
@@ -102,6 +113,7 @@ public sealed class TimelineService(IAppDbContext db, RequestValidator validator
     {
         var item = await db.FindEventAsync(eventId, "xóa sự kiện", ct);
         db.Media.RemoveRange(await db.Media.Where(m => m.EventId == eventId).ToListAsync(ct));
+        await DetachFromLessonsAsync([eventId], ct);
         db.Events.Remove(item);
         item.Timeline!.Heritage!.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);

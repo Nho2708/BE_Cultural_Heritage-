@@ -1036,11 +1036,15 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(1000)")
                         .HasColumnName("error_message");
 
+                    b.Property<long?>("HeritageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("heritage_id");
+
                     b.Property<string>("InputSnapshot")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("input_snapshot");
 
-                    b.Property<long>("LessonId")
+                    b.Property<long?>("LessonId")
                         .HasColumnType("bigint")
                         .HasColumnName("lesson_id");
 
@@ -1076,6 +1080,8 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("PK_ai_generations");
 
+                    b.HasIndex("HeritageId");
+
                     b.HasIndex("LessonId");
 
                     b.HasIndex("RequestedBy");
@@ -1084,7 +1090,9 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_ai_generations_status", "[status] IN ('PROCESSING', 'SUCCEEDED', 'FAILED')");
 
-                            t.HasCheckConstraint("CK_ai_generations_task_type", "[task_type] IN ('LESSON_SUMMARY', 'QUIZ_GENERATION')");
+                            t.HasCheckConstraint("CK_ai_generations_subject", "([lesson_id] IS NOT NULL AND [heritage_id] IS NULL AND [task_type] IN ('LESSON_SUMMARY', 'QUIZ_GENERATION')) OR ([lesson_id] IS NULL AND [heritage_id] IS NOT NULL AND [task_type] IN ('HERITAGE_TRANSLATION', 'HERITAGE_SUMMARY'))");
+
+                            t.HasCheckConstraint("CK_ai_generations_task_type", "[task_type] IN ('LESSON_SUMMARY', 'QUIZ_GENERATION', 'HERITAGE_TRANSLATION', 'HERITAGE_SUMMARY')");
                         });
                 });
 
@@ -1178,6 +1186,83 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.HasIndex("HeritageId");
 
                     b.ToTable("lesson_heritages", (string)null);
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonSection", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Body")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("EventId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<long>("LessonId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<int?>("MilestoneYear")
+                        .HasColumnType("int")
+                        .HasColumnName("milestone_year");
+
+                    b.Property<string>("SectionType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("section_type");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("SourceCitation")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("source_citation");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("PK_lesson_sections");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("LessonId", "SortOrder")
+                        .HasDatabaseName("IX_lesson_sections_lesson_order");
+
+                    b.ToTable("lesson_sections", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_lesson_sections_required", "([section_type] <> 'MILESTONE' OR [milestone_year] IS NOT NULL) AND ([section_type] <> 'SOURCE_EXCERPT' OR [source_citation] IS NOT NULL) AND ([section_type] <> 'IMAGE' OR [image_url] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_lesson_sections_section_type", "[section_type] IN ('STORY', 'IMAGE', 'READING', 'MILESTONE', 'SOURCE_EXCERPT', 'REFLECTION')");
+                        });
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Organizations.Organization", b =>
@@ -1829,11 +1914,16 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("DSVHVN.Domain.Lessons.AiGeneration", b =>
                 {
+                    b.HasOne("DSVHVN.Domain.Heritages.Heritage", "Heritage")
+                        .WithMany()
+                        .HasForeignKey("HeritageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_ai_generations_heritage_id");
+
                     b.HasOne("DSVHVN.Domain.Lessons.Lesson", "Lesson")
                         .WithMany()
                         .HasForeignKey("LessonId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_ai_generations_lesson_id");
 
                     b.HasOne("DSVHVN.Domain.Identity.User", "Requester")
@@ -1842,6 +1932,8 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_ai_generations_requested_by");
+
+                    b.Navigation("Heritage");
 
                     b.Navigation("Lesson");
 
@@ -1886,6 +1978,26 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_lesson_heritages_lesson_id");
 
                     b.Navigation("Heritage");
+
+                    b.Navigation("Lesson");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonSection", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Heritages.TimelineEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_lesson_sections_event_id");
+
+                    b.HasOne("DSVHVN.Domain.Lessons.Lesson", "Lesson")
+                        .WithMany("Sections")
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_lesson_sections_lesson_id");
+
+                    b.Navigation("Event");
 
                     b.Navigation("Lesson");
                 });
@@ -2053,6 +2165,8 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DSVHVN.Domain.Lessons.Lesson", b =>
                 {
                     b.Navigation("Heritages");
+
+                    b.Navigation("Sections");
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Questions.Question", b =>

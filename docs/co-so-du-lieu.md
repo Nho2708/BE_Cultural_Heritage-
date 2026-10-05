@@ -1,14 +1,16 @@
-# Cơ sở dữ liệu v3 trong backend
+# Cơ sở dữ liệu trong backend (v3 và phần v4 đã làm theo từng luồng)
 
 Backend hiện thực **đủ 27 bảng** của CSDL v3 (`doc/database/dsvhvn-v3.dbml` của nhóm, 8 nhóm bảng) bằng EF Core 9 trên
-SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `KhoiTaoCsdl`; mọi thay đổi về sau đi qua migration mới.
+SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `KhoiTaoCsdl`; mọi thay đổi về sau đi qua migration mới. Từ luồng
+"Bài học cho lớp theo cấp" backend thêm dần phần **CSDL v4** (`doc/database/dsvhvn-v4.dbml`) đúng phần luồng cần, mỗi luồng một migration
+(mục 5): hiện có bảng `lesson_sections` và các cột mới của `ai_generations`, tổng **28 bảng**.
 
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
-| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3) |
-| Số liệu | 27 bảng · 233 cột theo DBML (+ 2 cột tìm kiếm của migration thứ ba = 235 trong database) · 40 khóa ngoại · 19 CHECK · 4 UNIQUE có lọc · 10 UNIQUE thường · 15 kiểu enum (17 cột) |
-| Dữ liệu khởi tạo trong migration | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
+| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5) |
+| Số liệu | **28 bảng** (27 của v3 + `lesson_sections`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) = **248 trong database** · 43 khóa ngoại · 22 CHECK · 4 UNIQUE có lọc · 10 UNIQUE thường · 16 kiểu enum (18 cột) |
+| Dữ liệu khởi tạo trong migration khởi tạo | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
 
 ## 1. Quy ước ánh xạ
@@ -77,7 +79,9 @@ Tìm kiếm không dấu: collation `Vietnamese_CI_AI` bỏ qua dấu thanh ("ho
 ơ, ư, đ là chữ riêng ("thang long" không tìm ra "Thăng Long"). Chức năng tìm kiếm di sản cần tự chuẩn hóa chuỗi nếu muốn tìm
 được cả trường hợp này.
 
-## 3. Đối chiếu với DBML
+## 3. Đối chiếu với DBML (phần v3)
+
+Bảng so sánh dưới đây là của thiết kế v3 (27 bảng); phần v4 thêm ở mục 5.
 
 Cách đối chiếu (script của nhóm, ngoài repo): tạo một database tạm từ DBML bằng `dbml2sql` (vá bốn lỗi đã biết: cột enum
 `nvarchar(255)` → `nvarchar(20)`, tiền tố `N` cho mô tả, bộ lọc của 4 UNIQUE, `QUOTED_IDENTIFIER`), so cấu trúc với database
@@ -115,8 +119,27 @@ Khác biệt kỹ thuật, không đổi ý nghĩa lược đồ: tên khóa ch�
 ## 4. Kiểm thử trên SQL Server
 
 Ngoài bộ test trên SQLite trong bộ nhớ, lớp `SqlServerDatabaseTests` chạy trên **database tạm của LocalDB** (tên
-`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (27 bảng, 235 cột = 233 của DBML + 2 cột tìm kiếm, 40 khóa ngoại,
-một Cascade, 19 CHECK, 4 UNIQUE có lọc đúng điều kiện, 8 khóa ngoại được NULL, 17 cột enum `nvarchar(20)`, DEFAULT của cột bit,
+`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (28 bảng, 248 cột, 43 khóa ngoại,
+một Cascade, 22 CHECK, 4 UNIQUE có lọc đúng điều kiện, 11 khóa ngoại được NULL, 18 cột enum `nvarchar(20)`, DEFAULT của cột bit,
 collation), dữ liệu di sản, luồng web quản trị qua HTTP và các ràng buộc của tài khoản học sinh, bài học, thanh toán; xong thì
 xóa database tạm. Máy không có LocalDB thì các test này được bỏ qua (Skip); không có thư mục dữ liệu di sản thì bỏ qua riêng
 test nạp di sản.
+
+## 5. Phần CSDL v4 của luồng "Bài học cho lớp theo cấp"
+
+Migration `ThemPhanNoiDungBaiHocTheoCap` (05/10/2026) đưa vào đúng phần của `dsvhvn-v4.dbml` mà luồng cần; các bảng và cột v4 khác (bản dịch,
+khách tham quan, quảng cáo, dạng câu hỏi mới...) thuộc các luồng sau và sẽ có migration riêng.
+
+| Thay đổi | Chi tiết |
+|---|---|
+| Bảng mới `lesson_sections` | Các phần nội dung của bài theo khung của cấp: `id`, `lesson_id` (FK), `section_type` (`STORY`, `IMAGE`, `READING`, `MILESTONE`, `SOURCE_EXCERPT`, `REFLECTION`; `nvarchar(20)` + CHECK), `title`, `body`, `image_url`, `milestone_year`, `event_id` (FK tới `events`, được NULL), `source_citation`, `sort_order`, `created_at`, `updated_at`. Chỉ mục `IX_lesson_sections_lesson_order` (`lesson_id`, `sort_order`). CHECK `CK_lesson_sections_required`: mốc phải có năm, đoạn trích phải có nguồn, hình phải có đường dẫn. Loại phần dùng được theo cấp của lớp kiểm ở tầng code (`LessonFrames`) |
+| `ai_generations.lesson_id` | Từ NOT NULL thành được NULL (dịch, tóm tắt di sản không thuộc bài học) |
+| `ai_generations.heritage_id` | Cột mới (FK tới `heritages`, được NULL): di sản được dịch hoặc tóm tắt |
+| `ai_generations.task_type` | Thêm `HERITAGE_TRANSLATION`, `HERITAGE_SUMMARY` vào CHECK `CK_ai_generations_task_type` (giữ `LESSON_SUMMARY`, `QUIZ_GENERATION`); `AiTaskType` thêm hai giá trị tương ứng |
+| CHECK mới `CK_ai_generations_subject` | Mỗi dòng thuộc đúng một bài học (tác vụ `LESSON_SUMMARY`, `QUIZ_GENERATION`) hoặc đúng một di sản (`HERITAGE_TRANSLATION`, `HERITAGE_SUMMARY`). Dòng cũ (đều có bài học) thỏa CHECK mới |
+| Không đổi | `lessons` (đã có `class_id`, `access_code` + `UX_lessons_access_code` từ v3), `lesson_heritages`, `quizzes`, `plans`. Cột `lessons.summary` giữ nghĩa "nội dung chính của bài" |
+
+Số liệu sau migration trên SQL Server (kiểm bằng `SqlServerDatabaseTests`): 28 bảng, 248 cột, 43 khóa ngoại (thêm `fk_lesson_sections_lesson_id`,
+`fk_lesson_sections_event_id`, `fk_ai_generations_heritage_id`), 22 CHECK (thêm hai của `lesson_sections` và `CK_ai_generations_subject`),
+11 khóa ngoại được NULL (thêm `ai_generations.heritage_id`, `ai_generations.lesson_id`, `lesson_sections.event_id`). Chi tiết luồng:
+[bai-hoc-theo-cap.md](bai-hoc-theo-cap.md).

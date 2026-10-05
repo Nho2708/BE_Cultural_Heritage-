@@ -14,7 +14,8 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 namespace DSVHVN.Application.Common;
 
 /// <summary>
-/// Cổng vào CSDL cho tầng Application: đủ 27 bảng của CSDL v3. Thay đổi lược đồ về sau đi qua migration mới.
+/// Cổng vào CSDL cho tầng Application: 27 bảng của CSDL v3 và các bảng của CSDL v4 đã thêm theo từng luồng (hiện có lesson_sections).
+/// Thay đổi lược đồ về sau đi qua migration mới.
 /// </summary>
 public interface IAppDbContext
 {
@@ -36,6 +37,7 @@ public interface IAppDbContext
 
     DbSet<Lesson> Lessons { get; }
     DbSet<LessonHeritage> LessonHeritages { get; }
+    DbSet<LessonSection> LessonSections { get; }
     DbSet<AiGeneration> AiGenerations { get; }
 
     DbSet<Question> Questions { get; }

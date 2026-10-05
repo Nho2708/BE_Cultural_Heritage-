@@ -41,11 +41,31 @@ public enum RecognitionLevel
     NONE,
 }
 
-/// <summary><c>ai_generations.task_type</c>: tóm tắt bài học, tạo câu hỏi.</summary>
+/// <summary>
+/// <c>ai_generations.task_type</c>: soạn nội dung bài học theo cấp, tạo câu hỏi (tác vụ của giáo viên, gắn với bài học);
+/// dịch di sản, tóm tắt di sản (tác vụ của quản trị hệ thống, gắn với di sản; CSDL v4).
+/// </summary>
 public enum AiTaskType
 {
     LESSON_SUMMARY,
     QUIZ_GENERATION,
+    HERITAGE_TRANSLATION,
+    HERITAGE_SUMMARY,
+}
+
+/// <summary>
+/// <c>lesson_sections.section_type</c> (CSDL v4): loại phần nội dung của bài học theo khung của cấp. Loại dùng được theo cấp của lớp
+/// kiểm ở tầng code (<c>LessonFrames</c>): cấp 1 STORY, IMAGE; cấp 2 READING, IMAGE, MILESTONE;
+/// cấp 3 READING, SOURCE_EXCERPT, MILESTONE, REFLECTION.
+/// </summary>
+public enum LessonSectionType
+{
+    STORY,
+    IMAGE,
+    READING,
+    MILESTONE,
+    SOURCE_EXCERPT,
+    REFLECTION,
 }
 
 /// <summary><c>ai_generations.status</c>: đang xử lý, thành công, lỗi.</summary>
