@@ -28,6 +28,7 @@ public sealed class LessonAiService(
     RequestValidator validator,
     PlanGuard plans,
     LessonMaterialService materialService,
+    AiHeritageInputBuilder inputBuilder,
     ILessonAiClient client,
     IOptions<AiOptions> options,
     TimeProvider clock,
@@ -62,7 +63,7 @@ public sealed class LessonAiService(
             throw AppException.BusinessRule(Messages.Blocked(Action, "Bài học cần ít nhất một di sản đã xuất bản."));
 
         var materials = await materialService.LoadAsync(heritageIds, ct);
-        var inputs = await BuildInputsAsync(heritageIds, materials, ct);
+        var inputs = await inputBuilder.BuildAsync(heritageIds, materials, ct);
         var currentContent = lesson.Summary ?? string.Empty;
 
         // Giữ chỗ lượt AI: kiểm gói, hạn mức và thêm dòng "đang xử lý" trong một giao dịch có khóa dòng trường.
@@ -143,33 +144,6 @@ public sealed class LessonAiService(
             sections.Select(s => LessonMapper.ToDto(s, materials)).ToList(),
             LessonChecks.MainWordCount(result.Content, views.Where(v => frame.Allows(v.Type))), warnings, result.Model, quota,
             Messages.AiDraftReady("nội dung bài học", quota.Remaining ?? 0).Text);
-    }
-
-    // ---- Dữ liệu gửi đi ----
-
-    private async Task<List<AiHeritageInput>> BuildInputsAsync(List<long> heritageIds, LessonMaterials materials, CancellationToken ct)
-    {
-        var heritages = await db.Heritages.AsNoTracking().Where(h => heritageIds.Contains(h.Id))
-            .Select(h => new { h.Id, h.Name, h.ShortDescription, h.Content }).ToListAsync(ct);
-        var references = await db.HeritageReferences.AsNoTracking().Where(r => heritageIds.Contains(r.HeritageId))
-            .OrderBy(r => r.Id).Select(r => new { r.HeritageId, r.Title, r.Url }).ToListAsync(ct);
-        var events = await db.Events.AsNoTracking().Where(e => heritageIds.Contains(e.Timeline!.HeritageId))
-            .Select(e => new { e.Id, e.Name, e.Description, e.StartYear, HeritageId = e.Timeline!.HeritageId, Phase = e.Timeline!.Name })
-            .ToListAsync(ct);
-        var dateLabels = materials.EventsById;
-
-        return heritageIds.Select(id =>
-        {
-            var h = heritages.Single(x => x.Id == id);
-            return new AiHeritageInput(
-                h.Id, h.Name ?? string.Empty, h.ShortDescription, h.Content,
-                events.Where(e => e.HeritageId == id).OrderBy(e => e.StartYear).ThenBy(e => e.Id)
-                    .Select(e => new AiTimelineInput(e.Id, e.Phase ?? string.Empty, e.Name ?? string.Empty, e.Description, e.StartYear,
-                        dateLabels.TryGetValue(e.Id, out var option) ? option.DateLabel : HeritageTimeText.Year(e.StartYear))).ToList(),
-                references.Where(r => r.HeritageId == id).Select(r => new AiSourceInput(r.Title ?? string.Empty, r.Url)).ToList(),
-                materials.Images.Where(i => i.HeritageId == id && i.Url is not null)
-                    .Select(i => new AiImageInput(i.MediaId, i.Url!, i.Caption)).ToList());
-        }).ToList();
     }
 
     // ---- Kiểm kết quả ----

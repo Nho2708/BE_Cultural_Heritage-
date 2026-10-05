@@ -1,5 +1,6 @@
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
+using DSVHVN.Application.Questions;
 using DSVHVN.Application.Students;
 using DSVHVN.Infrastructure.Ai;
 using DSVHVN.Infrastructure.Files;
@@ -48,7 +49,7 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Dịch vụ AI soạn nội dung bài học: <c>Ai:Mode</c> chọn bản lúc tạo dịch vụ (không đọc ngay lúc đăng ký). <c>Simulated</c> (mặc định) là bản giả lập
+    /// Dịch vụ AI soạn nội dung bài học và sinh câu hỏi: <c>Ai:Mode</c> chọn bản lúc tạo dịch vụ (không đọc ngay lúc đăng ký). <c>Simulated</c> (mặc định) là bản giả lập
     /// không gọi mạng; <c>Remote</c> gọi Dịch vụ AI nội bộ theo hợp đồng và thiếu <c>BaseUrl</c>, <c>InternalKey</c> thì dừng khởi động.
     /// </summary>
     private static void AddLessonAi(this IServiceCollection services, IConfiguration configuration)
@@ -65,6 +66,17 @@ public static class DependencyInjection
             var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
             var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
             return new HttpLessonAiClient(http, options);
+        });
+
+        // Sinh câu hỏi dùng cùng mục cấu hình Ai (cùng chế độ, địa chỉ và khóa nội bộ) với soạn nội dung bài học.
+        services.AddSingleton<IQuestionAiClient>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<AiOptions>>();
+            if (options.Value.Mode != AiMode.Remote) return new SimulatedQuestionAiClient();
+
+            var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+            var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+            return new HttpQuestionAiClient(http, options);
         });
     }
 
