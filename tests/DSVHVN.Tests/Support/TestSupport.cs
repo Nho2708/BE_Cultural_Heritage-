@@ -2,12 +2,14 @@ using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using DSVHVN.Application;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Students;
 using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Identity;
 using DSVHVN.Domain.Organizations;
 using DSVHVN.Infrastructure.Email;
+using DSVHVN.Infrastructure.Files;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Infrastructure.Security;
 using Microsoft.Data.Sqlite;
@@ -103,6 +105,8 @@ public sealed class ServiceHarness : IDisposable
         services.AddSingleton<IAuthThrottle, InMemoryAuthThrottle>();
         services.AddSingleton<IEmailSender>(Mail);
         services.AddScoped<IAccountMailer, AccountMailer>();
+        services.AddSingleton<IStudentListFile, StudentListFileReader>();
+        services.Configure<StudentSheetOptions>(_ => { });
         _root = services.BuildServiceProvider();
 
         using var scope = _root.CreateScope();
