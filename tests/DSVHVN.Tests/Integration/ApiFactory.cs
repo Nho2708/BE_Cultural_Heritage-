@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
+using DSVHVN.Application.Questions;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Tests.Support;
 using Microsoft.AspNetCore.Builder;
@@ -45,6 +46,9 @@ public class ApiFactory : WebApplicationFactory<Program>
     /// <summary>Dịch vụ AI của kiểm thử: chạy bản giả lập thật, ép lỗi được bằng <see cref="ScriptedAiClient.Behavior"/>. Nhớ gọi <see cref="ScriptedAiClient.Reset"/> khi dùng chung giữa các test.</summary>
     public ScriptedAiClient Ai { get; } = new();
 
+    /// <summary>Dịch vụ AI sinh câu hỏi của kiểm thử, như <see cref="Ai"/>.</summary>
+    public ScriptedQuestionAiClient QuestionAi { get; } = new();
+
     /// <summary>Cấu hình thêm của lớp con (vd đường dẫn tệp dữ liệu di sản).</summary>
     protected virtual IEnumerable<KeyValuePair<string, string?>> ExtraSettings => [];
 
@@ -82,6 +86,8 @@ public class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IEmailSender>(Mail);
             services.RemoveAll<ILessonAiClient>();
             services.AddSingleton<ILessonAiClient>(Ai);
+            services.RemoveAll<IQuestionAiClient>();
+            services.AddSingleton<IQuestionAiClient>(QuestionAi);
 
             // TestServer không có IP client; gán sẵn để kiểm được IP đi vào audit_logs.
             services.AddSingleton<IStartupFilter, FakeRemoteIpStartupFilter>();

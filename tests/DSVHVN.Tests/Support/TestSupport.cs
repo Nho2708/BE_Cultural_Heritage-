@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using DSVHVN.Application;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
+using DSVHVN.Application.Questions;
 using DSVHVN.Application.Students;
 using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Classes;
@@ -279,6 +280,44 @@ public sealed class ScriptedAiClient : ILessonAiClient
         LastCorrelationId = correlationId;
         if (Behavior is { } behavior) return await behavior(call, request, ct);
         return await _inner.ComposeLessonAsync(request, correlationId, ct);
+    }
+}
+
+/// <summary>
+/// Dịch vụ AI sinh câu hỏi của kiểm thử: chạy bản giả lập thật, ép lỗi hoặc ép kết quả bằng <see cref="Behavior"/>.
+/// Nhớ gọi <see cref="Reset"/> khi dùng chung giữa các test.
+/// </summary>
+public sealed class ScriptedQuestionAiClient : IQuestionAiClient
+{
+    private readonly SimulatedQuestionAiClient _inner = new();
+    private int _calls;
+
+    public string ModelName => _inner.ModelName;
+
+    public int Calls => _calls;
+
+    /// <summary>Nhận số thứ tự lần gọi (từ 1) và yêu cầu; trả kết quả hoặc ném ngoại lệ tùy kiểm thử.</summary>
+    public Func<int, AiQuestionRequest, CancellationToken, Task<AiQuestionResult>>? Behavior { get; set; }
+
+    public AiQuestionRequest? LastRequest { get; private set; }
+
+    public string? LastCorrelationId { get; private set; }
+
+    public void Reset()
+    {
+        Behavior = null;
+        _calls = 0;
+        LastRequest = null;
+        LastCorrelationId = null;
+    }
+
+    public async Task<AiQuestionResult> GenerateQuestionsAsync(AiQuestionRequest request, string correlationId, CancellationToken ct)
+    {
+        var call = Interlocked.Increment(ref _calls);
+        LastRequest = request;
+        LastCorrelationId = correlationId;
+        if (Behavior is { } behavior) return await behavior(call, request, ct);
+        return await _inner.GenerateQuestionsAsync(request, correlationId, ct);
     }
 }
 
