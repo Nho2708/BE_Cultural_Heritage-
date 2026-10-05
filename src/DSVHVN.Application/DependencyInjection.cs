@@ -2,11 +2,14 @@ using DSVHVN.Application.Accounts;
 using DSVHVN.Application.Audit;
 using DSVHVN.Application.Auth;
 using DSVHVN.Application.Billing;
+using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Heritages;
 using DSVHVN.Application.Organizations;
 using DSVHVN.Application.Profile;
+using DSVHVN.Application.StudentAuth;
+using DSVHVN.Application.Students;
 using DSVHVN.Application.Teachers;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +38,14 @@ public static class DependencyInjection
         services.AddScoped<HeritageMediaService>();
         services.AddScoped<HeritageReferenceService>();
         services.AddScoped<DiscoveryService>();
+        services.AddSingleton<IStudentCredentialGenerator, RandomStudentCredentialGenerator>();
+        services.AddScoped<ClassService>();
+        services.AddScoped<SchoolSummaryService>();
+        services.AddScoped<StudentAccountFactory>();
+        services.AddScoped<LoginSheetBuilder>();
+        services.AddScoped<StudentService>();
+        services.AddScoped<StudentImportService>();
+        services.AddScoped<StudentAuthService>();
         return services;
     }
 }

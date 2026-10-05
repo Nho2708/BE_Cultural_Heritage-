@@ -27,8 +27,16 @@ public static class Policies
     /// <summary>Giáo viên (khu /giao-vien: lớp, học sinh, bài học, bài kiểm tra).</summary>
     public const string Teacher = "Teacher";
 
-    /// <summary>Học sinh (khu học của web học tập và app mobile).</summary>
+    /// <summary>
+    /// Học sinh đã đăng nhập, kể cả khi đang bị buộc đổi mật khẩu: chỉ dùng cho xem thông tin của em và đổi mật khẩu.
+    /// </summary>
     public const string Student = "Student";
+
+    /// <summary>
+    /// Học sinh đã đăng nhập và không còn bị buộc đổi mật khẩu: mọi chức năng của khu học (xem lớp, mở bài, làm bài).
+    /// Học sinh đang bị buộc đổi mật khẩu nhận 403 kèm thông điệp yêu cầu đặt mật khẩu mới.
+    /// </summary>
+    public const string StudentReady = "StudentReady";
 
     public static void Register(AuthorizationOptions options)
     {
@@ -43,6 +51,8 @@ public static class Policies
         options.AddPolicy(OrgAdmin, p => p.RequireAuthenticatedUser().RequireRole(nameof(RoleCode.ORG_ADMIN)));
         options.AddPolicy(Teacher, p => p.RequireAuthenticatedUser().RequireRole(nameof(RoleCode.TEACHER)));
         options.AddPolicy(Student, p => p.RequireAuthenticatedUser().RequireRole(nameof(RoleCode.STUDENT)));
+        options.AddPolicy(StudentReady, p => p.RequireAuthenticatedUser().RequireRole(nameof(RoleCode.STUDENT))
+            .RequireAssertion(ctx => !ctx.User.HasClaim(c => c.Type == JwtAuthentication.PasswordChangeRequiredClaim)));
     }
 
     /// <summary>Loại claim vai trò trong JWT, dùng khi dựng ClaimsIdentity.</summary>
