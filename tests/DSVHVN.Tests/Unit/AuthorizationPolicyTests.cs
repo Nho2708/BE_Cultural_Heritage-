@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DSVHVN.Tests.Unit;
 
-/// <summary>Ma trận 4 vai trò × 6 policy, dựng đúng cấu hình <see cref="Policies.Register"/> mà Api dùng.</summary>
+/// <summary>Ma trận 4 vai trò × 7 policy, dựng đúng cấu hình <see cref="Policies.Register"/> mà Api dùng.</summary>
 public sealed class AuthorizationPolicyTests : IDisposable
 {
     private readonly ServiceProvider _services;
@@ -54,6 +54,10 @@ public sealed class AuthorizationPolicyTests : IDisposable
         { Policies.Student, RoleCode.ORG_ADMIN, false },
         { Policies.Student, RoleCode.TEACHER, false },
         { Policies.Student, RoleCode.STUDENT, true },
+        { Policies.StudentReady, RoleCode.ADMIN, false },
+        { Policies.StudentReady, RoleCode.ORG_ADMIN, false },
+        { Policies.StudentReady, RoleCode.TEACHER, false },
+        { Policies.StudentReady, RoleCode.STUDENT, true },
     };
 
     [Theory]
@@ -71,10 +75,23 @@ public sealed class AuthorizationPolicyTests : IDisposable
     [InlineData(Policies.OrgAdmin)]
     [InlineData(Policies.Teacher)]
     [InlineData(Policies.Student)]
+    [InlineData(Policies.StudentReady)]
     public async Task Guest_is_denied_every_policy(string policy)
     {
         var result = await _authz.AuthorizeAsync(Guest, resource: null, policy);
         Assert.False(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task Student_who_must_change_password_passes_Student_but_not_StudentReady()
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(JwtClaimNames.Subject, "1"), new Claim(JwtClaimNames.Role, nameof(RoleCode.STUDENT)),
+             new Claim(JwtAuthentication.PasswordChangeRequiredClaim, "true")],
+            authenticationType: "Bearer", nameType: JwtClaimNames.Name, roleType: JwtClaimNames.Role));
+
+        Assert.True((await _authz.AuthorizeAsync(principal, resource: null, Policies.Student)).Succeeded);
+        Assert.False((await _authz.AuthorizeAsync(principal, resource: null, Policies.StudentReady)).Succeeded);
     }
 
     [Fact]
