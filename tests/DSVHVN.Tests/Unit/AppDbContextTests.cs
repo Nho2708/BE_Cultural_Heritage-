@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 namespace DSVHVN.Tests.Unit;
 
 /// <summary>
-/// Quy ước CSDL v3 trên model EF Core (SQLite trong bộ nhớ): đủ 27 bảng theo tên DBML, 4 vai trò seed, audit_logs chỉ thêm,
+/// Quy ước CSDL trên model EF Core (SQLite trong bộ nhớ): đủ 27 bảng của v3 và bảng lesson_sections của v4 theo tên DBML, 4 vai trò seed, audit_logs chỉ thêm,
 /// mốc UTC, unique có lọc, CHECK. Lược đồ SQL Server thật được kiểm ở lớp kiểm thử CSDL tạm trên LocalDB.
 /// </summary>
 public sealed class AppDbContextTests : IDisposable
@@ -23,13 +23,13 @@ public sealed class AppDbContextTests : IDisposable
     public static readonly string[] Tables =
     [
         "ai_generations", "answers", "attempt_answers", "attempts", "audit_logs", "classes", "events", "heritage_references",
-        "heritages", "invoices", "lesson_heritages", "lessons", "media", "organizations", "password_reset_tokens",
+        "heritages", "invoices", "lesson_heritages", "lesson_sections", "lessons", "media", "organizations", "password_reset_tokens",
         "payment_providers", "payments", "plans", "provinces", "questions", "quiz_questions", "quizzes", "roles", "students",
         "subscriptions", "timelines", "users",
     ];
 
     [Fact]
-    public async Task Model_has_the_27_tables_and_the_column_names_of_the_database_design()
+    public async Task Model_has_the_28_tables_and_the_column_names_of_the_database_design()
     {
         var (tables, userColumns, fkCount, checkCount) = await _h.QueryAsync(db => Task.FromResult((
             db.Model.GetEntityTypes().Select(e => e.GetTableName()).OrderBy(n => n, StringComparer.Ordinal).ToList(),
@@ -38,8 +38,8 @@ public sealed class AppDbContextTests : IDisposable
             db.GetService<IDesignTimeModel>().Model.GetEntityTypes().Sum(e => e.GetCheckConstraints().Count()))));
 
         Assert.Equal(Tables, tables);
-        Assert.Equal(40, fkCount);
-        Assert.Equal(19, checkCount);
+        Assert.Equal(43, fkCount);
+        Assert.Equal(22, checkCount);
         Assert.Contains("organization_id", userColumns);
         Assert.Contains("must_change_password", userColumns);
         Assert.Contains("last_login_at", userColumns);
