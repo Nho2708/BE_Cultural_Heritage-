@@ -24,8 +24,21 @@ public sealed record SubscriptionDto(
 public sealed record TeacherQuotaDto(int Used, int? Max, string? PlanName, bool CanAddTeacher);
 
 /// <summary>
-/// Service dùng chung "kiểm gói và hạn mức", dựng từ luồng nền tảng. Hiện dùng phần gói hiệu lực
-/// và <c>max_teachers</c>; đếm lượt AI thêm khi có bảng <c>ai_generations</c>.
+/// Hạn mức lượt AI của trường trong kỳ của gói hiệu lực: đã dùng, tối đa, còn lại và khoảng ngày của kỳ.
+/// Trường không có gói hiệu lực thì <see cref="HasEffectivePlan"/> false và các số còn lại null.
+/// </summary>
+public sealed record AiQuotaDto(
+    bool HasEffectivePlan,
+    string? PlanName,
+    int Used,
+    int? Max,
+    int? Remaining,
+    DateOnly? PeriodStart,
+    DateOnly? PeriodEnd);
+
+/// <summary>
+/// Service dùng chung "kiểm gói và hạn mức", dựng từ luồng nền tảng: gói hiệu lực, <c>max_teachers</c> và lượt AI trong kỳ
+/// (đếm từ <c>ai_generations</c>).
 /// </summary>
 public sealed class PlanGuard(IAppDbContext db, TimeProvider clock)
 {
@@ -77,6 +90,46 @@ public sealed class PlanGuard(IAppDbContext db, TimeProvider clock)
         var max = MaxTeachersOf(plan);
         if (used >= max)
             throw AppException.BusinessRule(Messages.TeacherLimitReached(used, max, plan.Name ?? string.Empty));
+    }
+
+    /// <summary>
+    /// Lượt AI đã dùng của trường trong kỳ [start_date, end_date] của gói hiệu lực (giờ Việt Nam): số dòng <c>ai_generations</c> của mọi
+    /// giáo viên thuộc trường, gắn với một bài học, đang xử lý hoặc thành công. Dòng thất bại không tính; dòng đang xử lý quá lâu
+    /// (<see cref="LessonRules.AiStaleProcessing"/>) coi là bị bỏ dở và không tính. Dịch, tóm tắt di sản do quản trị hệ thống gọi
+    /// (gắn với di sản, người gọi không thuộc trường nào) nên không bao giờ tính vào hạn mức của một trường.
+    /// </summary>
+    public async Task<AiQuotaDto> GetAiQuotaAsync(long organizationId, CancellationToken ct)
+    {
+        var effective = await GetEffectiveAsync(organizationId, ct);
+        if (effective is null) return new AiQuotaDto(false, null, 0, null, null, null, null);
+        var used = await CountAiRequestsAsync(organizationId, effective, ct);
+        var max = effective.Plan?.MaxAiRequests ?? 0;
+        return new AiQuotaDto(true, effective.Plan?.Name, used, max, Math.Max(0, max - used), effective.StartDate, effective.EndDate);
+    }
+
+    /// <summary>
+    /// Kiểm gói hiệu lực và còn lượt AI trong kỳ trước khi gọi AI; trả hạn mức hiện tại. Người gọi phải đang trong giao dịch và đã khóa
+    /// dòng trường (<see cref="IAppDbContext.LockOrganizationAsync"/>), rồi thêm dòng "đang xử lý" và lưu trong cùng giao dịch,
+    /// để hai giáo viên bấm cùng lúc không vượt hạn mức.
+    /// </summary>
+    public async Task<AiQuotaDto> EnsureAiAvailableAsync(long organizationId, string action, CancellationToken ct)
+    {
+        var quota = await GetAiQuotaAsync(organizationId, ct);
+        if (!quota.HasEffectivePlan) throw new AppException(422, Messages.PlanRequired(action));
+        if (quota.Remaining is not > 0)
+            throw new AppException(422, Messages.AiQuotaReached(quota.Max ?? 0, quota.PeriodEnd!.Value));
+        return quota;
+    }
+
+    private async Task<int> CountAiRequestsAsync(long organizationId, Subscription subscription, CancellationToken ct)
+    {
+        var from = VietnamTime.StartOfDayUtc(subscription.StartDate!.Value);
+        var to = VietnamTime.StartOfDayUtc(subscription.EndDate!.Value.AddDays(1));
+        var staleBefore = clock.GetUtcNow().UtcDateTime - LessonRules.AiStaleProcessing;
+        return await db.AiGenerations.CountAsync(g =>
+            g.LessonId != null && g.Requester!.OrganizationId == organizationId
+            && g.CreatedAt >= from && g.CreatedAt < to
+            && (g.Status == AiTaskStatus.SUCCEEDED || (g.Status == AiTaskStatus.PROCESSING && g.CreatedAt > staleBefore)), ct);
     }
 
     /// <summary>Hạn mức giáo viên của gói; cột được NULL trong CSDL, gói chưa khai báo hạn mức coi như 0 (không thêm được).</summary>

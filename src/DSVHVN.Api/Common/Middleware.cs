@@ -37,7 +37,7 @@ public sealed class ExceptionEnvelopeMiddleware(RequestDelegate next, ILogger<Ex
         }
         catch (AppException ex) when (!context.Response.HasStarted)
         {
-            logger.LogInformation("{Status} {Code} {Path}", ex.StatusCode, ex.AppMessage.Code, context.Request.Path);
+            logger.LogInformation("{Status} {Code} {Path}", ex.StatusCode, ex.AppMessage.Code, LoggablePath(context.Request.Path));
             context.Response.Clear();
             await ApiJson.WriteFailAsync(context, ex.StatusCode, ex.AppMessage, ex.Errors);
         }
@@ -52,6 +52,13 @@ public sealed class ExceptionEnvelopeMiddleware(RequestDelegate next, ILogger<Ex
             await ApiJson.WriteFailAsync(context, StatusCodes.Status500InternalServerError, Messages.SystemError);
         }
     }
+
+    /// <summary>
+    /// Đường dẫn ghi log. Mã bài học nằm trong đường dẫn mở bài của học sinh; mã đúng của lớp khác mà học sinh gõ nhầm không được lộ qua log nên
+    /// phần mã được che.
+    /// </summary>
+    public static string LoggablePath(PathString path) =>
+        path.StartsWithSegments("/api/v1/student/lessons") ? "/api/v1/student/lessons/{code}" : path.Value ?? string.Empty;
 }
 
 /// <summary>Header bảo mật cơ bản cho API JSON.</summary>
