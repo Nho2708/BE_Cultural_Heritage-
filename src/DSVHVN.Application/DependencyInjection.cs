@@ -9,6 +9,7 @@ using DSVHVN.Application.Heritages;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Organizations;
 using DSVHVN.Application.Profile;
+using DSVHVN.Application.Questions;
 using DSVHVN.Application.StudentAuth;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Teachers;
@@ -51,7 +52,12 @@ public static class DependencyInjection
         services.AddScoped<LessonMaterialService>();
         services.AddScoped<LessonDetailBuilder>();
         services.AddScoped<LessonService>();
+        services.AddScoped<AiHeritageInputBuilder>();
         services.AddScoped<LessonAiService>();
+        services.AddScoped<QuestionPresenter>();
+        services.AddScoped<QuestionService>();
+        services.AddScoped<QuestionAiService>();
+        services.AddScoped<AdminQuestionService>();
         services.AddScoped<StudentLessonService>();
         return services;
     }
