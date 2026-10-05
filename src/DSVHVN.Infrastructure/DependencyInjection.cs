@@ -1,4 +1,6 @@
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Students;
+using DSVHVN.Infrastructure.Files;
 using DSVHVN.Infrastructure.Email;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Infrastructure.Security;
@@ -34,6 +36,10 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<IAuthThrottle, InMemoryAuthThrottle>();
         services.AddEmail(configuration);
+
+        // Phiếu đăng nhập của học sinh lấy địa chỉ web học tập và đường dẫn tải app từ mục App.
+        services.AddOptions<StudentSheetOptions>().Bind(configuration.GetSection(StudentSheetOptions.Section));
+        services.AddSingleton<IStudentListFile, StudentListFileReader>();
         return services;
     }
 
