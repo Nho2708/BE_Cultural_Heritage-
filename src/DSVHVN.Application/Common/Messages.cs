@@ -26,6 +26,12 @@ public static class MessageCodes
     public const string NotReady = "NOT_READY";
     public const string SystemError = "SYSTEM_ERROR";
     public const string TooManyRequests = "TOO_MANY_REQUESTS";
+    public const string StudentInvalidCredentials = "STUDENT_INVALID_CREDENTIALS";
+    public const string StudentAccountBlocked = "STUDENT_ACCOUNT_BLOCKED";
+    public const string PasswordChangeRequired = "PASSWORD_CHANGE_REQUIRED";
+    public const string PasswordMismatch = "PASSWORD_MISMATCH";
+    public const string StudentsAdded = "STUDENTS_ADDED";
+    public const string ClassLevelChangeNeedsConfirmation = "CLASS_LEVEL_CHANGE_NEEDS_CONFIRMATION";
 }
 
 /// <summary>
@@ -119,6 +125,52 @@ public static class Messages
     /// </summary>
     public static AppMessage TooManyRequests(int seconds) =>
         new(MessageCodes.TooManyRequests, $"Có quá nhiều yêu cầu gửi tới trong thời gian ngắn. Vui lòng thử lại sau {Math.Max(1, seconds)} giây.");
+
+    // Lời với học sinh xưng "em", cùng một bộ câu chữ cho cả ba cấp học.
+
+    /// <summary>Sai mã học sinh hoặc mật khẩu, không cho biết sai ô nào (kể cả khi người lớn đăng nhập ở khu học).</summary>
+    public static readonly AppMessage StudentInvalidCredentials = new(MessageCodes.StudentInvalidCredentials,
+        "Mã học sinh hoặc mật khẩu chưa đúng. Em hãy kiểm tra lại phiếu đăng nhập.");
+
+    /// <summary>Học sinh không đăng nhập được: tạm khóa do sai nhiều lần, bị vô hiệu, lớp đã xóa hoặc trường đã ngừng.</summary>
+    public static AppMessage StudentCannotSignIn(string reason) =>
+        new(MessageCodes.StudentAccountBlocked, $"Tài khoản của em tạm thời chưa đăng nhập được. {reason}");
+
+    /// <summary>Các giá trị <c>{ly_do}</c> của thông điệp học sinh không đăng nhập được.</summary>
+    public static class StudentBlockedReasons
+    {
+        public static string TemporaryLock(TimeSpan remaining)
+        {
+            var minutes = Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
+            return $"Em đã nhập sai nhiều lần. Em hãy thử lại sau {minutes} phút hoặc nhờ thầy cô đặt lại mật khẩu.";
+        }
+
+        /// <summary>Vô hiệu, lớp đã xóa, trường đã ngừng, tài khoản không hoạt động.</summary>
+        public const string AskTeacher = "Em hãy báo thầy cô phụ trách lớp.";
+    }
+
+    /// <summary>Dòng nhắc cố định trên màn hình đăng nhập của học sinh; không có liên kết quên mật khẩu qua email.</summary>
+    public const string StudentForgotPasswordHint = "Quên mật khẩu? Em hãy nhờ thầy cô đặt lại.";
+
+    /// <summary>Tài khoản đang bị buộc đổi mật khẩu chỉ được đổi mật khẩu cho tới khi đổi xong.</summary>
+    public static readonly AppMessage PasswordChangeRequired = new(MessageCodes.PasswordChangeRequired,
+        "Em hãy đặt mật khẩu mới của riêng em để bắt đầu học. Mật khẩu cần 8-64 ký tự, có chữ hoa, chữ thường và chữ số.");
+
+    /// <summary>Hai lần nhập mật khẩu mới không giống nhau.</summary>
+    public static readonly AppMessage PasswordMismatch =
+        new(MessageCodes.PasswordMismatch, "Hai lần nhập mật khẩu chưa giống nhau.");
+
+    /// <summary>Kết quả nhập danh sách học sinh (bước xem trước và sau khi lưu).</summary>
+    public static AppMessage StudentsAdded(int added, string className, IReadOnlyCollection<string> skipped) =>
+        new(MessageCodes.StudentsAdded, skipped.Count == 0
+            ? $"Đã thêm {added} học sinh vào lớp {className}."
+            : $"Đã thêm {added} học sinh vào lớp {className}. {skipped.Count} dòng bị bỏ qua: {string.Join("; ", skipped)}.");
+
+    /// <summary>Sửa khối lớp sang cấp khác khi lớp đã có bài học: cần giáo viên xác nhận.</summary>
+    public static AppMessage ClassLevelChangeNeedsConfirmation(string className, int oldLevel, int newLevel) =>
+        new(MessageCodes.ClassLevelChangeNeedsConfirmation,
+            $"Lớp {className} sẽ chuyển từ cấp {oldLevel} sang cấp {newLevel}. Giao diện học của học sinh đổi theo cấp mới; " +
+            "bài học và bài kiểm tra đã có giữ nguyên nội dung. Bạn có chắc muốn đổi?");
 
     /// <summary>Lỗi hệ thống ngoài dự kiến.</summary>
     public static readonly AppMessage SystemError =
