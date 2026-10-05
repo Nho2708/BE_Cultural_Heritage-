@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Lessons;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Tests.Support;
 using Microsoft.AspNetCore.Builder;
@@ -41,6 +42,9 @@ public class ApiFactory : WebApplicationFactory<Program>
 
     public CapturingEmailSender Mail { get; } = new();
 
+    /// <summary>Dịch vụ AI của kiểm thử: chạy bản giả lập thật, ép lỗi được bằng <see cref="ScriptedAiClient.Behavior"/>. Nhớ gọi <see cref="ScriptedAiClient.Reset"/> khi dùng chung giữa các test.</summary>
+    public ScriptedAiClient Ai { get; } = new();
+
     /// <summary>Cấu hình thêm của lớp con (vd đường dẫn tệp dữ liệu di sản).</summary>
     protected virtual IEnumerable<KeyValuePair<string, string?>> ExtraSettings => [];
 
@@ -61,6 +65,8 @@ public class ApiFactory : WebApplicationFactory<Program>
             ["Seed:Admins:0:Username"] = AdminUsername,
             ["Seed:Admins:0:Email"] = AdminEmail,
             ["Seed:Admins:0:FullName"] = "Quản trị kiểm thử",
+            ["Ai:Mode"] = "Simulated",
+            ["Ai:AttemptTimeoutSeconds"] = "1",
         }.Concat(ExtraSettings)));
 
         builder.ConfigureTestServices(services =>
@@ -74,6 +80,8 @@ public class ApiFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(Mail);
+            services.RemoveAll<ILessonAiClient>();
+            services.AddSingleton<ILessonAiClient>(Ai);
 
             // TestServer không có IP client; gán sẵn để kiểm được IP đi vào audit_logs.
             services.AddSingleton<IStartupFilter, FakeRemoteIpStartupFilter>();

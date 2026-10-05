@@ -2,12 +2,14 @@ using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using DSVHVN.Application;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Students;
 using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Identity;
 using DSVHVN.Domain.Organizations;
+using DSVHVN.Infrastructure.Ai;
 using DSVHVN.Infrastructure.Email;
 using DSVHVN.Infrastructure.Files;
 using DSVHVN.Infrastructure.Persistence;
@@ -96,6 +98,7 @@ public sealed class ServiceHarness : IDisposable
         services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddApplication();
+        services.AddSingleton<ILessonCodeGenerator>(Codes);
         services.AddSingleton<IHostEnvironment, TestHostEnvironment>();
         services.Configure<JwtOptions>(o => o.SigningKey = "unit-test-signing-key-0123456789-abcdef");
         services.Configure<AppLinkOptions>(_ => { });
@@ -103,6 +106,9 @@ public sealed class ServiceHarness : IDisposable
         services.AddSingleton<ITokenIssuer, JwtTokenIssuer>();
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<IAuthThrottle, InMemoryAuthThrottle>();
+        services.AddSingleton<ILessonCodeThrottle, InMemoryLessonCodeThrottle>();
+        services.AddSingleton<ILessonAiClient>(Ai);
+        services.Configure<AiOptions>(_ => { });
         services.AddSingleton<IEmailSender>(Mail);
         services.AddScoped<IAccountMailer, AccountMailer>();
         services.AddSingleton<IStudentListFile, StudentListFileReader>();
@@ -121,6 +127,12 @@ public sealed class ServiceHarness : IDisposable
 
     public MutableTimeProvider Clock { get; } = new();
     public CapturingEmailSender Mail { get; } = new();
+
+    /// <summary>Nguồn mã bài học của kiểm thử: trả lần lượt các mã được xếp sẵn, hết thì sinh ngẫu nhiên.</summary>
+    public ScriptedCodeGenerator Codes { get; } = new();
+
+    /// <summary>Dịch vụ AI giả lập của kiểm thử; thay hành vi bằng <see cref="ScriptedAiClient.Behavior"/>.</summary>
+    public ScriptedAiClient Ai { get; } = new();
 
     public IPasswordHasher Hasher => _root.GetRequiredService<IPasswordHasher>();
 
@@ -229,5 +241,62 @@ public sealed class ServiceHarness : IDisposable
     {
         _root.Dispose();
         _connection.Dispose();
+    }
+}
+
+/// <summary>
+/// Dịch vụ AI dùng trong kiểm thử: mặc định chạy bản giả lập thật (<see cref="SimulatedLessonAiClient"/>), đếm số lần gọi,
+/// và cho ép lỗi (mạng, quá thời gian, trả sai) bằng <see cref="Behavior"/> để thử việc thử lại và ghi nhật ký.
+/// </summary>
+public sealed class ScriptedAiClient : ILessonAiClient
+{
+    private readonly SimulatedLessonAiClient _inner = new();
+    private int _calls;
+
+    public string ModelName => _inner.ModelName;
+
+    public int Calls => _calls;
+
+    /// <summary>Nhận số thứ tự lần gọi (từ 1) và kết quả thật của bản giả lập; ném ngoại lệ hoặc trả kết quả khác tùy kiểm thử.</summary>
+    public Func<int, AiComposeRequest, CancellationToken, Task<AiComposeResult>>? Behavior { get; set; }
+
+    public AiComposeRequest? LastRequest { get; private set; }
+
+    public string? LastCorrelationId { get; private set; }
+
+    public void Reset()
+    {
+        Behavior = null;
+        _calls = 0;
+        LastRequest = null;
+        LastCorrelationId = null;
+    }
+
+    public async Task<AiComposeResult> ComposeLessonAsync(AiComposeRequest request, string correlationId, CancellationToken ct)
+    {
+        var call = Interlocked.Increment(ref _calls);
+        LastRequest = request;
+        LastCorrelationId = correlationId;
+        if (Behavior is { } behavior) return await behavior(call, request, ct);
+        return await _inner.ComposeLessonAsync(request, correlationId, ct);
+    }
+}
+
+/// <summary>Nguồn mã bài học cho kiểm thử: ép trường hợp trùng mã bằng cách xếp sẵn những mã sẽ trả.</summary>
+public sealed class ScriptedCodeGenerator : ILessonCodeGenerator
+{
+    private readonly Queue<string> _queue = new();
+
+    public int Calls { get; private set; }
+
+    public void Enqueue(params string[] codes)
+    {
+        foreach (var code in codes) _queue.Enqueue(code);
+    }
+
+    public string NewCode()
+    {
+        Calls++;
+        return _queue.Count > 0 ? _queue.Dequeue() : DSVHVN.Domain.Rules.LessonCodes.NewCode();
     }
 }

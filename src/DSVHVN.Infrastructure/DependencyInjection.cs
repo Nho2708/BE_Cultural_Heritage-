@@ -1,5 +1,7 @@
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Students;
+using DSVHVN.Infrastructure.Ai;
 using DSVHVN.Infrastructure.Files;
 using DSVHVN.Infrastructure.Email;
 using DSVHVN.Infrastructure.Persistence;
@@ -35,12 +37,35 @@ public static class DependencyInjection
         services.AddSingleton<ITokenIssuer, JwtTokenIssuer>();
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<IAuthThrottle, InMemoryAuthThrottle>();
+        services.AddSingleton<ILessonCodeThrottle, InMemoryLessonCodeThrottle>();
         services.AddEmail(configuration);
+        services.AddLessonAi(configuration);
 
         // Phiếu đăng nhập của học sinh lấy địa chỉ web học tập và đường dẫn tải app từ mục App.
         services.AddOptions<StudentSheetOptions>().Bind(configuration.GetSection(StudentSheetOptions.Section));
         services.AddSingleton<IStudentListFile, StudentListFileReader>();
         return services;
+    }
+
+    /// <summary>
+    /// Dịch vụ AI soạn nội dung bài học: <c>Ai:Mode</c> chọn bản lúc tạo dịch vụ (không đọc ngay lúc đăng ký). <c>Simulated</c> (mặc định) là bản giả lập
+    /// không gọi mạng; <c>Remote</c> gọi Dịch vụ AI nội bộ theo hợp đồng và thiếu <c>BaseUrl</c>, <c>InternalKey</c> thì dừng khởi động.
+    /// </summary>
+    private static void AddLessonAi(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<AiOptions>().Bind(configuration.GetSection(AiOptions.Section)).ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AiOptions>, AiOptionsValidator>());
+
+        services.AddSingleton<ILessonAiClient>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<AiOptions>>();
+            if (options.Value.Mode != AiMode.Remote) return new SimulatedLessonAiClient();
+
+            // Một HttpClient dùng chung cho cả tiến trình; thời gian chờ từng lần gọi do LessonAiService đặt qua CancellationToken.
+            var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+            var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+            return new HttpLessonAiClient(http, options);
+        });
     }
 
     /// <summary>

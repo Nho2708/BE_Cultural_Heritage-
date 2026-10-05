@@ -6,6 +6,7 @@ using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Heritages;
+using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Organizations;
 using DSVHVN.Application.Profile;
 using DSVHVN.Application.StudentAuth;
@@ -46,6 +47,12 @@ public static class DependencyInjection
         services.AddScoped<StudentService>();
         services.AddScoped<StudentImportService>();
         services.AddScoped<StudentAuthService>();
+        services.AddSingleton<ILessonCodeGenerator, RandomLessonCodeGenerator>();
+        services.AddScoped<LessonMaterialService>();
+        services.AddScoped<LessonDetailBuilder>();
+        services.AddScoped<LessonService>();
+        services.AddScoped<LessonAiService>();
+        services.AddScoped<StudentLessonService>();
         return services;
     }
 }

@@ -32,6 +32,14 @@ public static class MessageCodes
     public const string PasswordMismatch = "PASSWORD_MISMATCH";
     public const string StudentsAdded = "STUDENTS_ADDED";
     public const string ClassLevelChangeNeedsConfirmation = "CLASS_LEVEL_CHANGE_NEEDS_CONFIRMATION";
+    public const string LessonPublished = "LESSON_PUBLISHED";
+    public const string LessonDuplicated = "LESSON_DUPLICATED";
+    public const string LessonCodeInvalid = "LESSON_CODE_INVALID";
+    public const string LessonCodeBlocked = "LESSON_CODE_BLOCKED";
+    public const string PlanRequired = "PLAN_REQUIRED";
+    public const string AiQuotaReached = "AI_QUOTA_REACHED";
+    public const string AiUnavailable = "AI_UNAVAILABLE";
+    public const string AiDraftReady = "AI_DRAFT_READY";
 }
 
 /// <summary>
@@ -171,6 +179,50 @@ public static class Messages
         new(MessageCodes.ClassLevelChangeNeedsConfirmation,
             $"Lớp {className} sẽ chuyển từ cấp {oldLevel} sang cấp {newLevel}. Giao diện học của học sinh đổi theo cấp mới; " +
             "bài học và bài kiểm tra đã có giữ nguyên nội dung. Bạn có chắc muốn đổi?");
+
+    // ---- Bài học cho lớp theo cấp ----
+
+    /// <summary>Trường chưa có gói hiệu lực: chặn tạo, nhân bản bài học và gọi AI (xem, sửa, xuất bản, lưu trữ bài đã có vẫn được).</summary>
+    public static AppMessage PlanRequired(string action) => new(MessageCodes.PlanRequired,
+        $"Không thể {action}. Gói dịch vụ của trường đã hết hiệu lực hoặc chưa có gói. Học sinh vẫn học bài và làm bài kiểm tra đã phát hành bình thường.");
+
+    /// <summary>Xuất bản bài học lần đầu: hiện mã bài học để đưa cho lớp.</summary>
+    public static AppMessage LessonPublished(string code, string className) => new(MessageCodes.LessonPublished,
+        $"Đã xuất bản bài học. Mã bài học: {code}. Hãy đưa mã hoặc đường dẫn cho học sinh lớp {className}.");
+
+    /// <summary>Nhân bản bài học sang lớp khác xong; bài kiểm tra của bài chưa chép ở luồng này nên không nhắc số bài kiểm tra.</summary>
+    public static AppMessage LessonDuplicated(string className, int skippedHeritages) => new(MessageCodes.LessonDuplicated,
+        skippedHeritages == 0
+            ? $"Đã tạo bài học nháp ở lớp {className}."
+            : $"Đã tạo bài học nháp ở lớp {className}. Bỏ qua {skippedHeritages} di sản đã ẩn.");
+
+    /// <summary>Lớp đích khác cấp với lớp nguồn khi nhân bản bài học: nội dung vẫn được chép nguyên, cảnh báo giáo viên xem lại.</summary>
+    public static string LessonLevelDiffers(string className, int targetLevel, int sourceLevel) =>
+        $"Lớp {className} thuộc cấp {targetLevel}, khác cấp {sourceLevel} của bài gốc. Nội dung đang theo khung của cấp {sourceLevel}; " +
+        "bạn nên xem lại hoặc nhờ AI soạn lại.";
+
+    /// <summary>AI trả về bản nháp nội dung bài học; kèm số lượt AI còn lại trong kỳ.</summary>
+    public static AppMessage AiDraftReady(string product, int remaining) => new(MessageCodes.AiDraftReady,
+        $"Đã tạo bản nháp {product}. Hãy kiểm tra độ chính xác trước khi dùng. Còn {remaining} lượt AI trong kỳ.");
+
+    /// <summary>Dịch vụ AI quá thời gian chờ hoặc lỗi sau các lần thử lại; lượt không bị tính.</summary>
+    public static readonly AppMessage AiUnavailable = new(MessageCodes.AiUnavailable,
+        "Dịch vụ AI đang bận. Lượt này không bị tính. Bạn có thể thử lại sau hoặc tự nhập nội dung; nội dung bài học được giữ nguyên.");
+
+    /// <summary>Trường đã dùng hết lượt AI của kỳ gói hiện tại.</summary>
+    public static AppMessage AiQuotaReached(int max, DateOnly endDate) => new(MessageCodes.AiQuotaReached,
+        $"Trường đã dùng hết {max} lượt AI của kỳ gói hiện tại (đến hết ngày {endDate.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture)}). Vui lòng liên hệ quản trị trường để nâng cấp gói.");
+
+    /// <summary>Mã bài học sai, bài chưa xuất bản hoặc đã lưu trữ, bài không thuộc lớp của em: luôn cùng một câu.</summary>
+    public static readonly AppMessage LessonCodeInvalid = new(MessageCodes.LessonCodeInvalid,
+        "Mã bài học chưa đúng hoặc không dành cho lớp của em. Em hãy kiểm tra lại mã thầy cô đã đưa.");
+
+    /// <summary>Nhập sai mã quá nhiều lần (theo tài khoản hoặc theo địa chỉ IP): chặn nhập mã một lúc.</summary>
+    public static AppMessage LessonCodeBlocked(TimeSpan remaining)
+    {
+        var minutes = Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
+        return new AppMessage(MessageCodes.LessonCodeBlocked, $"Em đã nhập sai mã quá nhiều lần. Em hãy thử lại sau {minutes} phút.");
+    }
 
     /// <summary>Lỗi hệ thống ngoài dự kiến.</summary>
     public static readonly AppMessage SystemError =
