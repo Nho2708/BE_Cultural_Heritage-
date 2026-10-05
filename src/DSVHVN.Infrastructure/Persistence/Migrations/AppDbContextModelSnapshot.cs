@@ -1325,15 +1325,33 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<byte?>("BlankIndex")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("blank_index");
+
                     b.Property<string>("Content")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)")
                         .HasColumnName("content");
 
+                    b.Property<byte?>("CorrectPosition")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("correct_position");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("image_url");
+
                     b.Property<bool>("IsCorrect")
                         .HasColumnType("bit")
                         .HasColumnName("is_correct")
                         .HasDefaultValueSql("0");
+
+                    b.Property<string>("MatchContent")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("match_content");
 
                     b.Property<long>("QuestionId")
                         .HasColumnType("bigint")
@@ -1348,7 +1366,10 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("QuestionId");
 
-                    b.ToTable("answers", (string)null);
+                    b.ToTable("answers", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_answers_positions", "([correct_position] IS NULL OR [correct_position] BETWEEN 1 AND 20) AND ([blank_index] IS NULL OR [blank_index] BETWEEN 1 AND 20)");
+                        });
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Questions.Question", b =>
@@ -1395,6 +1416,30 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Property<long>("HeritageId")
                         .HasColumnType("bigint")
                         .HasColumnName("heritage_id");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<byte>("LevelMax")
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)3)
+                        .HasColumnName("level_max");
+
+                    b.Property<byte>("LevelMin")
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)1)
+                        .HasColumnName("level_min");
+
+                    b.Property<string>("Passage")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("passage");
+
+                    b.Property<string>("PassageSource")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("passage_source");
 
                     b.Property<string>("QuestionType")
                         .HasMaxLength(20)
@@ -1443,7 +1488,11 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_questions_difficulty_level", "[difficulty_level] IN ('EASY', 'MEDIUM', 'HARD')");
 
-                            t.HasCheckConstraint("CK_questions_question_type", "[question_type] IN ('SINGLE_CHOICE', 'TRUE_FALSE')");
+                            t.HasCheckConstraint("CK_questions_levels", "[level_min] BETWEEN 1 AND 3 AND [level_max] BETWEEN 1 AND 3 AND [level_min] <= [level_max]");
+
+                            t.HasCheckConstraint("CK_questions_passage", "[question_type] <> 'SOURCE_READING' OR [passage] IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_questions_question_type", "[question_type] IN ('SINGLE_CHOICE', 'TRUE_FALSE', 'IMAGE_CHOICE', 'MATCHING', 'ORDERING', 'FILL_BLANK', 'MULTI_TRUE_FALSE', 'SOURCE_READING')");
 
                             t.HasCheckConstraint("CK_questions_review_status", "[review_status] IN ('PENDING', 'APPROVED', 'REJECTED')");
 

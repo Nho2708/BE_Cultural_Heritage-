@@ -39,7 +39,7 @@ public sealed class AppDbContextTests : IDisposable
 
         Assert.Equal(Tables, tables);
         Assert.Equal(43, fkCount);
-        Assert.Equal(22, checkCount);
+        Assert.Equal(25, checkCount);   // 22 + CK_questions_levels, CK_questions_passage, CK_answers_positions (luồng ngân hàng câu hỏi)
         Assert.Contains("organization_id", userColumns);
         Assert.Contains("must_change_password", userColumns);
         Assert.Contains("last_login_at", userColumns);

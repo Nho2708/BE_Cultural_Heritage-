@@ -76,11 +76,20 @@ public enum AiTaskStatus
     FAILED,
 }
 
-/// <summary><c>questions.question_type</c>: chỉ hai loại, một đáp án đúng và đúng/sai.</summary>
+/// <summary>
+/// <c>questions.question_type</c> (CSDL v4): 8 dạng. Cấp dùng được của từng dạng nằm ở <c>QuestionTypes</c> (bảng cố định trong code).
+/// Hai giá trị đầu có từ CSDL v3.
+/// </summary>
 public enum QuestionType
 {
     SINGLE_CHOICE,
     TRUE_FALSE,
+    IMAGE_CHOICE,
+    MATCHING,
+    ORDERING,
+    FILL_BLANK,
+    MULTI_TRUE_FALSE,
+    SOURCE_READING,
 }
 
 /// <summary><c>questions.difficulty_level</c>, <c>quizzes.difficulty_level</c>.</summary>
