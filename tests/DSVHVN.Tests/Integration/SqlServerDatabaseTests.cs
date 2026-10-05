@@ -14,7 +14,7 @@ namespace DSVHVN.Tests.Integration;
 
 /// <summary>
 /// Kiểm trên SQL Server thật: database tạm tạo bằng migration khởi tạo (khi Api khởi động) và tự xóa khi xong.
-/// Lược đồ phải đúng CSDL v3 cộng phần v4 của luồng bài học (28 bảng, 43 khóa ngoại, 22 CHECK, 4 UNIQUE có lọc, collation Vietnamese_CI_AI);
+/// Lược đồ phải đúng CSDL v3 cộng phần v4 của luồng bài học (28 bảng, 43 khóa ngoại, 25 CHECK, 4 UNIQUE có lọc, collation Vietnamese_CI_AI);
 /// dữ liệu tỉnh/thành và di sản nạp được; luồng web quản trị chạy được; ràng buộc tài khoản học sinh đúng thiết kế.
 /// </summary>
 public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClassFixture<SqlServerApiFactory>
@@ -40,12 +40,12 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.Equal("Vietnamese_CI_AI",
             (await SqlAsync<string>($"SELECT CAST(DATABASEPROPERTYEX(DB_NAME(), 'Collation') AS nvarchar(128)) AS [Value]")).Single());
         Assert.Equal(28, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(248, (await SqlAsync<int>(   // 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp)
+        Assert.Equal(257, (await SqlAsync<int>(   // 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi)
             $"SELECT COUNT(*) AS [Value] FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id WHERE t.name <> '__EFMigrationsHistory'")).Single());
         Assert.Equal(43, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());
         Assert.Equal(["fk_password_reset_tokens_user_id"],
             await SqlAsync<string>($"SELECT name AS [Value] FROM sys.foreign_keys WHERE delete_referential_action_desc = 'CASCADE'"));
-        Assert.Equal(22, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());
+        Assert.Equal(25, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());
 
         var filtered = await SqlAsync<string>(
             $"SELECT i.name + ' ' + i.filter_definition AS [Value] FROM sys.indexes i WHERE i.is_unique = 1 AND i.has_filter = 1 ORDER BY i.name");
@@ -76,7 +76,7 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
                           WHERE k.parent_object_id = c.object_id AND k.definition LIKE '%[[]' + c.name + '] IN %'
                              OR k.parent_object_id = c.object_id AND k.definition LIKE '%[[]' + c.name + ']=''%')
             """)).Single());
-        Assert.Equal(["((0))", "((0))", "((0))", "((0))", "((0))", "((1))", "((1))", "((1))"],
+        Assert.Equal(["((0))", "((0))", "((0))", "((0))", "((0))", "((1))", "((1))", "((1))", "(CONVERT([tinyint],(1)))", "(CONVERT([tinyint],(3)))"],   // hai DEFAULT cuối: questions.level_min = 1, level_max = 3
             await SqlAsync<string>($"SELECT definition AS [Value] FROM sys.default_constraints ORDER BY definition"));
 
         var roles = await factory.WithDbAsync(db => db.Roles.OrderBy(r => r.Id).Select(r => r.Name).ToListAsync());
