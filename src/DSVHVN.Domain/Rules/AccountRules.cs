@@ -55,4 +55,8 @@ public static class VietnamTime
     public static readonly TimeSpan Offset = TimeSpan.FromHours(7);
 
     public static DateOnly Today(DateTimeOffset utcNow) => DateOnly.FromDateTime(utcNow.ToOffset(Offset).DateTime);
+
+    /// <summary>Thời điểm UTC của 00:00 giờ Việt Nam ngày <paramref name="date"/>; kỳ của gói tính từ mốc này tới 00:00 của ngày sau ngày kết thúc.</summary>
+    public static DateTime StartOfDayUtc(DateOnly date) =>
+        DateTime.SpecifyKind(date.ToDateTime(TimeOnly.MinValue) - Offset, DateTimeKind.Utc);
 }
