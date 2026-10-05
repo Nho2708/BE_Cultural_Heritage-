@@ -1,6 +1,7 @@
 using DSVHVN.Api.Common;
 using DSVHVN.Api.Security;
 using DSVHVN.Application.Accounts;
+using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Organizations;
 using DSVHVN.Application.Teachers;
@@ -18,7 +19,8 @@ namespace DSVHVN.Api.Controllers;
 [Authorize(Policy = Policies.OrgAdmin)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
-public sealed class OrgController(MyOrganizationService myOrganization, TeacherService teachers) : ApiControllerBase
+public sealed class OrgController(MyOrganizationService myOrganization, TeacherService teachers, SchoolSummaryService schoolSummary)
+    : ApiControllerBase
 {
     /// <summary>Thông tin trường của mình, gói hiện tại, bộ đếm giáo viên.</summary>
     [HttpGet]
@@ -32,6 +34,15 @@ public sealed class OrgController(MyOrganizationService myOrganization, TeacherS
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<MyOrganizationDto>>> Update(UpdateOrganizationContactRequest request, CancellationToken ct)
         => OkEnvelope(await myOrganization.UpdateContactAsync(CurrentActor, request, ct), Messages.Success("Lưu thông tin trường").Text);
+
+    /// <summary>
+    /// Số liệu tổng hợp của trường (số lớp, số học sinh đang hoạt động, theo từng cấp học). Chỉ có số đếm: quản trị trường không xem
+    /// danh sách lớp hay học sinh cụ thể và không đặt lại mật khẩu học sinh.
+    /// </summary>
+    [HttpGet("school-summary")]
+    [ProducesResponseType<ApiResponse<SchoolSummaryDto>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<SchoolSummaryDto>>> SchoolSummary(CancellationToken ct)
+        => OkEnvelope(await schoolSummary.GetAsync(CurrentActor, ct));
 
     /// <summary>Giáo viên của trường: tìm theo tên, tên đăng nhập, email; lọc trạng thái; kèm bộ đếm hạn mức.</summary>
     [HttpGet("teachers")]
