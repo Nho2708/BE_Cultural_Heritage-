@@ -19,11 +19,12 @@ tên cột giữ đúng DBML (`snake_case`). Phần CSDL v4 (`doc/database/dsvhv
 | Khám phá di sản công khai (khách và học sinh, không đăng nhập): trang chủ, tìm kiếm và lọc có/không dấu, bản đồ, chi tiết, timeline; danh sách tỉnh mở cho khách; giới hạn 300 yêu cầu/phút/IP | Xong phần backend | [docs/kham-pha-di-san.md](docs/kham-pha-di-san.md) |
 | Lớp, học sinh và tài khoản học sinh: giáo viên tạo/sửa/xóa lớp (khối 1-12, năm học, cấp học suy từ khối), thêm học sinh từng em hoặc nhập danh sách `.xlsx`/`.csv`/dán văn bản (xem trước, tối đa 60 dòng, lưu một giao dịch), mã học sinh `HS` + 6 ký tự, mật khẩu tạm và phiếu đăng nhập hiện một lần, đặt lại mật khẩu, vô hiệu/mở lại/xóa; học sinh đăng nhập bằng mã, buộc đổi mật khẩu lần đầu, xem lớp của em; quản trị trường chỉ xem số liệu tổng hợp | Xong phần backend | [docs/lop-hoc-sinh.md](docs/lop-hoc-sinh.md) |
 | Bài học cho lớp theo cấp: giáo viên tạo bài cho **một lớp** từ 1-10 di sản đã xuất bản, nội dung theo khung của cấp 1/2/3 (câu chuyện từng bước có hình · bài đọc có mốc thời gian · bài phân tích có trích tư liệu gốc kèm nguồn), **AI soạn bản nháp đúng cấp** (qua giao diện Dịch vụ AI + **bản giả lập**, ghi `ai_generations`, tính hạn mức lượt AI của gói), giáo viên sửa và duyệt, xuất bản sinh **một mã bài học** (`BH` + 6 ký tự), lưu trữ, xóa, nhân bản sang lớp khác; học sinh đã đăng nhập gõ mã, bài phải thuộc lớp của em, nhận bài theo luồng của cấp; sai mã luôn cùng một thông báo, 10 lần sai/10 phút thì bị chặn | Xong phần backend | [docs/bai-hoc-theo-cap.md](docs/bai-hoc-theo-cap.md) |
+| Ngân hàng câu hỏi theo dạng, AI sinh câu hỏi: ngân hàng **dùng chung mọi trường** với **8 dạng câu** (một đáp án đúng · Đúng/Sai · chọn hình đúng · ghép cặp · sắp xếp · điền từ · nhiều mệnh đề Đúng/Sai · đọc tư liệu) và **cấp phù hợp** theo bảng dạng câu theo cấp; trình soạn có kiểm hợp lệ theo dạng (lỗi theo trường), xem trước như học sinh của từng cấp, **chấm thử từng phần**; **AI sinh câu đúng dạng và cấp của lớp** từ một bài học (qua giao diện Dịch vụ AI + **bản giả lập**, ghi `ai_generations`, tính hạn mức lượt AI của gói), câu AI vào ngân hàng **chờ duyệt** chỉ người tạo thấy; duyệt, loại, duyệt nhiều câu, sửa, xóa mềm, **nhân bản** (câu đã nằm trong quiz hoặc của người khác chỉ đọc); tìm và lọc theo dạng, cấp, độ khó, di sản, trạng thái, người tạo; quản trị hệ thống **ẩn** câu kém chất lượng (ghi nhật ký thao tác) | Xong phần backend | [docs/ngan-hang-cau-hoi.md](docs/ngan-hang-cau-hoi.md) |
 
 ## Cấu trúc
 
 ```
-src/DSVHVN.Domain          Thực thể 27 bảng của CSDL v3 và lesson_sections của v4, enum, quy tắc nghiệp vụ thuần (tài khoản, di sản, lớp và mã học sinh, khung bài học theo cấp, mã bài học)
+src/DSVHVN.Domain          Thực thể 27 bảng của CSDL v3 và lesson_sections của v4, enum, quy tắc nghiệp vụ thuần (tài khoản, di sản, lớp và mã học sinh, khung bài học theo cấp, mã bài học, bảng dạng câu hỏi theo cấp)
 src/DSVHVN.Application     Dịch vụ nghiệp vụ, kiểm gói và hạn mức, validator, danh mục thông điệp tiếng Việt, nhật ký thao tác
 src/DSVHVN.Infrastructure  EF Core (DbContext, cấu hình theo nhóm bảng, migration, seed, nạp dữ liệu di sản), JWT,
                            băm mật khẩu PBKDF2, gửi thư (ghi log hoặc SMTP qua MailKit), đọc và dựng tệp danh sách học sinh (ClosedXML),
@@ -53,6 +54,7 @@ dotnet test                                           # có LocalDB thì chạy 
 API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-nen-tang.sh
 API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-lop-hoc-sinh.sh   # nên chạy trên database tạm, xem docs/lop-hoc-sinh.md mục 9
 API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-bai-hoc-theo-cap.sh # nên chạy trên database tạm, xem docs/bai-hoc-theo-cap.md mục 8
+API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-ngan-hang-cau-hoi.sh # nên chạy trên database tạm, xem docs/ngan-hang-cau-hoi.md mục 9
 ```
 
 CSDL dev: `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (không dùng các CSDL cũ `dsvhvn_dev`,
@@ -61,12 +63,13 @@ CSDL dev: `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Viet
 repo (`Seed:HeritageData:*` trong `appsettings.Development.json`); máy không có thư mục này thì bước nạp di sản được bỏ qua.
 Chi tiết endpoint, cấu hình và quyết định hiện thực ở [docs/nen-tang-to-chuc.md](docs/nen-tang-to-chuc.md).
 
-## Dịch vụ AI soạn bài học
+## Dịch vụ AI soạn bài học và sinh câu hỏi
 
 Dịch vụ AI thật (FastAPI) **chưa có**. Backend gọi AI qua giao diện theo hợp đồng của nhóm và có **bản giả lập** (sinh nội dung mẫu đúng cấp từ dữ liệu di sản, không gọi nhà cung cấp mô hình nào,
 không dùng khóa API nào). Chọn bản bằng cấu hình `Ai:Mode`: `Simulated` (mặc định) hoặc `Remote` (gọi dịch vụ nội bộ ở `Ai:BaseUrl`, khóa nội bộ `Ai:InternalKey` đặt bằng biến môi trường
 `Ai__InternalKey`, không ghi vào appsettings). Chờ 45 giây mỗi lần gọi, thử lại tối đa 2 lần (`Ai:AttemptTimeoutSeconds`, `Ai:MaxRetries`). Chi tiết hợp đồng, quy trình và hạn mức lượt AI:
-[docs/bai-hoc-theo-cap.md](docs/bai-hoc-theo-cap.md) mục 5.
+[docs/bai-hoc-theo-cap.md](docs/bai-hoc-theo-cap.md) mục 5. Sinh câu hỏi theo dạng và cấp dùng chung mục cấu hình `Ai` (cùng chế độ, địa chỉ, khóa, thời gian chờ) qua giao diện `IQuestionAiClient`
+(`POST /v1/generate-questions`) và có bản giả lập riêng: [docs/ngan-hang-cau-hoi.md](docs/ngan-hang-cau-hoi.md) mục 5.
 
 ## Thư đặt mật khẩu
 
