@@ -416,8 +416,9 @@ public sealed class HeritageModelApiTests(ApiFactory factory) : IClassFixture<Ap
         Assert.False(await _k.HasModelAsync(heritage.Slug!));
         Assert.Equal(HttpStatusCode.NotFound, (await _k.PublicModelAsync(heritage.Slug!)).Response.StatusCode);
         Assert.True(File.Exists(_k.FilePath(model.FileUrl)));
-        foreach (var call in new[] { Http.DeleteAsync<object>($"{AdminRoot}/models/{model.Id}", admin), Http.PostAsync<object>($"{AdminRoot}/models/{model.Id}/show", null, admin) })
-            Assert.Equal(HttpStatusCode.NotFound, (await call).Response.StatusCode);
+        // Lần lượt từng yêu cầu: chạy cùng lúc trên một CSDL SQLite trong bộ nhớ thì thỉnh thoảng một yêu cầu gặp lỗi tranh chấp kết nối.
+        Assert.Equal(HttpStatusCode.NotFound, (await Http.DeleteAsync<object>($"{AdminRoot}/models/{model.Id}", admin)).Response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Http.PostAsync<object>($"{AdminRoot}/models/{model.Id}/show", null, admin)).Response.StatusCode);
     }
 
     // ---- Danh sách di sản của quản trị ----
