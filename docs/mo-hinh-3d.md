@@ -25,7 +25,7 @@ ghi công); việc xoay, phóng to, đặt lại góc nhìn và thanh tiến tr�
 | Giấy phép mở | Chỉ **CC0, CC BY, CC BY-SA** (kèm số phiên bản, vd "CC BY 4.0"), **phạm vi công cộng** (public domain) hoặc **mô hình nhóm tự dựng**. Không nhận CC BY-NC, CC BY-ND, giấy phép không rõ. Mô hình nhóm tự dựng được **bỏ trống đường dẫn nguồn**, khi đó phần nguồn của ghi công là "Nhóm thực hiện"; mọi giấy phép khác bắt buộc có đường dẫn nguồn http hoặc https |
 | Một mô hình hiển thị | Mỗi di sản có tối đa **một** mô hình đang hiển thị (`PUBLISHED`, chưa gỡ), do **chỉ mục duy nhất có lọc** `UX_heritage_models_visible` của chính CSDL bảo vệ, kể cả khi hai quản trị bấm cùng lúc (người đến sau nhận 422). Mô hình nháp, đã ẩn hoặc đã gỡ không chiếm chỗ. Mục tiêu 5-10 di sản có mô hình là mục tiêu dữ liệu, không cưỡng chế |
 | Hiển thị cho khách | Mô hình chỉ tới khách khi **mô hình đang hiển thị và di sản đã xuất bản**. Di sản bị ẩn thì mô hình ẩn theo (trạng thái của mô hình giữ nguyên, di sản hiện lại thì mô hình hiện lại). Di sản không có mô hình hiển thị thì không có nút "Xem 3D", chỉ có bộ ảnh |
-| Miễn phí | Không qua cổng quảng cáo, không đăng nhập; học sinh và khách đều xem. Ghi lượt xem 3D vào lịch sử của khách thuộc luồng Khách tham quan (chưa làm, bảng thiết bị khách chưa có) |
+| Miễn phí | Không qua cổng quảng cáo, không đăng nhập; học sinh và khách đều xem. Khách gửi kèm `X-Device-Key` thì lượt xem 3D được ghi vào lịch sử của thiết bị (chỉ khi có mô hình, học sinh đăng nhập không bị ghi): [khach-tham-quan.md](khach-tham-quan.md) |
 | Nhật ký thao tác | Thêm, thay tệp, sửa thông tin và ghi công, hiện, ẩn, gỡ đều ghi mã `HERITAGE_MODEL_CHANGED` (nhãn "Thêm, thay, gỡ, ẩn hoặc hiện mô hình 3D của di sản", đối tượng `heritage_models`). `new_value` có việc đã làm (`added`, `replaced`, `updated`, `shown`, `hidden`, `removed`), mã di sản, trạng thái, giấy phép, dung lượng; **không ghi đường dẫn tệp**. Yêu cầu thất bại không ghi gì |
 | Gỡ | Xóa mềm (`deleted_at`), tệp trong kho **giữ lại** (kể cả tệp cũ khi thay tệp) |
 
@@ -108,6 +108,6 @@ một mô hình hiển thị, sửa, thay tệp, khai báo bằng đường dẫ
 
 ## 7. Chưa làm ở luồng này
 
-- **Ghi lượt xem 3D vào lịch sử của khách** và gợi ý theo lượt xem 3D: thuộc luồng Khách tham quan (cần bảng thiết bị khách và lịch sử khách, chưa có); khi có, trình xem gọi API ghi lịch sử riêng.
+- Ghi lượt xem 3D vào lịch sử của khách và gợi ý theo lượt xem 3D: **đã làm** ở luồng Khách tham quan ([khach-tham-quan.md](khach-tham-quan.md)); `GET /api/v1/public/heritages/{slug}/model` tự ghi khi có `X-Device-Key`, trình xem không cần gọi API riêng.
 - Trình xem 3D, nút "Xem 3D", tab Mô hình 3D, xem trước trong trình xem dùng chung: giao diện web quản trị, web học tập và app.
 - Dữ liệu 5-10 mô hình thật (tìm và nhập glTF giấy phép mở): việc nhập liệu của nhóm qua tab Mô hình 3D.

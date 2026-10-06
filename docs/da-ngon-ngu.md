@@ -221,4 +221,4 @@ Không có khóa dịch vụ ngoài nào trong mã hay log: bản giả lập kh
 - **Từ chối được cả bản đã duyệt** (không chỉ bản chờ duyệt) để quản trị gỡ được một bản đã hiện mà còn sai; đặc tả chỉ mô tả từ chối bản chờ duyệt.
 - **Duyệt tiếng Anh dịch lại ngay** bản Hàn, Trung, Nhật trong lời gọi duyệt; đặc tả mô tả "ở lần bấm dịch kế tiếp" và "khi duyệt lại" nên làm cả hai.
 - `address` của bản dịch để trống (AI không dịch địa chỉ), nên trang công khai luôn hiện địa chỉ gốc.
-- Ghi lượt xem, đọc, nghe vào lịch sử của khách, gợi ý theo lịch sử, cổng quảng cáo mở khóa tóm tắt, mô hình 3D thuộc các luồng khác, **chưa có** ở đây.
+- Ghi lượt xem, đọc, nghe vào lịch sử của khách và gợi ý theo lịch sử **đã làm** ở luồng Khách tham quan ([khach-tham-quan.md](khach-tham-quan.md): `GET /summary` tự ghi lượt đọc khi có `X-Device-Key`, lượt nghe ghi qua `POST /api/v1/public/guest/activities`); cổng quảng cáo mở khóa tóm tắt thuộc luồng Quảng cáo, **chưa có** ở đây.
