@@ -177,7 +177,7 @@ public enum ActorRole
 }
 
 /// <summary>
-/// <c>audit_logs.action</c>: đúng 21 mã thao tác được ghi nhật ký. Cột không có CHECK, danh sách hợp lệ kiểm ở tầng code.
+/// <c>audit_logs.action</c>: 22 mã thao tác được ghi nhật ký (21 mã của đặc tả và <c>QUESTION_RESTORED</c> khi quản trị hệ thống hiện lại câu đã ẩn). Cột không có CHECK, danh sách hợp lệ kiểm ở tầng code.
 /// Nền tảng tài khoản và tổ chức ghi 8 mã đầu; các mã còn lại do chức năng tương ứng ghi qua cùng <c>IAuditLogger</c>.
 /// </summary>
 public enum AuditAction
@@ -199,8 +199,16 @@ public enum AuditAction
     QUIZ_PUBLISHED,
     QUIZ_CLOSED,
     QUESTION_HIDDEN,
+    QUESTION_RESTORED,
     PLAN_UPDATED,
     SUBSCRIPTION_CHANGED,
     BILLING_STATUS_CHANGED,
     IPN_REJECTED,
+}
+
+/// <summary>Cách gom nhóm của biểu đồ tổng quan theo thời gian: theo ngày hoặc theo tháng (giờ Việt Nam).</summary>
+public enum TrendGranularity
+{
+    DAY,
+    MONTH,
 }
