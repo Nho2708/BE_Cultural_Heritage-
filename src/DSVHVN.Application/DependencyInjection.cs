@@ -9,6 +9,7 @@ using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Heritages;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Organizations;
+using DSVHVN.Application.Overview;
 using DSVHVN.Application.Profile;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Quizzes;
@@ -47,6 +48,8 @@ public static class DependencyInjection
         services.AddSingleton<IStudentCredentialGenerator, RandomStudentCredentialGenerator>();
         services.AddScoped<ClassService>();
         services.AddScoped<SchoolSummaryService>();
+        services.AddScoped<SchoolOverviewService>();
+        services.AddScoped<SystemOverviewService>();
         services.AddScoped<StudentAccountFactory>();
         services.AddScoped<LoginSheetBuilder>();
         services.AddScoped<StudentService>();
