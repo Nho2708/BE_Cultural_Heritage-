@@ -70,13 +70,7 @@ public sealed class DiscoveryService(IAppDbContext db, HeritageLocalizer localiz
     /// </summary>
     public async Task<HomeDto> GetHomeAsync(LanguageCode language, CancellationToken ct)
     {
-        var featured = await Published()
-            .Where(h => h.RecognitionLevel == RecognitionLevel.UNESCO || h.RecognitionLevel == RecognitionLevel.NATIONAL_SPECIAL)
-            .OrderByDescending(h => h.UpdatedAt ?? h.CreatedAt).ThenByDescending(h => h.Id)
-            .Take(FeaturedLimit)
-            .Select(ToCard)
-            .ToListAsync(ct);
-        featured = (await LocalizeCardsAsync(featured, language, ct)).ToList();
+        var featured = await GetFeaturedAsync(FeaturedLimit, language, ct);
 
         var total = await Published().CountAsync(ct);
         var byType = await Published().Where(h => h.HeritageType != null)
@@ -93,6 +87,30 @@ public sealed class DiscoveryService(IAppDbContext db, HeritageLocalizer localiz
             HeritageLabels.Regions
                 .Select(r => new CountItemDto(r, HeritageLabels.Region(r), byRegion.FirstOrDefault(x => x.Key == r)?.Count ?? 0))
                 .ToList());
+    }
+
+    /// <summary>Di sản nổi bật của trang chủ (UNESCO hoặc quốc gia đặc biệt, mới cập nhật trước), lấy tối đa <paramref name="limit"/> di sản; dùng chung với gợi ý cho khách chưa có lịch sử.</summary>
+    internal async Task<IReadOnlyList<HeritageCardDto>> GetFeaturedAsync(int limit, LanguageCode language, CancellationToken ct)
+    {
+        var featured = await Published()
+            .Where(h => h.RecognitionLevel == RecognitionLevel.UNESCO || h.RecognitionLevel == RecognitionLevel.NATIONAL_SPECIAL)
+            .OrderByDescending(h => h.UpdatedAt ?? h.CreatedAt).ThenByDescending(h => h.Id)
+            .Take(limit)
+            .Select(ToCard)
+            .ToListAsync(ct);
+        return await LocalizeCardsAsync(featured, language, ct);
+    }
+
+    /// <summary>
+    /// Thẻ của các di sản đã xuất bản theo danh sách id, giữ đúng thứ tự của <paramref name="ids"/> và theo ngôn ngữ yêu cầu; id không có, chưa xuất bản hoặc đã xóa thì bỏ qua.
+    /// Dùng cho lịch sử, gợi ý và "Gần bạn" của khách.
+    /// </summary>
+    internal async Task<IReadOnlyList<HeritageCardDto>> GetCardsAsync(IReadOnlyList<long> ids, LanguageCode language, CancellationToken ct)
+    {
+        if (ids.Count == 0) return [];
+        var cards = await Published().Where(h => ids.Contains(h.Id)).Select(ToCard).ToListAsync(ct);
+        var byId = (await LocalizeCardsAsync(cards, language, ct)).ToDictionary(c => c.Id);
+        return ids.Distinct().Where(byId.ContainsKey).Select(id => byId[id]).ToList();
     }
 
     // ---- Tìm kiếm và lọc ----

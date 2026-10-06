@@ -56,6 +56,7 @@ public static class MessageCodes
     public const string QuizEnded = "QUIZ_ENDED";
     public const string AttemptFinished = "ATTEMPT_FINISHED";
     public const string AttemptInProgress = "ATTEMPT_IN_PROGRESS";
+    public const string GuestOnly = "GUEST_ONLY";
 }
 
 /// <summary>

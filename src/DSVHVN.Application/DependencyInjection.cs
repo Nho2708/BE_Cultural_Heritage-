@@ -7,6 +7,7 @@ using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Files;
+using DSVHVN.Application.Guests;
 using DSVHVN.Application.Heritages;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Organizations;
@@ -94,6 +95,8 @@ public static class DependencyInjection
         services.AddScoped<RelatedRanker>();
         services.AddScoped<StudentRecommendationService>();
         services.AddScoped<ClassRecommendationService>();
+        services.AddScoped<GuestService>();
+        services.AddScoped<GuestRecommendationService>();
         services.AddScoped<QuizResultsService>();
         services.AddScoped<ClassStatisticsService>();
         return services;
