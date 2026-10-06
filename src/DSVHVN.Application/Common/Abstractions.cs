@@ -9,6 +9,7 @@ using DSVHVN.Domain.Organizations;
 using DSVHVN.Domain.Questions;
 using DSVHVN.Domain.Quizzes;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace DSVHVN.Application.Common;
@@ -60,6 +61,9 @@ public interface IAppDbContext
     DbSet<Invoice> Invoices { get; }
     DbSet<PaymentProvider> PaymentProviders { get; }
     DbSet<Payment> Payments { get; }
+
+    /// <summary>Bộ theo dõi thay đổi; dùng để bỏ các thay đổi chưa lưu khi thử lại một giao dịch bị tranh chấp (đánh số hóa đơn).</summary>
+    ChangeTracker ChangeTracker { get; }
 
     /// <summary>Mở giao dịch cho thao tác nhiều bước (tạo trường, tạo giáo viên trong hạn mức).</summary>
     DatabaseFacade Database { get; }
