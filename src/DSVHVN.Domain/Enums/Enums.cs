@@ -177,7 +177,7 @@ public enum ActorRole
 }
 
 /// <summary>
-/// <c>audit_logs.action</c>: đúng 21 mã thao tác được ghi nhật ký. Cột không có CHECK, danh sách hợp lệ kiểm ở tầng code.
+/// <c>audit_logs.action</c>: 22 mã thao tác được ghi nhật ký (21 mã của CSDL v3 và <c>HERITAGE_PREVIEW_ISSUED</c> khi cấp liên kết xem trước bản nháp di sản). Cột không có CHECK, danh sách hợp lệ kiểm ở tầng code.
 /// Nền tảng tài khoản và tổ chức ghi 8 mã đầu; các mã còn lại do chức năng tương ứng ghi qua cùng <c>IAuditLogger</c>.
 /// </summary>
 public enum AuditAction
@@ -192,6 +192,7 @@ public enum AuditAction
     ACCOUNT_DELETED,
     HERITAGE_PUBLISHED,
     HERITAGE_ARCHIVED,
+    HERITAGE_PREVIEW_ISSUED,
     STUDENT_ACCOUNTS_CREATED,
     STUDENT_PASSWORD_RESET,
     STUDENT_DEACTIVATED,

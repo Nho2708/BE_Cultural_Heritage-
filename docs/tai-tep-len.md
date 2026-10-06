@@ -6,13 +6,32 @@ như mọi ảnh khác, cột `url` giữ đường dẫn tới tệp trong kho.
 
 ## 1. Kho tệp thay được nhà cung cấp
 
-Nghiệp vụ chỉ biết giao diện `IFileStorage` (`Application/Files`): ghi tệp, kiểm có tệp, gỡ một lần ghi chưa kịp ghi nhận, và dựng đường dẫn công khai.
+Nghiệp vụ chỉ biết giao diện `IFileStorage` (`Application/Files`): ghi tệp, kiểm có tệp, xóa theo khóa, và dựng đường dẫn công khai.
 Nhà cung cấp chọn bằng cấu hình `Storage:Provider`:
 
-| Giá trị | Trạng thái | Ghi chú |
+| Giá trị | Dùng khi | Ghi chú |
 |---|---|---|
-| `Local` (mặc định) | Có | Lưu trên đĩa của máy chủ, trong thư mục `Storage:Local:RootPath`; Api phục vụ tệp qua đường dẫn `/files/...` |
-| `Cloud` | **Chỗ để sẵn, chưa làm** | Chọn giá trị này thì Api dừng ngay lúc khởi động với thông báo "Storage:Provider = Cloud chưa có bản cài đặt, hãy dùng Local". Khi có dịch vụ đám mây chỉ cần viết một lớp `IFileStorage` mới và đăng ký trong `Infrastructure/DependencyInjection` |
+| `Local` (mặc định) | Phát triển, kiểm thử | Lưu trên đĩa của máy chủ, trong thư mục `Storage:Local:RootPath`; Api phục vụ tệp qua đường dẫn `/files/...` |
+| `Cloudinary` | **Triển khai** | Ảnh và mô hình 3D nằm trên Cloudinary; địa chỉ lưu vào CSDL và hiển thị là **URL HTTPS** của Cloudinary. Thiếu `CloudName`, `ApiKey` hoặc `ApiSecret` thì Api **dừng ngay lúc khởi động** với thông báo "Cấu hình lưu trữ tệp chưa đúng: thiếu Storage:Cloudinary:ApiSecret…" (chỉ nêu tên khóa còn thiếu, không in giá trị) |
+
+Hai bản tuân cùng quy tắc ảnh ở mục 3 (định dạng theo nội dung, 5 MB, bỏ EXIF, tên ngẫu nhiên, xóa ảnh khỏi di sản chỉ gỡ dòng `media`). Việc xử lý ảnh (SkiaSharp) luôn chạy ở backend **trước**
+khi gửi đi, nên Cloudinary chỉ nhận ảnh đã bỏ EXIF.
+
+### Tạo tài khoản Cloudinary và đặt khóa
+
+1. Đăng ký tài khoản miễn phí tại cloudinary.com, vào **Dashboard > Settings > API Keys** (hoặc "Go to API Keys"): có **Cloud name**, **API Key**, **API Secret**.
+2. Đặt khóa vào **User Secrets** khi phát triển (không bao giờ ghi vào `appsettings*.json`, mã, log, tài liệu hay báo cáo):
+
+```bash
+dotnet user-secrets set "Storage:Cloudinary:CloudName" "<cloud name>" --project src/DSVHVN.Api
+dotnet user-secrets set "Storage:Cloudinary:ApiKey"    "<api key>"    --project src/DSVHVN.Api
+dotnet user-secrets set "Storage:Cloudinary:ApiSecret" "<api secret>" --project src/DSVHVN.Api
+```
+
+3. Khi triển khai dùng biến môi trường (máy chủ, container, GitHub Actions secrets):
+   `Storage__Provider=Cloudinary`, `Storage__Cloudinary__CloudName`, `Storage__Cloudinary__ApiKey`, `Storage__Cloudinary__ApiSecret`, và tùy chọn `Storage__Cloudinary__Folder` (mặc định `dsvhvn`).
+4. Đổi nhà cung cấp chỉ cần đổi `Storage:Provider` rồi khởi động lại Api. Ảnh đã lưu **không** tự chuyển: đường dẫn đã ghi trong `media.url` giữ nguyên (đường dẫn `/files/...` của bản Local hay URL Cloudinary).
+   Chuyển môi trường đã có ảnh thì tải ảnh cũ lên Cloudinary và sửa đường dẫn có chủ đích.
 
 ### Cấu hình
 
@@ -20,17 +39,32 @@ Nhà cung cấp chọn bằng cấu hình `Storage:Provider`:
 "Storage": {
   "Provider": "Local",
   "PublicBaseUrl": "",
-  "Local": { "RootPath": "storage" }
+  "Local": { "RootPath": "storage" },
+  "Cloudinary": { "Folder": "dsvhvn" }
 }
 ```
+
+(`CloudName`, `ApiKey`, `ApiSecret` **không** có trong tệp; chỉ ở User Secrets hoặc biến môi trường.)
+
+- `Cloudinary:Folder`: thư mục (tiền tố mã công khai) chứa mọi tệp của nền tảng trên Cloudinary, chỉ chữ, số, `-`, `_` và `/`. Lần thử thật dùng `dsvhvn-thu` để không lẫn với ảnh thật.
+- Cách ánh xạ (bản Cloudinary): ảnh `images/{mã}.{jpg|png|webp}` tải lên loại **image** với public id `{Folder}/images/{mã}`, địa chỉ
+  `https://res.cloudinary.com/{cloud}/image/upload/{Folder}/images/{mã}.{đuôi}`; mô hình `models/{mã}.glb` tải lên loại **raw** với public id `{Folder}/models/{mã}.glb`, địa chỉ
+  `https://res.cloudinary.com/{cloud}/raw/upload/{Folder}/models/{mã}.glb`. Mã là mã ngẫu nhiên 32 ký tự do hệ thống sinh, tải lên ký bằng bí mật API **ở backend**; bí mật không bao giờ tới trình duyệt hay app.
+- **Ảnh thu nhỏ** không tải thêm tệp: là địa chỉ biến đổi của chính ảnh gốc `.../image/upload/c_limit,w_320,q_auto/{Folder}/images/{mã}.webp` (cạnh dài 320 điểm ảnh, không phóng to, WEBP). `previewUrl` của ảnh trả đúng địa chỉ này.
+- Giới hạn gói Cloudinary miễn phí áp lên tệp (ảnh 5 MB của hệ thống nằm trong giới hạn; `.glb` lớn có thể chạm giới hạn tệp raw của gói, khi đó Cloudinary từ chối và người dùng thấy thông báo tải lại).
+- Web học tập và app hiển thị ảnh từ `res.cloudinary.com`: nếu có chính sách bảo mật nội dung (CSP) thì thêm `https://res.cloudinary.com` vào nguồn ảnh và nguồn tải mô hình.
+- **Cloudinary lỗi** (sai khóa, hết hạn mức, mất mạng): API trả **503** `STORAGE_UNAVAILABLE` "Không tải được tệp lên kho lưu trữ. Di sản được giữ nguyên, bạn hãy thử tải lại sau ít phút."; không ghi dòng `media`, tệp vừa gửi (nếu có) được gỡ lại, di sản giữ nguyên, tải lại được.
+
+Cấu hình bản Local:
 
 - `Local:RootPath`: thư mục chứa tệp. Đường dẫn tương đối tính từ thư mục chạy của Api (`src/DSVHVN.Api/storage` khi chạy bằng `dotnet run`). Nên đặt **ngoài mã nguồn**
   (ví dụ `D:\dsvhvn-tep` hoặc `/var/lib/dsvhvn/tep`), cấp quyền ghi cho tài khoản chạy Api và đưa vào lịch sao lưu. Thư mục tự được tạo. Đặt bằng biến môi trường:
   `Storage__Local__RootPath=D:\dsvhvn-tep`. Thư mục `storage` mặc định đã nằm trong `.gitignore`; không đưa tệp tải lên vào git.
-- `PublicBaseUrl`: để trống thì đường dẫn trả về là **tương đối** (`/files/images/...`), giao diện ghép với địa chỉ API. Đặt địa chỉ đầy đủ (ví dụ `https://api.dsvhvn.vn`)
+- `PublicBaseUrl` (chỉ bản Local): để trống thì đường dẫn trả về là **tương đối** (`/files/images/...`), giao diện ghép với địa chỉ API. Đặt địa chỉ đầy đủ (ví dụ `https://api.dsvhvn.vn`)
   khi web học tập và app mobile ở địa chỉ khác máy chủ API, để đường dẫn ảnh lưu trong CSDL mở được ở mọi nơi. Đổi giá trị này về sau **không** sửa đường dẫn của ảnh đã lưu.
 - Tệp được phục vụ qua `GET /files/...` **không cần đăng nhập** (ảnh của trang công khai phải mở được), nhưng có kiểm soát: chỉ đuôi `jpg`, `png`, `webp`, `glb`; tệp lạ, thư mục
   và đường dẫn thoát khỏi thư mục kho đều không được phục vụ; tên tệp là mã ngẫu nhiên nên cho trình duyệt giữ lâu (`Cache-Control: public, max-age=31536000, immutable`).
+  Khi dùng Cloudinary, Api **không** phục vụ `/files`.
 - Đứng sau proxy ngược (nginx, IIS): chuyển tiếp `/files` về Api, hoặc cho proxy đọc thẳng thư mục kho nếu muốn nhanh hơn.
 
 ## 2. Endpoint (chỉ quản trị hệ thống; multipart/form-data)
@@ -77,6 +111,7 @@ dịch vụ với 400 và thông báo "Tệp ảnh không hợp lệ: tối đa 
 | Tình huống | Mã | Thông báo |
 |---|---|---|
 | Không gửi tệp | `REQUIRED` | "Vui lòng nhập tệp ảnh." / "Vui lòng nhập tệp mô hình 3D." |
+| Cloudinary không nhận hoặc mất mạng | HTTP 503, `STORAGE_UNAVAILABLE` | "Không tải được tệp lên kho lưu trữ. Di sản được giữ nguyên, bạn hãy thử tải lại sau ít phút." |
 | Quá dung lượng | `INVALID` | "Tệp ảnh không hợp lệ: tối đa 5 MB." / "Tệp mô hình 3D không hợp lệ: tối đa 15 MB." |
 | Sai định dạng (theo nội dung) | `INVALID` | "Tệp ảnh không hợp lệ: chỉ nhận định dạng JPG, PNG hoặc WEBP." |
 | Không đọc được, ảnh hỏng | `INVALID` | "Tệp ảnh không hợp lệ: không đọc được, tệp không phải ảnh hoặc đã bị hỏng." |
@@ -95,15 +130,24 @@ Linux không cần cài thêm gói hệ thống; trên Windows thư viện gốc
 | `Unit/StoredFileRulesTests` | Chỉ nhận khóa tệp do hệ thống sinh (chặn `..`, đường dẫn tuyệt đối, đuôi lạ); đường dẫn tương đối tới tệp; đường dẫn ảnh thu nhỏ; giới hạn 5 MB và 15 MB |
 | `Unit/SkiaImageProcessorTests` | Nhận JPG, PNG, WEBP theo nội dung; từ chối GIF, văn bản, chương trình, ảnh cụt; chặn quá nhiều điểm ảnh; **EXIF bị bỏ** (tệp mẫu mang chuỗi GPS dễ nhận ra); chiều xoay EXIF áp vào điểm ảnh (xoay 90, 180, lật); ảnh thu nhỏ WEBP không phóng to |
 | `Unit/GlbInspectorTests` | `.glb` hợp lệ; `data:` nhúng được; mọi tham chiếu ra ngoài bị từ chối; sai phiên bản; tệp hỏng, `.gltf` JSON thuần, độ dài không khớp |
-| `Unit/LocalFileStorageTests`, `StorageOptionsValidatorTests` | Ghi, kiểm, gỡ; khóa có thể thoát thư mục bị từ chối; đường dẫn công khai tương đối hoặc đủ địa chỉ; `Cloud` và địa chỉ gốc sai bị từ chối |
+| `Unit/LocalFileStorageTests`, `StorageOptionsValidatorTests` | Ghi, kiểm, gỡ; khóa có thể thoát thư mục bị từ chối; đường dẫn công khai tương đối hoặc đủ địa chỉ; `Cloudinary` thiếu khóa bị từ chối (chỉ nêu tên khóa thiếu, không in giá trị), tên thư mục sai và địa chỉ gốc sai bị từ chối |
+| `Unit/CloudinaryFileStorageTests` (HTTP giả, **không gọi Cloudinary thật**) | Khóa thành địa chỉ HTTPS (ảnh, ảnh thu nhỏ biến đổi, mô hình raw); tải lên đúng loại, public id cố định, yêu cầu có chữ ký mà không lộ bí mật API; ảnh thu nhỏ không gọi mạng; xóa theo public id, "không tìm thấy" tính là đã xóa; HTTP lỗi, mất mạng, trả mã lạ đều thành lỗi kho tệp không kèm khóa |
+| `Integration/CloudinaryUploadApiTests` (SQLite trong bộ nhớ, Api thật, HTTP giả) | Tải ảnh qua API: địa chỉ HTTPS ghi vào thư viện, `previewUrl` là địa chỉ biến đổi, chỉ một lần gọi tải lên; Cloudinary lỗi hoặc mất mạng thì 503 `STORAGE_UNAVAILABLE`, không ghi dòng `media`, tải lại được; `.glb` lên kho raw |
+| `Integration/CloudinaryLiveTests` (**mặc định bỏ qua**) | Lần thử thật duy nhất: chạy Api với `Storage:Provider = Cloudinary` và thư mục `dsvhvn-thu`, tải một ảnh nhỏ, mở ảnh gốc và ảnh thu nhỏ qua HTTPS, rồi **xóa bằng API** và kiểm đã mất. Chỉ chạy khi đặt `DSVHVN_CLOUDINARY_LIVE=1` (khóa lấy từ User Secrets, không in ra) |
 | `Unit/HeritageMediaUploadTests` | Tải xong có đủ hai tệp và một dòng; lỗi ghi ở tệp thứ nhất hoặc thứ hai thì không còn tệp nào và không có dòng; xóa ảnh không đụng tới tệp; tệp bị từ chối thì chưa lưu gì; mô hình lưu dưới tên sinh ra |
 | `Integration/FileUploadApiTests` (SQLite trong bộ nhớ, chạy cả Api) | Chỉ ADMIN; ảnh tải lên không còn EXIF và phục vụ công khai kèm ảnh thu nhỏ; định dạng theo nội dung; quá 5 MB, thiếu tệp, đúng 5 MB; ghi công bắt buộc và không lưu gì khi bị từ chối; ảnh đại diện; ảnh sự kiện; 404; xóa ảnh giữ tệp; dán đường dẫn tệp trong kho; `.glb` hợp lệ và các kiểu bị từ chối, quá 15 MB; phục vụ tệp có kiểm soát |
 | `Integration/FileUploadSqlServerTests` (database tạm của LocalDB, tự xóa) | Dòng `media` ghi đúng bằng migration thật, ảnh đại diện, tệp và ảnh thu nhỏ mở được |
 
 Các test dùng thư mục tạm riêng cho kho tệp (`Storage:Local:RootPath` đặt trong `ApiFactory`) và xóa khi xong; không chạm thư mục `storage` thật.
 
+Lần thử thật với Cloudinary (cần ba khóa trong User Secrets):
+
 ```bash
-dotnet test --filter "FullyQualifiedName~FileUpload|FullyQualifiedName~StoredFile|FullyQualifiedName~SkiaImage|FullyQualifiedName~Glb|FullyQualifiedName~LocalFileStorage|FullyQualifiedName~HeritageMediaUpload"
+DSVHVN_CLOUDINARY_LIVE=1 dotnet test --filter "FullyQualifiedName~CloudinaryLive"     # PowerShell: $env:DSVHVN_CLOUDINARY_LIVE = "1"
+```
+
+```bash
+dotnet test --filter "FullyQualifiedName~FileUpload|FullyQualifiedName~StoredFile|FullyQualifiedName~SkiaImage|FullyQualifiedName~Glb|FullyQualifiedName~LocalFileStorage|FullyQualifiedName~HeritageMediaUpload|FullyQualifiedName~Cloudinary"
 ```
 
 Thử nhanh bằng curl (đăng nhập ADMIN lấy token, xem [kho-di-san.md](kho-di-san.md)):

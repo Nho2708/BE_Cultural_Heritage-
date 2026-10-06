@@ -65,6 +65,7 @@ public static class AuditLabels
         AuditAction.ACCOUNT_DELETED => "Xóa tài khoản giáo viên",
         AuditAction.HERITAGE_PUBLISHED => "Xuất bản di sản",
         AuditAction.HERITAGE_ARCHIVED => "Ẩn di sản",
+        AuditAction.HERITAGE_PREVIEW_ISSUED => "Cấp liên kết xem trước bản nháp di sản",
         AuditAction.STUDENT_ACCOUNTS_CREATED => "Thêm học sinh và tạo tài khoản",
         AuditAction.STUDENT_PASSWORD_RESET => "Đặt lại mật khẩu học sinh",
         AuditAction.STUDENT_DEACTIVATED => "Vô hiệu hoặc xóa học sinh",

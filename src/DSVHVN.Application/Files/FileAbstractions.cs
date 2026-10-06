@@ -2,7 +2,7 @@ namespace DSVHVN.Application.Files;
 
 /// <summary>
 /// Kho tệp của nền tảng (ảnh di sản, ảnh sự kiện, mô hình 3D). Giao diện này để đổi nhà cung cấp lưu trữ mà không đổi nghiệp vụ:
-/// bản có sẵn lưu trên đĩa của máy chủ (<c>Storage:Provider</c> = <c>Local</c>); bản dịch vụ đám mây sẽ làm sau.
+/// hai bản cài, chọn bằng <c>Storage:Provider</c>: <c>Local</c> lưu trên đĩa của máy chủ (phát triển, kiểm thử) và <c>Cloudinary</c> (triển khai).
 /// Khóa (<c>key</c>) là tên tương đối do hệ thống sinh, ví dụ <c>images/{32 ký tự}.jpg</c>.
 /// </summary>
 public interface IFileStorage
@@ -18,6 +18,12 @@ public interface IFileStorage
     /// <summary>Đường dẫn công khai để trình duyệt mở tệp: tương đối (<c>/files/...</c>) hoặc đủ địa chỉ nếu cấu hình <c>Storage:PublicBaseUrl</c>.</summary>
     string PublicUrl(string key);
 }
+
+/// <summary>
+/// Kho tệp ở xa (Cloudinary) không ghi hoặc không xóa được. Api đổi thành 503 kèm thông báo cho tải lại; người gọi (<see cref="IFileStorage"/>) không đưa
+/// thông tin kết nối, khóa hay bí mật vào thông điệp.
+/// </summary>
+public sealed class FileStorageException(string message, Exception? inner = null) : Exception(message, inner);
 
 public enum ImageProblem
 {

@@ -50,9 +50,19 @@ public sealed class StoredFileRulesTests
         Assert.Equal($"https://api.example.vn/files/images/{Id}-thumb.webp",
             StoredFileRules.ThumbnailUrlOf($"https://api.example.vn/files/images/{Id}.jpg"));
         Assert.Null(StoredFileRules.ThumbnailUrlOf("https://upload.wikimedia.org/a.jpg"));
+        Assert.Null(StoredFileRules.ThumbnailUrlOf($"https://res.cloudinary.com/demo/raw/upload/dsvhvn/models/{Id}.glb"));
+        Assert.Null(StoredFileRules.ThumbnailUrlOf($"https://res.cloudinary.com.evil.example/demo/image/upload/images/{Id}.jpg"));
         Assert.Null(StoredFileRules.ThumbnailUrlOf($"/files/models/{Id}.glb"));
         Assert.Null(StoredFileRules.ThumbnailUrlOf(null));
     }
+
+    [Theory]
+    [InlineData($"https://res.cloudinary.com/demo/image/upload/dsvhvn/images/{Id}.png",
+        $"https://res.cloudinary.com/demo/image/upload/c_limit,w_320,q_auto/dsvhvn/images/{Id}.webp")]
+    [InlineData($"https://res.cloudinary.com/demo/image/upload/v1712345678/dsvhvn-thu/images/{Id}.jpg",
+        $"https://res.cloudinary.com/demo/image/upload/c_limit,w_320,q_auto/v1712345678/dsvhvn-thu/images/{Id}.webp")]
+    public void The_preview_of_a_cloudinary_image_is_a_transformation_of_the_image_itself(string url, string expected) =>
+        Assert.Equal(expected, StoredFileRules.ThumbnailUrlOf(url));
 
     [Fact]
     public void Limits_follow_the_business_rules()
@@ -303,12 +313,44 @@ public sealed class StorageOptionsValidatorTests
     public void The_default_is_local_storage_and_valid() => Assert.True(Validate(new StorageOptions()).Succeeded);
 
     [Fact]
-    public void The_cloud_provider_is_reserved_but_not_available_yet()
+    public void Cloudinary_needs_the_cloud_name_the_key_and_the_secret_and_the_message_names_only_the_missing_keys()
     {
-        var result = Validate(new StorageOptions { Provider = StorageProvider.Cloud });
+        var result = Validate(new StorageOptions { Provider = StorageProvider.Cloudinary });
         Assert.True(result.Failed);
-        Assert.Contains("Cloud chưa có bản cài đặt", result.FailureMessage);
+        Assert.Contains("Storage:Cloudinary:CloudName", result.FailureMessage);
+        Assert.Contains("Storage:Cloudinary:ApiKey", result.FailureMessage);
+        Assert.Contains("Storage:Cloudinary:ApiSecret", result.FailureMessage);
+
+        var partial = Validate(new StorageOptions
+        {
+            Provider = StorageProvider.Cloudinary,
+            Cloudinary = new CloudinaryStorageOptions { CloudName = "demo", ApiKey = "key-value", ApiSecret = " " },
+        });
+        Assert.True(partial.Failed);
+        Assert.Contains("ApiSecret", partial.FailureMessage);
+        Assert.DoesNotContain("ApiKey", partial.FailureMessage);
+        Assert.DoesNotContain("key-value", partial.FailureMessage);
     }
+
+    [Fact]
+    public void Cloudinary_with_all_keys_is_valid_and_the_folder_shape_is_checked()
+    {
+        CloudinaryStorageOptions Options(string folder) =>
+            new() { CloudName = "demo", ApiKey = "k", ApiSecret = "s", Folder = folder };
+
+        Assert.True(Validate(new StorageOptions { Provider = StorageProvider.Cloudinary, Cloudinary = Options("dsvhvn") }).Succeeded);
+        Assert.True(Validate(new StorageOptions { Provider = StorageProvider.Cloudinary, Cloudinary = Options("dsvhvn-thu/a_b") }).Succeeded);
+        Assert.True(Validate(new StorageOptions { Provider = StorageProvider.Cloudinary, Cloudinary = Options("../x") }).Failed);
+        Assert.True(Validate(new StorageOptions { Provider = StorageProvider.Cloudinary, Cloudinary = Options("a b") }).Failed);
+    }
+
+    [Fact]
+    public void An_unknown_provider_value_is_rejected() =>
+        Assert.True(Validate(new StorageOptions { Provider = (StorageProvider)7 }).Failed);
+
+    [Fact]
+    public void Local_storage_does_not_need_the_cloudinary_keys() =>
+        Assert.True(Validate(new StorageOptions { Provider = StorageProvider.Local }).Succeeded);
 
     [Fact]
     public void The_root_folder_and_the_public_base_address_are_checked()

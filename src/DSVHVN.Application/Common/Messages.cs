@@ -40,6 +40,8 @@ public static class MessageCodes
     public const string AiQuotaReached = "AI_QUOTA_REACHED";
     public const string AiUnavailable = "AI_UNAVAILABLE";
     public const string AiDraftReady = "AI_DRAFT_READY";
+    public const string StorageUnavailable = "STORAGE_UNAVAILABLE";
+    public const string PreviewInvalid = "PREVIEW_INVALID";
 }
 
 /// <summary>
@@ -223,6 +225,14 @@ public static class Messages
         var minutes = Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
         return new AppMessage(MessageCodes.LessonCodeBlocked, $"Em đã nhập sai mã quá nhiều lần. Em hãy thử lại sau {minutes} phút.");
     }
+
+    /// <summary>Kho lưu trữ tệp (Cloudinary) không ghi hoặc không xóa được: di sản giữ nguyên, tải lại được.</summary>
+    public static readonly AppMessage StorageUnavailable = new(MessageCodes.StorageUnavailable,
+        "Không tải được tệp lên kho lưu trữ. Di sản được giữ nguyên, bạn hãy thử tải lại sau ít phút.");
+
+    /// <summary>Mã xem trước sai, hết hạn, di sản không còn hoặc người mở không phải quản trị hệ thống: luôn cùng một câu, không lộ di sản có tồn tại hay không.</summary>
+    public static readonly AppMessage PreviewInvalid = new(MessageCodes.PreviewInvalid,
+        "Liên kết xem trước đã hết hạn hoặc không hợp lệ. Hãy quay lại màn hình Biên tập di sản và bấm \"Xem trước\" để lấy liên kết mới.");
 
     /// <summary>Lỗi hệ thống ngoài dự kiến.</summary>
     public static readonly AppMessage SystemError =

@@ -1,6 +1,7 @@
 using DSVHVN.Api.Common;
 using DSVHVN.Api.Security;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Heritages;
 using DSVHVN.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -27,7 +28,7 @@ public sealed class AdminProvincesController(HeritageService heritages) : ApiCon
 [Authorize(Policy = Policies.Admin)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
-public sealed class AdminHeritagesController(HeritageService heritages) : ApiControllerBase
+public sealed class AdminHeritagesController(HeritageService heritages, HeritagePreviewService previews) : ApiControllerBase
 {
     /// <summary>
     /// Danh sách di sản chưa xóa: tìm theo tên (không phân biệt hoa thường và dấu), lọc tỉnh, loại, cấp xếp hạng, trạng thái
@@ -94,6 +95,19 @@ public sealed class AdminHeritagesController(HeritageService heritages) : ApiCon
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
     public async Task<ActionResult<ApiResponse<HeritageDetailDto>>> SetThumbnail(long id, ThumbnailRequest request, CancellationToken ct)
         => OkEnvelope(await heritages.SetThumbnailAsync(id, request, ct), Messages.Success("Chọn ảnh đại diện").Text);
+
+    /// <summary>
+    /// Cấp liên kết xem trước bản nháp (nút "Xem trước" của Biên tập di sản): mã ký có hạn 30 phút (cấu hình <c>Preview:CodeMinutes</c>), gắn đúng di sản này.
+    /// Trả <c>path</c> dạng <c>/xem-truoc/di-san/{mã}</c> để web học tập mở ở tab mới; bấm lại thì cấp mã mới. Di sản đã xuất bản thì 422 (mở trang công khai).
+    /// Ghi nhật ký HERITAGE_PREVIEW_ISSUED. Không đổi gì ở di sản.
+    /// </summary>
+    [HttpPost("{id:long}/preview")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<ApiResponse<HeritagePreviewLinkDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<ApiResponse<HeritagePreviewLinkDto>>> IssuePreview(long id, CancellationToken ct)
+        => OkEnvelope(await previews.IssueAsync(CurrentActor, id, ct));
 
     /// <summary>Xuất bản (DRAFT sang PUBLISHED) khi đủ điều kiện; thiếu thì 422 NOT_READY kèm danh sách còn thiếu. Ghi nhật ký HERITAGE_PUBLISHED.</summary>
     [HttpPost("{id:long}/publish")]

@@ -1,4 +1,5 @@
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Files;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
@@ -44,6 +45,11 @@ public static class DependencyInjection
         services.AddLessonAi(configuration);
         services.AddFileStorage(configuration);
 
+        // Liên kết xem trước bản nháp di sản: mã ký bằng khóa của máy chủ, hạn Preview:CodeMinutes (mặc định 30 phút), không có bảng.
+        services.AddOptions<PreviewOptions>().Bind(configuration.GetSection(PreviewOptions.Section)).ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<PreviewOptions>, PreviewOptionsValidator>());
+        services.AddSingleton<IHeritagePreviewCodec, HeritagePreviewCodec>();
+
         // Phiếu đăng nhập của học sinh lấy địa chỉ web học tập và đường dẫn tải app từ mục App.
         services.AddOptions<StudentSheetOptions>().Bind(configuration.GetSection(StudentSheetOptions.Section));
         services.AddSingleton<IStudentListFile, StudentListFileReader>();
@@ -52,13 +58,20 @@ public static class DependencyInjection
 
     /// <summary>
     /// Kho tệp (ảnh di sản, mô hình 3D): <c>Storage:Provider</c> chọn nhà cung cấp lúc tạo dịch vụ. <c>Local</c> (mặc định) lưu trên đĩa máy chủ ở
-    /// <c>Storage:Local:RootPath</c>; <c>Cloud</c> là chỗ để sẵn cho dịch vụ đám mây, chưa có bản cài đặt nên chọn thì dừng khởi động.
+    /// <c>Storage:Local:RootPath</c>; <c>Cloudinary</c> (triển khai) lưu trên Cloudinary và thiếu <c>Storage:Cloudinary:CloudName</c>, <c>ApiKey</c>, <c>ApiSecret</c> thì dừng khởi động
+    /// (không đọc ngay lúc đăng ký, nên cấu hình ghi đè về sau vẫn có hiệu lực). Khóa chỉ ở User Secrets hoặc biến môi trường.
     /// </summary>
     private static void AddFileStorage(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<StorageOptions>().Bind(configuration.GetSection(StorageOptions.Section)).ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<StorageOptions>, StorageOptionsValidator>());
-        services.AddSingleton<IFileStorage, LocalFileStorage>();
+        services.AddSingleton<IFileStorage>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<StorageOptions>>();
+            return options.Value.Provider == StorageProvider.Cloudinary
+                ? new CloudinaryFileStorage(options)
+                : ActivatorUtilities.CreateInstance<LocalFileStorage>(sp);
+        });
         services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
     }
 

@@ -155,13 +155,14 @@ Mọi endpoint trả khuôn `{ success, data, message, errorCode, traceId, error
 
 ## 5. Nhật ký thao tác
 
-Danh mục hành động của nhóm chỉ có hai mã cho di sản, nên chỉ hai việc được ghi vào `audit_logs` (`target_type` = `heritages`, `target_id` = id di sản,
+Danh mục hành động của nhóm có ba mã cho di sản (hai mã đổi trạng thái và mã cấp liên kết xem trước, mục 9), nên các việc sau được ghi vào `audit_logs` (`target_type` = `heritages`, `target_id` = id di sản,
 `actor_role` = ADMIN, người thực hiện và IP của yêu cầu):
 
 | Việc | Mã | `old_value` → `new_value` |
 |---|---|---|
 | Xuất bản (DRAFT sang PUBLISHED) và hiện lại (ARCHIVED sang PUBLISHED) | `HERITAGE_PUBLISHED` | `{ status }` → `{ status, name, slug }` |
 | Ẩn (PUBLISHED sang ARCHIVED) | `HERITAGE_ARCHIVED` | `{ status }` → `{ status, name, slug }` |
+| Cấp liên kết xem trước bản nháp | `HERITAGE_PREVIEW_ISSUED` | — → `{ expiresAt }` (không ghi mã xem trước) |
 
 Việc tạo, sửa nháp, thêm bớt giai đoạn, sự kiện, ảnh, nguồn, xóa mềm **không** ghi nhật ký (không có mã hành động tương ứng trong danh mục); mốc
 `heritages.updated_at` được cập nhật mỗi khi di sản hoặc phần con của nó đổi. Lần xuất bản ghi lại người xuất bản, đủ để đối chiếu với quy trình
@@ -206,3 +207,25 @@ dotnet test --filter "FullyQualifiedName~Heritage"
 **Tọa độ trên bản đồ**: vĩ độ 8,0-23,5 và kinh độ 102,0-117,5 (khung lãnh thổ Việt Nam), nhập đủ cả hai hoặc bỏ trống cả hai, lưu 6 chữ số thập phân; ô chọn điểm trên bản đồ của web quản trị gửi hai số này qua `latitude`, `longitude` của `POST` và `PUT /heritages`. Điểm ngoài khung bị từ chối ở backend (400 `INVALID`) dù giao diện đã chặn.
 
 Thử nhanh bằng Swagger (`http://localhost:5080/swagger`, chỉ Development): đăng nhập bằng `POST /api/v1/auth/login` với tài khoản ADMIN seed, dán access token vào nút Authorize.
+
+## 9. Xem trước bản nháp di sản
+
+Ở Biên tập di sản, nút xem đổi theo trạng thái: di sản **đã xuất bản** thì "Xem trang công khai" mở trang chi tiết thường (không cần API riêng); di sản **chưa xuất bản** thì "Xem trước" cấp liên kết
+xem trước và mở trang xem trước của web học tập ở tab mới.
+
+| Method | Đường dẫn | Ai | Thành công | Lỗi chính |
+|---|---|---|---|---|
+| POST | `/api/v1/admin/heritages/{id}/preview` | ADMIN | 200 `{ code, path, expiresAt, expiresInMinutes }`, `path` = `/xem-truoc/di-san/{code}`; ghi `HERITAGE_PREVIEW_ISSUED`; bấm lại cấp mã mới | 401 · 403 · 404 · 422 `BLOCKED` (di sản đã xuất bản: hãy mở trang công khai) |
+| GET | `/api/v1/preview/heritages/{code}` | ADMIN đang đăng nhập + mã còn hạn | 200 `{ expiresAt, status, heritage }`, `heritage` có **đúng cấu trúc** `PublicHeritageDetailDto` của trang chi tiết công khai (bản nháp đang lưu) | 404 `PREVIEW_INVALID` · 429 |
+| GET | `/api/v1/preview/heritages/{code}/timeline` | như trên | 200 `PublicTimelineDto` của bản nháp | 404 `PREVIEW_INVALID` · 429 |
+
+- **Mã xem trước** là chuỗi ngẫu nhiên ký bằng HMAC-SHA256 (khóa suy ra từ khóa ký JWT cùng một nhãn riêng, nên đổi `Jwt:SigningKey` thì mọi mã đang có hết hiệu lực), gắn **một di sản** và một hạn dùng, gồm 16 byte ngẫu nhiên:
+  không cần bảng, không đoán được, sửa một ký tự là sai chữ ký. Hạn mặc định **30 phút**, đổi bằng `Preview:CodeMinutes` (1-240); mã hết hạn không dùng lại.
+- **Một câu trả lời chung**: thiếu đăng nhập, không phải quản trị hệ thống (giáo viên, quản trị trường, học sinh), mã sai, mã hết hạn hoặc di sản đã xóa đều là **404 `PREVIEW_INVALID`**, cùng thông báo
+  "Liên kết xem trước đã hết hạn hoặc không hợp lệ. …", không cho biết di sản có tồn tại hay không.
+- **Không lập chỉ mục, không lưu đệm**: mọi phản hồi dưới `/api/v1/preview` (kể cả 404) có `X-Robots-Tag: noindex, nofollow, noarchive` và `Cache-Control: no-store`. Đường dẫn nằm ngoài `/api/v1/public`
+  nên bản nháp không lẫn vào tìm kiếm, bản đồ, gợi ý hay trang chi tiết công khai (di sản chưa xuất bản vẫn 404 ở API công khai). Trang web xem trước tự đặt thẻ robots `noindex` và không ghi lịch sử khách.
+- Xem trước **chỉ đọc**: không đổi trạng thái, không đổi `updated_at`, không ghi lượt xem. Di sản `ARCHIVED` cũng xem trước được (để kiểm trước khi hiện lại); di sản `PUBLISHED` thì 422.
+- Giới hạn 300 yêu cầu mỗi phút mỗi IP như API công khai (429).
+- Kiểm thử: `Unit/HeritagePreviewCodecTests` (ký, hạn, sửa mã, khóa khác), `Integration/HeritagePreviewApiTests` (cấp và đọc, cùng dữ liệu trang công khai, cùng một 404 cho mọi trường hợp, hạn 30 phút với đồng hồ tua được,
+  header không lập chỉ mục, nhật ký, không lọt ra API công khai).

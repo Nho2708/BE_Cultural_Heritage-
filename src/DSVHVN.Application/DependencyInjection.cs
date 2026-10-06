@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<ModelFileService>();
         services.AddScoped<HeritageReferenceService>();
         services.AddScoped<DiscoveryService>();
+        services.AddScoped<HeritagePreviewService>();
         services.AddSingleton<IStudentCredentialGenerator, RandomStudentCredentialGenerator>();
         services.AddScoped<ClassService>();
         services.AddScoped<SchoolSummaryService>();
