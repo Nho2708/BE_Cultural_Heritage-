@@ -109,7 +109,7 @@ Quản trị trường và học sinh không dùng ngân hàng. Bộ lọc: dạ
 
 | `reason` | Khi nào | Thông báo hiện ở đầu câu |
 |---|---|---|
-| `USED_IN_QUIZ` | Câu của mình nhưng đã nằm trong ít nhất một quiz (mọi trạng thái, mọi trường; tính cả quiz đã xóa mềm để kết quả cũ không bị đổi) | "Câu hỏi này chỉ xem được vì đã được dùng trong bài kiểm tra. Bấm "Nhân bản" để tạo bản của bạn rồi sửa." |
+| `USED_IN_QUIZ` | Câu của mình nhưng đã nằm trong ít nhất một quiz chưa xóa (mọi trạng thái, mọi trường). Quiz nháp đã xóa mềm không còn giữ câu: quiz nháp chưa có lượt làm bài nên kết quả cũ không bị ảnh hưởng, còn quiz đã phát hành hoặc đã đóng không xóa được | "Câu hỏi này chỉ xem được vì đã được dùng trong bài kiểm tra. Bấm "Nhân bản" để tạo bản của bạn rồi sửa." |
 | `NOT_OWNER` | Câu do người khác tạo | "Câu hỏi này chỉ xem được vì do người khác tạo. Bấm "Nhân bản" để tạo bản của bạn rồi sửa." |
 | `HIDDEN_BY_ADMIN` | Quản trị hệ thống đã ẩn câu | "Câu hỏi này chỉ xem được vì đã bị quản trị hệ thống ẩn. Câu bị ẩn không nhân bản được; bạn có thể tạo câu mới." |
 
@@ -250,7 +250,7 @@ tìm và lọc, xem trước, chấm thử, kiểm không lưu, AI sinh theo c�
 | AI sinh từ "bài học hoặc di sản" | Chỉ từ **bài học** (như màn hình Sinh và duyệt câu hỏi bằng AI): cấp lấy từ lớp của bài, di sản chọn trong các di sản của bài. Ràng buộc `CK_ai_generations_subject` của v4 cũng buộc tác vụ sinh câu gắn bài học | Giữ như đặc tả; muốn sinh từ di sản không qua bài học thì phải sửa CHECK |
 | Sắp xếp sự kiện theo thời gian (cấp 2) | Mỗi mục là một câu chữ; chưa lưu năm riêng cho từng mục nên chưa kiểm "không có hai mục cùng năm" (bản giả lập AI chỉ lấy các sự kiện khác năm) | Quyết định có thêm cột năm vào `answers` không |
 | Kho từ của câu điền từ | Kho gồm từ đúng **đầu tiên** của mỗi chỗ trống cộng từ gây nhiễu (3-8 từ); các cách viết đúng khác chỉ dùng khi gõ chữ | Xác nhận với giao diện học sinh |
-| Câu nằm trong quiz đã xóa mềm | Vẫn tính là "đã nằm trong quiz" (câu chỉ đọc) để kết quả cũ không bị đổi | Xác nhận khi làm luồng quiz |
+| Câu nằm trong quiz đã xóa mềm | Không tính: chỉ quiz nháp xóa mềm được (chưa có kết quả) nên câu được mở khóa lại (đổi ở luồng Bài kiểm tra) | — |
 | Độ khó khi AI sinh | Không chọn thì mặc định `MEDIUM`; số câu mặc định 5 | — |
 | Ghi nhật ký thao tác | Chỉ ẩn câu (`QUESTION_HIDDEN`) theo danh sách hành động của đặc tả | Quyết định của nhóm |
 | `attempt_answers.parts_*`, `attempt_answer_parts` | Chưa thêm, thuộc luồng làm bài | Migration riêng ở luồng đó |
