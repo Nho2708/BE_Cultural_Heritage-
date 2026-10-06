@@ -153,6 +153,10 @@ Mọi endpoint trả khuôn `{ success, data, message, errorCode, traceId, error
 | PUT | `/heritage-references/{referenceId}` | như POST | 200 `Reference` | 400 · 404 |
 | DELETE | `/heritage-references/{referenceId}` | — | 200 | 404 · 422 `BLOCKED` (nguồn cuối cùng của di sản đang xuất bản) |
 
+Sửa **chữ tiếng Việt đã được dịch** (tên, mô tả ngắn, địa chỉ, nội dung của di sản; thêm hoặc sửa tên, mô tả giai đoạn và sự kiện; thêm ảnh có chú thích hoặc sửa chú thích) đánh dấu mọi bản dịch và tóm tắt của di sản là "cần dịch lại"
+(bản cũ vẫn hiện cho khách tới khi dịch lại): [da-ngon-ngu.md](da-ngon-ngu.md) mục 7. Danh sách `GET /heritages` có bộ lọc `translationState` (`NONE`, `PENDING`, `APPROVED`, `OUTDATED`) và mỗi dòng,
+cũng như `GET /heritages/{id}`, có `translationState`. Dịch và duyệt ở màn hình riêng: [da-ngon-ngu.md](da-ngon-ngu.md) mục 8.
+
 ## 5. Nhật ký thao tác
 
 Danh mục hành động của nhóm có ba mã cho di sản (hai mã đổi trạng thái và mã cấp liên kết xem trước, mục 9), nên các việc sau được ghi vào `audit_logs` (`target_type` = `heritages`, `target_id` = id di sản,
@@ -163,6 +167,8 @@ Danh mục hành động của nhóm có ba mã cho di sản (hai mã đổi tr�
 | Xuất bản (DRAFT sang PUBLISHED) và hiện lại (ARCHIVED sang PUBLISHED) | `HERITAGE_PUBLISHED` | `{ status }` → `{ status, name, slug }` |
 | Ẩn (PUBLISHED sang ARCHIVED) | `HERITAGE_ARCHIVED` | `{ status }` → `{ status, name, slug }` |
 | Cấp liên kết xem trước bản nháp | `HERITAGE_PREVIEW_ISSUED` | — → `{ expiresAt }` (không ghi mã xem trước) |
+
+Luồng Đa ngôn ngữ ghi thêm `TRANSLATION_APPROVED`, `TRANSLATION_REJECTED` khi duyệt, từ chối bản dịch và tóm tắt ([da-ngon-ngu.md](da-ngon-ngu.md) mục 8).
 
 Việc tạo, sửa nháp, thêm bớt giai đoạn, sự kiện, ảnh, nguồn, xóa mềm **không** ghi nhật ký (không có mã hành động tương ứng trong danh mục); mốc
 `heritages.updated_at` được cập nhật mỗi khi di sản hoặc phần con của nó đổi. Lần xuất bản ghi lại người xuất bản, đủ để đối chiếu với quy trình

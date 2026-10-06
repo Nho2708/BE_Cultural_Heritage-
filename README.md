@@ -3,12 +3,12 @@
 Backend của **DSVHVN — nền tảng giáo dục di sản văn hóa cho trường học** (đồ án FA26SE171, FPT University HCM):
 giáo viên tạo bài học và bài kiểm tra cho lớp từ dữ liệu của Cục Di sản văn hóa; học sinh có tài khoản (đăng nhập bằng mã học sinh
 + mật khẩu) ở web học tập và app mobile; gói dịch vụ bán cho trường. ASP.NET Core 9 (controllers) + EF Core 9 + SQL Server 2019.
-Nội dung và thông điệp chỉ tiếng Việt.
+Web quản trị và khu học của học sinh chỉ có tiếng Việt; **phần công khai (di sản, tóm tắt, nghe thuyết minh) có 5 ngôn ngữ**: Việt, Anh, Hàn, Trung giản thể, Nhật.
 
 Làm theo từng luồng (vertical slice): bảng của luồng → migration → API → UI → bổ sung cột bằng migration mới.
 Lược đồ nguồn: `doc/database/dsvhvn-v3.dbml` (27 bảng); backend đã có **đủ 27 bảng** trong một migration khởi tạo, tên bảng,
 tên cột giữ đúng DBML (`snake_case`). Phần CSDL v4 (`doc/database/dsvhvn-v4.dbml`) được thêm **dần theo từng luồng bằng migration mới** (hiện có bảng
-`lesson_sections` và các cột mới của `ai_generations`, tổng 28 bảng) — xem [docs/co-so-du-lieu.md](docs/co-so-du-lieu.md).
+`lesson_sections`, các cột mới của `ai_generations` và `questions`, `answers`, năm bảng đa ngôn ngữ, tổng 33 bảng) — xem [docs/co-so-du-lieu.md](docs/co-so-du-lieu.md).
 
 | Luồng | Trạng thái | Tài liệu |
 |---|---|---|
@@ -20,12 +20,13 @@ tên cột giữ đúng DBML (`snake_case`). Phần CSDL v4 (`doc/database/dsvhv
 | Khám phá di sản công khai (khách và học sinh, không đăng nhập): trang chủ, tìm kiếm và lọc có/không dấu, bản đồ, chi tiết, timeline; danh sách tỉnh mở cho khách; giới hạn 300 yêu cầu/phút/IP | Xong phần backend | [docs/kham-pha-di-san.md](docs/kham-pha-di-san.md) |
 | Lớp, học sinh và tài khoản học sinh: giáo viên tạo/sửa/xóa lớp (khối 1-12, năm học, cấp học suy từ khối), thêm học sinh từng em hoặc nhập danh sách `.xlsx`/`.csv`/dán văn bản (xem trước, tối đa 60 dòng, lưu một giao dịch), mã học sinh `HS` + 6 ký tự, mật khẩu tạm và phiếu đăng nhập hiện một lần, đặt lại mật khẩu, vô hiệu/mở lại/xóa; học sinh đăng nhập bằng mã, buộc đổi mật khẩu lần đầu, xem lớp của em; quản trị trường chỉ xem số liệu tổng hợp | Xong phần backend | [docs/lop-hoc-sinh.md](docs/lop-hoc-sinh.md) |
 | Bài học cho lớp theo cấp: giáo viên tạo bài cho **một lớp** từ 1-10 di sản đã xuất bản, nội dung theo khung của cấp 1/2/3 (câu chuyện từng bước có hình · bài đọc có mốc thời gian · bài phân tích có trích tư liệu gốc kèm nguồn), **AI soạn bản nháp đúng cấp** (qua giao diện Dịch vụ AI + **bản giả lập**, ghi `ai_generations`, tính hạn mức lượt AI của gói), giáo viên sửa và duyệt, xuất bản sinh **một mã bài học** (`BH` + 6 ký tự), lưu trữ, xóa, nhân bản sang lớp khác; học sinh đã đăng nhập gõ mã, bài phải thuộc lớp của em, nhận bài theo luồng của cấp; sai mã luôn cùng một thông báo, 10 lần sai/10 phút thì bị chặn | Xong phần backend | [docs/bai-hoc-theo-cap.md](docs/bai-hoc-theo-cap.md) |
+| Đa ngôn ngữ, AI dịch và tóm tắt di sản, nghe thuyết minh: quản trị hệ thống bấm **"Dịch và tóm tắt bằng AI"** (qua giao diện Dịch vụ AI + **bản giả lập**, ghi `ai_generations`, **không tính hạn mức lượt AI của trường**): tóm tắt tiếng Việt (bản ngắn để nghe, bản chi tiết để đọc) và dịch mọi phần chữ (tên, mô tả, nội dung, giai đoạn, sự kiện, chú thích ảnh) sang Anh, Hàn, Trung giản thể, Nhật; **tiếng Việt (tóm tắt) và tiếng Anh chờ quản trị hệ thống duyệt** (từ chối ghi lý do vào nhật ký, sửa tại chỗ, dịch lại thay bản cũ), **Hàn, Trung, Nhật hiện ngay kèm nhãn "bản dịch máy"** và không có bước duyệt; sửa chữ tiếng Việt thì các bản đánh dấu "cần dịch lại" (vẫn hiện bản cũ); API công khai nhận `lang` hoặc `Accept-Language` (mã lạ thì tiếng Việt, học sinh đã đăng nhập luôn tiếng Việt), trả chi tiết, dòng thời gian, tìm kiếm (khớp cả bản dịch), bản đồ, tóm tắt theo ngôn ngữ, **thiếu bản dịch thì lùi về tiếng Việt kèm cờ**, không gọi AI khi xem; nghe thuyết minh là giọng đọc của thiết bị, backend chỉ cấp chữ | Xong phần backend | [docs/da-ngon-ngu.md](docs/da-ngon-ngu.md) |
 | Ngân hàng câu hỏi theo dạng, AI sinh câu hỏi: ngân hàng **dùng chung mọi trường** với **8 dạng câu** (một đáp án đúng · Đúng/Sai · chọn hình đúng · ghép cặp · sắp xếp · điền từ · nhiều mệnh đề Đúng/Sai · đọc tư liệu) và **cấp phù hợp** theo bảng dạng câu theo cấp; trình soạn có kiểm hợp lệ theo dạng (lỗi theo trường), xem trước như học sinh của từng cấp, **chấm thử từng phần**; **AI sinh câu đúng dạng và cấp của lớp** từ một bài học (qua giao diện Dịch vụ AI + **bản giả lập**, ghi `ai_generations`, tính hạn mức lượt AI của gói), câu AI vào ngân hàng **chờ duyệt** chỉ người tạo thấy; duyệt, loại, duyệt nhiều câu, sửa, xóa mềm, **nhân bản** (câu đã nằm trong quiz hoặc của người khác chỉ đọc); tìm và lọc theo dạng, cấp, độ khó, di sản, trạng thái, người tạo; quản trị hệ thống **ẩn** câu kém chất lượng (ghi nhật ký thao tác) | Xong phần backend | [docs/ngan-hang-cau-hoi.md](docs/ngan-hang-cau-hoi.md) |
 
 ## Cấu trúc
 
 ```
-src/DSVHVN.Domain          Thực thể 27 bảng của CSDL v3 và lesson_sections của v4, enum, quy tắc nghiệp vụ thuần (tài khoản, di sản, lớp và mã học sinh, khung bài học theo cấp, mã bài học, bảng dạng câu hỏi theo cấp)
+src/DSVHVN.Domain          Thực thể 27 bảng của CSDL v3 và sáu bảng của v4 (lesson_sections, năm bảng đa ngôn ngữ), enum, quy tắc nghiệp vụ thuần (tài khoản, di sản, lớp và mã học sinh, khung bài học theo cấp, mã bài học, bảng dạng câu hỏi theo cấp)
 src/DSVHVN.Application     Dịch vụ nghiệp vụ, kiểm gói và hạn mức, validator, danh mục thông điệp tiếng Việt, nhật ký thao tác
 src/DSVHVN.Infrastructure  EF Core (DbContext, cấu hình theo nhóm bảng, migration, seed, nạp dữ liệu di sản), JWT,
                            băm mật khẩu PBKDF2, gửi thư (ghi log hoặc SMTP qua MailKit), đọc và dựng tệp danh sách học sinh (ClosedXML),
@@ -57,6 +58,7 @@ API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-
 API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-lop-hoc-sinh.sh   # nên chạy trên database tạm, xem docs/lop-hoc-sinh.md mục 9
 API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-bai-hoc-theo-cap.sh # nên chạy trên database tạm, xem docs/bai-hoc-theo-cap.md mục 8
 API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-ngan-hang-cau-hoi.sh # nên chạy trên database tạm, xem docs/ngan-hang-cau-hoi.md mục 9
+ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-da-ngon-ngu.sh   # nên chạy trên database tạm, cách chạy ở đầu tệp và docs/da-ngon-ngu.md mục 12
 ```
 
 CSDL dev: `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (không dùng các CSDL cũ `dsvhvn_dev`,
@@ -65,13 +67,14 @@ CSDL dev: `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Viet
 repo (`Seed:HeritageData:*` trong `appsettings.Development.json`); máy không có thư mục này thì bước nạp di sản được bỏ qua.
 Chi tiết endpoint, cấu hình và quyết định hiện thực ở [docs/nen-tang-to-chuc.md](docs/nen-tang-to-chuc.md).
 
-## Dịch vụ AI soạn bài học và sinh câu hỏi
+## Dịch vụ AI soạn bài học, sinh câu hỏi, dịch và tóm tắt di sản
 
 Dịch vụ AI thật (FastAPI) **chưa có**. Backend gọi AI qua giao diện theo hợp đồng của nhóm và có **bản giả lập** (sinh nội dung mẫu đúng cấp từ dữ liệu di sản, không gọi nhà cung cấp mô hình nào,
 không dùng khóa API nào). Chọn bản bằng cấu hình `Ai:Mode`: `Simulated` (mặc định) hoặc `Remote` (gọi dịch vụ nội bộ ở `Ai:BaseUrl`, khóa nội bộ `Ai:InternalKey` đặt bằng biến môi trường
 `Ai__InternalKey`, không ghi vào appsettings). Chờ 45 giây mỗi lần gọi, thử lại tối đa 2 lần (`Ai:AttemptTimeoutSeconds`, `Ai:MaxRetries`). Chi tiết hợp đồng, quy trình và hạn mức lượt AI:
 [docs/bai-hoc-theo-cap.md](docs/bai-hoc-theo-cap.md) mục 5. Sinh câu hỏi theo dạng và cấp dùng chung mục cấu hình `Ai` (cùng chế độ, địa chỉ, khóa, thời gian chờ) qua giao diện `IQuestionAiClient`
-(`POST /v1/generate-questions`) và có bản giả lập riêng: [docs/ngan-hang-cau-hoi.md](docs/ngan-hang-cau-hoi.md) mục 5.
+(`POST /v1/generate-questions`) và có bản giả lập riêng: [docs/ngan-hang-cau-hoi.md](docs/ngan-hang-cau-hoi.md) mục 5. Dịch và tóm tắt di sản cũng dùng mục `Ai` qua `IHeritageAiClient`
+(`POST /v1/summarize-heritage`, `POST /v1/translate-heritage`), chờ 90 giây mỗi lần (`Ai:HeritageAttemptTimeoutSeconds`), thử lại tối đa 2 lần, và có bản giả lập riêng: [docs/da-ngon-ngu.md](docs/da-ngon-ngu.md) mục 9 và 10.
 
 ## Kho tệp tải lên (ảnh, mô hình 3D)
 
