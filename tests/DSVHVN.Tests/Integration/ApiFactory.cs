@@ -41,6 +41,9 @@ public class ApiFactory : WebApplicationFactory<Program>
     /// <param name="sqlServerConnection">Chuỗi kết nối SQL Server; có thì dùng SQL Server và áp migration thay cho SQLite.</param>
     protected ApiFactory(string sqlServerConnection) => _sqlServerConnection = sqlServerConnection;
 
+    /// <summary>Thư mục tạm chứa tệp tải lên của lần chạy này (kho tệp Local); xóa khi factory được giải phóng.</summary>
+    public string StorageRoot { get; } = Path.Combine(Path.GetTempPath(), "dsvhvn_kiem_thu_kho_tep_" + Guid.NewGuid().ToString("N")[..12]);
+
     public CapturingEmailSender Mail { get; } = new();
 
     /// <summary>Dịch vụ AI của kiểm thử: chạy bản giả lập thật, ép lỗi được bằng <see cref="ScriptedAiClient.Behavior"/>. Nhớ gọi <see cref="ScriptedAiClient.Reset"/> khi dùng chung giữa các test.</summary>
@@ -69,6 +72,7 @@ public class ApiFactory : WebApplicationFactory<Program>
             ["Seed:Admins:0:Username"] = AdminUsername,
             ["Seed:Admins:0:Email"] = AdminEmail,
             ["Seed:Admins:0:FullName"] = "Quản trị kiểm thử",
+            ["Storage:Local:RootPath"] = StorageRoot,
             ["Ai:Mode"] = "Simulated",
             ["Ai:AttemptTimeoutSeconds"] = "1",
         }.Concat(ExtraSettings)));
@@ -116,7 +120,16 @@ public class ApiFactory : WebApplicationFactory<Program>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (disposing) _connection.Dispose();
+        if (!disposing) return;
+        _connection.Dispose();
+        try
+        {
+            if (Directory.Exists(StorageRoot)) Directory.Delete(StorageRoot, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Thư mục tạm của máy phát triển, hệ điều hành sẽ dọn.
+        }
     }
 }
 

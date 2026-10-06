@@ -21,6 +21,8 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.20" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.20" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.2" />
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
   </ItemGroup>
 
 </Project>

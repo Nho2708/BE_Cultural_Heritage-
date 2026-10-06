@@ -133,7 +133,12 @@ public sealed class MediaRequestValidator : AbstractValidator<MediaRequest>
             .RequiredField("loại media")
             .Must(t => HeritageRules.MediaTypes.Contains(t!.Trim()))
             .WithAppMessage(Messages.Invalid("Loại media", "chỉ nhận IMAGE, VIDEO hoặc AUDIO"));
-        RuleFor(x => x.Url).RequiredHttpUrl("đường dẫn", "Đường dẫn", HeritageRules.UrlMaxLength);
+        // Đường dẫn http/https (ảnh dán đường dẫn) hoặc đường dẫn tương đối tới tệp đã tải lên kho của nền tảng (/files/...).
+        RuleFor(x => x.Url).Cascade(CascadeMode.Stop)
+            .RequiredField("đường dẫn")
+            .Must(v => v!.Trim().Length <= HeritageRules.UrlMaxLength && (ValidationRules.IsHttpUrl(v) || StoredFileRules.IsStoredPath(v)))
+            .WithAppMessage(Messages.Invalid("Đường dẫn",
+                $"phải là đường dẫn http hoặc https (hoặc đường dẫn tệp đã tải lên), tối đa {HeritageRules.UrlMaxLength} ký tự"));
         RuleFor(x => x.Caption).OptionalText("Chú thích", HeritageRules.CaptionMaxLength);
 
         RuleFor(x => x.Author).Cascade(CascadeMode.Stop)

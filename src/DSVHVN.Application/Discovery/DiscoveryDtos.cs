@@ -83,7 +83,8 @@ public sealed record PublicMediaDto(
     string? Author,
     string? License,
     string? Source,
-    bool IsThumbnail);
+    bool IsThumbnail,
+    string? PreviewUrl = null);
 
 /// <summary>Giai đoạn rút gọn ở trang chi tiết: tên, khoảng năm (chữ hiển thị sẵn) và số sự kiện.</summary>
 public sealed record TimelinePhaseSummaryDto(

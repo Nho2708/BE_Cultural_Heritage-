@@ -2,10 +2,15 @@ using DSVHVN.Api.Common;
 using DSVHVN.Api.Security;
 using DSVHVN.Application;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Files;
+using DSVHVN.Domain.Rules;
 using DSVHVN.Infrastructure;
+using DSVHVN.Infrastructure.Files;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,7 +44,7 @@ builder.Services.AddSwaggerGen(o =>
         Title = "DSVHVN API",
         Version = "v1",
         Description = "Nền tảng giáo dục di sản văn hóa cho trường học — nền tảng: đăng nhập, đặt mật khẩu qua email, hồ sơ, " +
-            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác, kho di sản (ADMIN), khám phá di sản công khai (/api/v1/public, không cần đăng nhập), lớp học và học sinh của giáo viên (/api/v1/teacher), bài học cho lớp theo cấp với AI soạn nội dung và mã bài học (/api/v1/teacher/lessons), đăng nhập và học của học sinh, mở bài học bằng mã (/api/v1/student). CSDL v3 đủ 27 bảng cộng bảng lesson_sections của v4.",
+            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác, kho di sản (ADMIN), khám phá di sản công khai (/api/v1/public, không cần đăng nhập), lớp học và học sinh của giáo viên (/api/v1/teacher), bài học cho lớp theo cấp với AI soạn nội dung và mã bài học (/api/v1/teacher/lessons), đăng nhập và học của học sinh, mở bài học bằng mã (/api/v1/student). tải ảnh và mô hình 3D lên kho tệp, phục vụ tệp tại /files. CSDL v3 đủ 27 bảng cộng bảng lesson_sections của v4.",
     });
     o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -88,6 +93,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("web");
+app.UseStoredFiles();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -96,6 +102,40 @@ app.MapControllers();
 app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
+
+/// <summary>
+/// Phục vụ tệp tải lên (ảnh, mô hình 3D) từ kho tệp trên đĩa qua đường dẫn <c>/files/...</c> khi dùng nhà cung cấp Local. Có kiểm soát: chỉ các đuôi
+/// jpg, png, webp, glb; không liệt kê thư mục; tệp lạ không được phục vụ; tên tệp là mã ngẫu nhiên không đổi nội dung nên cho trình duyệt giữ lâu.
+/// </summary>
+internal static class StoredFilesExtensions
+{
+    public static IApplicationBuilder UseStoredFiles(this WebApplication app)
+    {
+        if (app.Services.GetRequiredService<IFileStorage>() is not LocalFileStorage local) return app;
+
+        var types = new FileExtensionContentTypeProvider(new Dictionary<string, string>
+        {
+            [".jpg"] = "image/jpeg",
+            [".png"] = "image/png",
+            [".webp"] = "image/webp",
+            [".glb"] = "model/gltf-binary",
+        });
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(local.RootPath),
+            RequestPath = StoredFileRules.PublicPathPrefix.TrimEnd('/'),
+            ContentTypeProvider = types,
+            ServeUnknownFileTypes = false,
+            OnPrepareResponse = context =>
+            {
+                var headers = context.Context.Response.Headers;
+                headers.CacheControl = "public, max-age=31536000, immutable";
+                headers["Cross-Origin-Resource-Policy"] = "cross-origin";
+            },
+        });
+        return app;
+    }
+}
 
 /// <summary>Đổi lỗi binding (JSON sai cú pháp, sai kiểu) thành khuôn phản hồi chung với thông điệp dữ liệu không hợp lệ.</summary>
 internal static class ModelStateEnvelope

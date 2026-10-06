@@ -23,7 +23,8 @@ internal static class HeritageMapper
     {
         var parts = HeritageRules.ParseCredit(m.Credit);
         return new MediaDto(m.Id, m.HeritageId, m.EventId, m.MediaType, m.Url, m.Caption, m.Credit,
-            parts?.Author, parts?.License, parts?.Source, m.SortOrder, IsThumbnail(m, thumbnailUrl));
+            parts?.Author, parts?.License, parts?.Source, m.SortOrder, IsThumbnail(m, thumbnailUrl),
+            StoredFileRules.ThumbnailUrlOf(m.Url));
     }
 
     public static IEnumerable<Media> OrderMedia(IEnumerable<Media> media) =>

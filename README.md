@@ -16,6 +16,7 @@ tên cột giữ đúng DBML (`snake_case`). Phần CSDL v4 (`doc/database/dsvhv
 | Nền tảng: đăng nhập web quản trị bằng email/username, đặt mật khẩu qua email, hồ sơ, ADMIN quản lý trường, ORG_ADMIN quản lý giáo viên, nhật ký thao tác | Xong phần backend | [docs/nen-tang-to-chuc.md](docs/nen-tang-to-chuc.md) · [docs/smoke-nen-tang.md](docs/smoke-nen-tang.md) |
 | Gửi thư đặt mật khẩu: ghi ra log (mặc định) hoặc gửi thật qua SMTP (Gmail…), bật/tắt bằng `Email:Mode` | Xong | [docs/gui-thu.md](docs/gui-thu.md) |
 | Kho di sản (ADMIN): quản lý di sản (bản nháp, xuất bản khi đủ điều kiện, ẩn, hiện lại, xóa mềm), timeline (giai đoạn, sự kiện), ảnh có ghi công, ảnh đại diện, nguồn tham chiếu, danh sách 34 tỉnh; ghi nhật ký xuất bản và ẩn | Xong phần backend | [docs/kho-di-san.md](docs/kho-di-san.md) |
+| Tải tệp lên (ADMIN): tải **ảnh** (JPG, PNG, WEBP, tối đa 5 MB; kiểm theo nội dung tệp, bỏ EXIF, sinh ảnh thu nhỏ, tên ngẫu nhiên, ghi công vẫn bắt buộc) cho di sản và sự kiện, tải **mô hình 3D** `.glb` (tối đa 15 MB) vào kho tệp; kho tệp qua giao diện `IFileStorage` thay được nhà cung cấp (bản lưu trên đĩa máy chủ, chỗ để sẵn cho dịch vụ đám mây); xóa ảnh giữ lại tệp (xóa mềm) | Xong phần backend | [docs/tai-tep-len.md](docs/tai-tep-len.md) |
 | Khám phá di sản công khai (khách và học sinh, không đăng nhập): trang chủ, tìm kiếm và lọc có/không dấu, bản đồ, chi tiết, timeline; danh sách tỉnh mở cho khách; giới hạn 300 yêu cầu/phút/IP | Xong phần backend | [docs/kham-pha-di-san.md](docs/kham-pha-di-san.md) |
 | Lớp, học sinh và tài khoản học sinh: giáo viên tạo/sửa/xóa lớp (khối 1-12, năm học, cấp học suy từ khối), thêm học sinh từng em hoặc nhập danh sách `.xlsx`/`.csv`/dán văn bản (xem trước, tối đa 60 dòng, lưu một giao dịch), mã học sinh `HS` + 6 ký tự, mật khẩu tạm và phiếu đăng nhập hiện một lần, đặt lại mật khẩu, vô hiệu/mở lại/xóa; học sinh đăng nhập bằng mã, buộc đổi mật khẩu lần đầu, xem lớp của em; quản trị trường chỉ xem số liệu tổng hợp | Xong phần backend | [docs/lop-hoc-sinh.md](docs/lop-hoc-sinh.md) |
 | Bài học cho lớp theo cấp: giáo viên tạo bài cho **một lớp** từ 1-10 di sản đã xuất bản, nội dung theo khung của cấp 1/2/3 (câu chuyện từng bước có hình · bài đọc có mốc thời gian · bài phân tích có trích tư liệu gốc kèm nguồn), **AI soạn bản nháp đúng cấp** (qua giao diện Dịch vụ AI + **bản giả lập**, ghi `ai_generations`, tính hạn mức lượt AI của gói), giáo viên sửa và duyệt, xuất bản sinh **một mã bài học** (`BH` + 6 ký tự), lưu trữ, xóa, nhân bản sang lớp khác; học sinh đã đăng nhập gõ mã, bài phải thuộc lớp của em, nhận bài theo luồng của cấp; sai mã luôn cùng một thông báo, 10 lần sai/10 phút thì bị chặn | Xong phần backend | [docs/bai-hoc-theo-cap.md](docs/bai-hoc-theo-cap.md) |
@@ -28,7 +29,8 @@ src/DSVHVN.Domain          Thực thể 27 bảng của CSDL v3 và lesson_secti
 src/DSVHVN.Application     Dịch vụ nghiệp vụ, kiểm gói và hạn mức, validator, danh mục thông điệp tiếng Việt, nhật ký thao tác
 src/DSVHVN.Infrastructure  EF Core (DbContext, cấu hình theo nhóm bảng, migration, seed, nạp dữ liệu di sản), JWT,
                            băm mật khẩu PBKDF2, gửi thư (ghi log hoặc SMTP qua MailKit), đọc và dựng tệp danh sách học sinh (ClosedXML),
-                           gọi Dịch vụ AI (bản giả lập hoặc HTTP tới dịch vụ nội bộ), bộ đếm nhập sai mã bài học
+                           gọi Dịch vụ AI (bản giả lập hoặc HTTP tới dịch vụ nội bộ), bộ đếm nhập sai mã bài học,
+                           kho tệp tải lên (lưu trên đĩa, xử lý ảnh bằng SkiaSharp)
 src/DSVHVN.Api             Controllers, middleware, phân quyền 4 vai trò (ADMIN, ORG_ADMIN, TEACHER, STUDENT)
 tests/DSVHVN.Tests         xUnit: unit + integration (WebApplicationFactory trên SQLite trong bộ nhớ và trên database tạm
                            của SQL Server LocalDB, tự xóa khi xong)
@@ -70,6 +72,19 @@ không dùng khóa API nào). Chọn bản bằng cấu hình `Ai:Mode`: `Simula
 `Ai__InternalKey`, không ghi vào appsettings). Chờ 45 giây mỗi lần gọi, thử lại tối đa 2 lần (`Ai:AttemptTimeoutSeconds`, `Ai:MaxRetries`). Chi tiết hợp đồng, quy trình và hạn mức lượt AI:
 [docs/bai-hoc-theo-cap.md](docs/bai-hoc-theo-cap.md) mục 5. Sinh câu hỏi theo dạng và cấp dùng chung mục cấu hình `Ai` (cùng chế độ, địa chỉ, khóa, thời gian chờ) qua giao diện `IQuestionAiClient`
 (`POST /v1/generate-questions`) và có bản giả lập riêng: [docs/ngan-hang-cau-hoi.md](docs/ngan-hang-cau-hoi.md) mục 5.
+
+## Kho tệp tải lên (ảnh, mô hình 3D)
+
+Ảnh di sản, ảnh sự kiện và mô hình 3D (`.glb`) tải lên được lưu qua giao diện `IFileStorage`, chọn nhà cung cấp bằng `Storage:Provider`: `Local` (mặc định, lưu trên đĩa máy chủ) hoặc `Cloud`
+(**chỗ để sẵn cho dịch vụ đám mây, chưa có bản cài đặt**; chọn thì Api dừng lúc khởi động và báo rõ). Bản `Local` lưu trong thư mục `Storage:Local:RootPath` (mặc định `storage`, tính từ thư mục chạy
+của Api, đã nằm trong `.gitignore`) và phục vụ tệp qua đường dẫn `/files/...` không cần đăng nhập, chỉ cho đuôi `jpg`, `png`, `webp`, `glb`. Ngoài máy phát triển nên đặt thư mục **ngoài mã nguồn** và sao lưu nó:
+
+```bash
+export Storage__Local__RootPath=/var/lib/dsvhvn/tep         # Windows: set Storage__Local__RootPath=D:\dsvhvn-tep
+export Storage__PublicBaseUrl=https://api.dsvhvn.vn         # tùy chọn: web học tập và app ở địa chỉ khác API thì đặt địa chỉ đủ; để trống thì đường dẫn tệp là /files/...
+```
+
+Quy tắc ảnh, mô hình, endpoint và cách kiểm thử: [docs/tai-tep-len.md](docs/tai-tep-len.md).
 
 ## Thư đặt mật khẩu
 
