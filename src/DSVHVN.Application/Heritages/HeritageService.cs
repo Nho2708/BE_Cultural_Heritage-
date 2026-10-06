@@ -1,5 +1,6 @@
 using DSVHVN.Application.Audit;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Audit;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Heritages;
@@ -39,6 +40,25 @@ public sealed class HeritageService(IAppDbContext db, RequestValidator validator
         if (query.HeritageType is { } type) heritages = heritages.Where(h => h.HeritageType == type);
         if (query.RecognitionLevel is { } level) heritages = heritages.Where(h => h.RecognitionLevel == level);
         if (query.Status is { } status) heritages = heritages.Where(h => h.Status == status);
+        if (query.TranslationState is { } state)
+        {
+            if (!Enum.IsDefined(state))
+                throw AppException.Validation("translationState", Messages.Invalid("Tình trạng bản dịch", "chỉ nhận NONE, PENDING, APPROVED hoặc OUTDATED"));
+            heritages = state switch
+            {
+                TranslationState.OUTDATED => heritages.Where(h =>
+                    db.HeritageTranslations.Any(t => t.HeritageId == h.Id && t.IsOutdated) || db.HeritageSummaries.Any(s => s.HeritageId == h.Id && s.IsOutdated)),
+                TranslationState.PENDING => heritages.Where(h =>
+                    !(db.HeritageTranslations.Any(t => t.HeritageId == h.Id && t.IsOutdated) || db.HeritageSummaries.Any(s => s.HeritageId == h.Id && s.IsOutdated))
+                    && (db.HeritageTranslations.Any(t => t.HeritageId == h.Id && t.Status == TranslationStatus.PENDING)
+                        || db.HeritageSummaries.Any(s => s.HeritageId == h.Id && s.Status == TranslationStatus.PENDING))),
+                TranslationState.APPROVED => heritages.Where(h =>
+                    (db.HeritageTranslations.Any(t => t.HeritageId == h.Id) || db.HeritageSummaries.Any(s => s.HeritageId == h.Id))
+                    && !(db.HeritageTranslations.Any(t => t.HeritageId == h.Id && (t.IsOutdated || t.Status == TranslationStatus.PENDING))
+                         || db.HeritageSummaries.Any(s => s.HeritageId == h.Id && (s.IsOutdated || s.Status == TranslationStatus.PENDING)))),
+                _ => heritages.Where(h => !db.HeritageTranslations.Any(t => t.HeritageId == h.Id) && !db.HeritageSummaries.Any(s => s.HeritageId == h.Id)),
+            };
+        }
 
         var page = await heritages
             .OrderByDescending(h => h.UpdatedAt ?? h.CreatedAt).ThenByDescending(h => h.Id)
@@ -50,12 +70,20 @@ public sealed class HeritageService(IAppDbContext db, RequestValidator validator
                 TimelineCount = db.Timelines.Count(t => t.HeritageId == h.Id),
                 MediaCount = db.Media.Count(m => m.HeritageId == h.Id),
                 ReferenceCount = db.HeritageReferences.Count(r => r.HeritageId == h.Id),
+                AnyTranslation = db.HeritageTranslations.Any(t => t.HeritageId == h.Id) || db.HeritageSummaries.Any(s => s.HeritageId == h.Id),
+                AnyOutdated = db.HeritageTranslations.Any(t => t.HeritageId == h.Id && t.IsOutdated)
+                              || db.HeritageSummaries.Any(s => s.HeritageId == h.Id && s.IsOutdated),
+                AnyPending = db.HeritageTranslations.Any(t => t.HeritageId == h.Id && t.Status == TranslationStatus.PENDING)
+                             || db.HeritageSummaries.Any(s => s.HeritageId == h.Id && s.Status == TranslationStatus.PENDING),
             })
             .ToPagedAsync(query.Page, query.PageSize, ct);
 
         var items = page.Items.Select(h => new HeritageSummaryDto(
             h.Id, h.Name, h.Slug, h.ThumbnailUrl, h.ProvinceId, h.ProvinceName, h.HeritageType, h.RecognitionLevel,
-            h.Status ?? ContentStatus.DRAFT, h.TimelineCount, h.MediaCount, h.ReferenceCount, h.CreatedAt, h.UpdatedAt)).ToList();
+            h.Status ?? ContentStatus.DRAFT, h.TimelineCount, h.MediaCount, h.ReferenceCount, h.CreatedAt, h.UpdatedAt,
+            h.AnyOutdated ? TranslationState.OUTDATED
+            : h.AnyPending ? TranslationState.PENDING
+            : h.AnyTranslation ? TranslationState.APPROVED : TranslationState.NONE)).ToList();
         return new PagedResult<HeritageSummaryDto>(items, page.Page, page.PageSize, page.TotalItems, page.TotalPages);
     }
 
@@ -104,11 +132,15 @@ public sealed class HeritageService(IAppDbContext db, RequestValidator validator
 
         var newSlug = ValidationRules.TrimToNull(request.Slug);
         if (newSlug is not null && newSlug != heritage.Slug) await EnsureSlugFreeAsync(newSlug, id, ct);
+        var textBefore = (heritage.Name, heritage.ShortDescription, heritage.Content, heritage.Address);
         Apply(heritage, request);
         if (newSlug is not null) heritage.Slug = newSlug;
 
         if (heritage.Status == ContentStatus.PUBLISHED) await EnsureReadyAsync(heritage, "lưu di sản đã xuất bản", ct);
         await SaveAsync(heritage.Slug, id, ct);
+        // Sửa chữ tiếng Việt đã được dịch: mọi bản dịch và tóm tắt của di sản chuyển "cần dịch lại" (vẫn hiện bản cũ tới khi dịch lại).
+        if (textBefore != (heritage.Name, heritage.ShortDescription, heritage.Content, heritage.Address))
+            await TranslationOutdated.MarkAsync(db, id, ct);
         return await GetAsync(id, ct);
     }
 
@@ -311,6 +343,7 @@ public sealed class HeritageService(IAppDbContext db, RequestValidator validator
             HeritageMapper.BuildReadiness(heritage, heritageMedia, references, CurrentYear),
             HeritageMapper.OrderTimelines(timelines).Select(t => HeritageMapper.ToDto(t, eventsByTimeline[t.Id], mediaByEvent)).ToList(),
             HeritageMapper.OrderMedia(heritageMedia).Select(m => HeritageMapper.ToDto(m, heritage.ThumbnailUrl)).ToList(),
-            references.Select(HeritageMapper.ToDto).ToList());
+            references.Select(HeritageMapper.ToDto).ToList(),
+            await TranslationOutdated.StateOfAsync(db, id, ct));
     }
 }

@@ -3,6 +3,7 @@ using DSVHVN.Api.Security;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Heritages;
+using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -32,7 +33,8 @@ public sealed class AdminHeritagesController(HeritageService heritages, Heritage
 {
     /// <summary>
     /// Danh sách di sản chưa xóa: tìm theo tên (không phân biệt hoa thường và dấu), lọc tỉnh, loại, cấp xếp hạng, trạng thái
-    /// (DRAFT | PUBLISHED | ARCHIVED), phân trang; di sản sửa gần nhất đứng trước.
+    /// (DRAFT | PUBLISHED | ARCHIVED), tình trạng bản dịch (NONE | PENDING | APPROVED | OUTDATED), phân trang; di sản sửa gần nhất đứng trước.
+    /// Mỗi dòng có <c>translationState</c>.
     /// </summary>
     [HttpGet]
     [ProducesResponseType<ApiResponse<PagedResult<HeritageSummaryDto>>>(StatusCodes.Status200OK)]
@@ -40,9 +42,9 @@ public sealed class AdminHeritagesController(HeritageService heritages, Heritage
     public async Task<ActionResult<ApiResponse<PagedResult<HeritageSummaryDto>>>> List(
         [FromQuery] string? keyword, [FromQuery] int? provinceId, [FromQuery] HeritageType? heritageType,
         [FromQuery] RecognitionLevel? recognitionLevel, [FromQuery] ContentStatus? status,
-        [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct)
+        [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] TranslationState? translationState, CancellationToken ct)
         => OkEnvelope(await heritages.ListAsync(
-            new HeritageListQuery(keyword, provinceId, heritageType, recognitionLevel, status, page, pageSize), ct));
+            new HeritageListQuery(keyword, provinceId, heritageType, recognitionLevel, status, page, pageSize, translationState), ct));
 
     /// <summary>Đường dẫn gợi ý từ tên di sản (thêm -2, -3... nếu đã có di sản dùng); <c>heritageId</c> để loại chính di sản đang sửa.</summary>
     [HttpGet("suggest-slug")]

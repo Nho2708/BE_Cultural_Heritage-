@@ -42,7 +42,10 @@ public static class DependencyInjection
         services.AddScoped<HeritageMediaService>();
         services.AddScoped<ModelFileService>();
         services.AddScoped<HeritageReferenceService>();
+        services.AddScoped<HeritageSourceLoader>();
         services.AddScoped<HeritageLocalizer>();
+        services.AddScoped<HeritageAiRunner>();
+        services.AddScoped<HeritageTranslationService>();
         services.AddScoped<PublicSummaryService>();
         services.AddScoped<DiscoveryService>();
         services.AddScoped<HeritagePreviewService>();

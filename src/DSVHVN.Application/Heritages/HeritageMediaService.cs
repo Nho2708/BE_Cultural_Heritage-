@@ -1,4 +1,5 @@
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Translations;
 using DSVHVN.Application.Files;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Heritages;
@@ -45,6 +46,7 @@ public sealed class HeritageMediaService(
         }
         heritage.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
+        if (media.Caption is not null) await TranslationOutdated.MarkAsync(db, heritage.Id, ct);
         return HeritageMapper.ToDto(media, heritage.ThumbnailUrl);
     }
 
@@ -97,6 +99,7 @@ public sealed class HeritageMediaService(
         db.Media.Add(media);
         item.Timeline!.Heritage!.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
+        if (media.Caption is not null) await TranslationOutdated.MarkAsync(db, item.Timeline.HeritageId, ct);
         return HeritageMapper.ToDto(media, null);
     }
 
@@ -116,6 +119,7 @@ public sealed class HeritageMediaService(
             url, mediaId, ct);
 
         var wasThumbnail = HeritageMapper.IsThumbnail(media, heritage.ThumbnailUrl);
+        var captionBefore = media.Caption;
         Apply(media, request);
         if (request.SortOrder is not null) media.SortOrder = request.SortOrder;
 
@@ -137,6 +141,7 @@ public sealed class HeritageMediaService(
 
         heritage.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
+        if (captionBefore != media.Caption) await TranslationOutdated.MarkAsync(db, heritage.Id, ct);
         return HeritageMapper.ToDto(media, heritage.ThumbnailUrl);
     }
 
