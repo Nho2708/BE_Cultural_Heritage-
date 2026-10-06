@@ -369,8 +369,8 @@ public sealed class DiscoveryApiTests(ApiFactory factory) : IClassFixture<ApiFac
 
         using var raw = System.Text.Json.JsonDocument.Parse(await Http.GetStringAsync($"{Public}/heritages?{K(tag)}"));
         var fields = raw.RootElement.GetProperty("data").GetProperty("items")[0].EnumerateObject().Select(p => p.Name).Order().ToList();
-        Assert.Equal(new[] { "id", "name", "provinceId", "provinceName", "recognitionLevel", "recognizedYear", "region", "heritageType",
-            "shortDescription", "slug", "thumbnailUrl" }.Order(), fields);
+        Assert.Equal(new[] { "id", "isFallback", "isMachineTranslated", "name", "provinceId", "provinceName", "recognitionLevel", "recognizedYear",
+            "region", "heritageType", "shortDescription", "slug", "thumbnailUrl" }.Order(), fields);
     }
 
     // ---- Bản đồ ----

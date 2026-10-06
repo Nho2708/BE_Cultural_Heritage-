@@ -1,4 +1,5 @@
 using DSVHVN.Application.Heritages;
+using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Rules;
 
@@ -20,7 +21,10 @@ public sealed record HeritageFilter(
     RecognitionLevel? RecognitionLevel,
     HeritagePeriod? Period);
 
-/// <summary>Thẻ di sản ở trang chủ và kết quả tìm kiếm: ảnh đại diện, tên, mô tả ngắn, tỉnh, loại, cấp xếp hạng.</summary>
+/// <summary>
+/// Thẻ di sản ở trang chủ và kết quả tìm kiếm: ảnh đại diện, tên, mô tả ngắn, tỉnh, loại, cấp xếp hạng. Tên và mô tả ngắn theo ngôn ngữ yêu cầu:
+/// <c>IsFallback</c> bật khi chưa có bản hiện hành nên đang hiện tiếng Việt (giao diện hiện thông báo một lần ở đầu danh sách), <c>IsMachineTranslated</c> bật với bản dịch máy.
+/// </summary>
 public sealed record HeritageCardDto(
     long Id,
     string Slug,
@@ -32,7 +36,9 @@ public sealed record HeritageCardDto(
     string? Region,
     HeritageType? HeritageType,
     RecognitionLevel? RecognitionLevel,
-    int? RecognizedYear);
+    int? RecognizedYear,
+    bool IsFallback = false,
+    bool IsMachineTranslated = false);
 
 /// <summary>Một mục đếm ở trang chủ: <c>Value</c> là giá trị dùng làm bộ lọc, <c>Label</c> là nhãn hiển thị.</summary>
 public sealed record CountItemDto(string Value, string Label, int Count);
@@ -60,7 +66,9 @@ public sealed record HeritagePinDto(
     string? ProvinceName,
     HeritageType? HeritageType,
     RecognitionLevel? RecognitionLevel,
-    bool HasTimeline);
+    bool HasTimeline,
+    bool IsFallback = false,
+    bool IsMachineTranslated = false);
 
 /// <summary>
 /// Kết quả bản đồ theo bộ lọc. <c>TotalMatched</c> là số di sản khớp bộ lọc; <c>WithoutLocation</c> là số di sản khớp nhưng không có
@@ -97,7 +105,8 @@ public sealed record TimelinePhaseSummaryDto(
 
 /// <summary>
 /// Chi tiết di sản: nội dung, thư viện ảnh kèm ghi công, vị trí, danh sách nguồn ("Nguồn: Cục Di sản văn hóa; …") và timeline rút gọn.
-/// <c>HasTimeline</c> bật nút "Mở dòng thời gian".
+/// <c>HasTimeline</c> bật nút "Mở dòng thời gian". <c>Localization</c> cho biết ngôn ngữ đang hiện (nhãn "bản dịch máy", thông báo thiếu bản dịch);
+/// <c>HasSummary</c> bật khi di sản có tóm tắt tiếng Việt đã duyệt (nút "Tóm tắt" và "Nghe"; không có thì báo chưa có tóm tắt, không hiện cổng quảng cáo).
 /// </summary>
 public sealed record PublicHeritageDetailDto(
     long Id,
@@ -116,7 +125,9 @@ public sealed record PublicHeritageDetailDto(
     bool HasTimeline,
     IReadOnlyList<PublicMediaDto> Media,
     IReadOnlyList<ReferenceDto> References,
-    IReadOnlyList<TimelinePhaseSummaryDto> Timeline);
+    IReadOnlyList<TimelinePhaseSummaryDto> Timeline,
+    LocalizationDto? Localization = null,
+    bool HasSummary = false);
 
 /// <summary>
 /// Sự kiện của giai đoạn. Năm âm là trước Công nguyên. <c>DateLabel</c> là chữ hiển thị sẵn ("15/03/1010", "1010",
@@ -152,7 +163,8 @@ public sealed record PublicTimelineDto(
     string Name,
     string? ThumbnailUrl,
     string? ProvinceName,
-    IReadOnlyList<PublicPhaseDto> Phases);
+    IReadOnlyList<PublicPhaseDto> Phases,
+    LocalizationDto? Localization = null);
 
 /// <summary>Một lựa chọn của danh mục bộ lọc (giá trị gửi lên và nhãn hiển thị).</summary>
 public sealed record FilterOptionDto(string Value, string Label);
