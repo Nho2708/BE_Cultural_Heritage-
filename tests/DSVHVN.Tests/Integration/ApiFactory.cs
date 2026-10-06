@@ -87,6 +87,7 @@ public class ApiFactory : WebApplicationFactory<Program>
             ["Ai:Mode"] = "Simulated",
             ["Ai:AttemptTimeoutSeconds"] = "1",
             ["Ai:HeritageAttemptTimeoutSeconds"] = "1",
+            ["Guests:CleanupIntervalHours"] = "0",   // tác vụ dọn lịch sử khách chạy nền bị tắt; test gọi thẳng GuestService.PurgeExpiredAsync
             ["Quizzes:AutoCloseIntervalSeconds"] = "0",   // tác vụ tự đóng bài kiểm tra chạy nền bị tắt; test gọi thẳng QuizAutoCloser
         }.Concat(ExtraSettings)));
 
