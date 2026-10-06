@@ -107,6 +107,7 @@ public sealed record TimelinePhaseSummaryDto(
 /// Chi tiết di sản: nội dung, thư viện ảnh kèm ghi công, vị trí, danh sách nguồn ("Nguồn: Cục Di sản văn hóa; …") và timeline rút gọn.
 /// <c>HasTimeline</c> bật nút "Mở dòng thời gian". <c>Localization</c> cho biết ngôn ngữ đang hiện (nhãn "bản dịch máy", thông báo thiếu bản dịch);
 /// <c>HasSummary</c> bật khi di sản có tóm tắt tiếng Việt đã duyệt (nút "Tóm tắt" và "Nghe"; không có thì báo chưa có tóm tắt, không hiện cổng quảng cáo).
+/// <c>HasModel</c> bật khi di sản có mô hình 3D đang hiển thị (nút "Xem 3D", miễn phí; dữ liệu trình xem lấy ở <c>GET /public/heritages/{slug}/model</c>).
 /// </summary>
 public sealed record PublicHeritageDetailDto(
     long Id,
@@ -127,7 +128,8 @@ public sealed record PublicHeritageDetailDto(
     IReadOnlyList<ReferenceDto> References,
     IReadOnlyList<TimelinePhaseSummaryDto> Timeline,
     LocalizationDto? Localization = null,
-    bool HasSummary = false);
+    bool HasSummary = false,
+    bool HasModel = false);
 
 /// <summary>
 /// Sự kiện của giai đoạn. Năm âm là trước Công nguyên. <c>DateLabel</c> là chữ hiển thị sẵn ("15/03/1010", "1010",

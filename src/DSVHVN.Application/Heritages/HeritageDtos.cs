@@ -18,9 +18,10 @@ public sealed record HeritageListQuery(
     ContentStatus? Status,
     int? Page,
     int? PageSize,
-    TranslationState? TranslationState = null);
+    TranslationState? TranslationState = null,
+    bool? HasModel = null);
 
-/// <summary>Dòng của màn hình Quản lý di sản: ảnh, tên, tỉnh, loại, cấp xếp hạng, trạng thái, số giai đoạn, số nguồn, tình trạng bản dịch.</summary>
+/// <summary>Dòng của màn hình Quản lý di sản: ảnh, tên, tỉnh, loại, cấp xếp hạng, trạng thái, số giai đoạn, số nguồn, tình trạng bản dịch, có mô hình 3D đang hiển thị.</summary>
 public sealed record HeritageSummaryDto(
     long Id,
     string? Name,
@@ -36,7 +37,8 @@ public sealed record HeritageSummaryDto(
     int ReferenceCount,
     DateTime? CreatedAt,
     DateTime? UpdatedAt,
-    TranslationState TranslationState = TranslationState.NONE);
+    TranslationState TranslationState = TranslationState.NONE,
+    bool HasModel = false);
 
 /// <summary>
 /// Thông tin chung của di sản (tab Thông tin chung). <c>Slug</c> bỏ trống khi tạo thì sinh từ tên, khi sửa thì giữ đường dẫn hiện tại.

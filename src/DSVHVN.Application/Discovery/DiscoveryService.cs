@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Heritages;
+using DSVHVN.Application.Models;
 using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Heritages;
@@ -21,7 +22,7 @@ namespace DSVHVN.Application.Discovery;
 /// không cần đứng liền nhau); kết quả khớp nguyên cụm trong tên đứng trước.
 /// </para>
 /// </summary>
-public sealed class DiscoveryService(IAppDbContext db, HeritageLocalizer localizer)
+public sealed class DiscoveryService(IAppDbContext db, HeritageLocalizer localizer, PublicModelService models)
 {
     /// <summary>Trang chủ hiện tối đa 8 di sản nổi bật.</summary>
     public const int FeaturedLimit = 8;
@@ -183,7 +184,8 @@ public sealed class DiscoveryService(IAppDbContext db, HeritageLocalizer localiz
                 t.Id, parts.TimelineName(t.Id, t.Name), t.StartYear, t.EndYear, HeritageTimeText.PhaseRange(t.StartYear, t.EndYear),
                 eventCounts.GetValueOrDefault(t.Id))).ToList(),
             HeritageLocalizer.Describe(language, parts.Row),
-            await localizer.HasSummaryAsync(heritage.Id, ct));
+            await localizer.HasSummaryAsync(heritage.Id, ct),
+            await models.HasVisibleAsync(heritage.Id, ct));
     }
 
     // ---- Timeline ----
