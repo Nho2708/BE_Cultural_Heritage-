@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using DSVHVN.Application.Common;
 using DSVHVN.Application.Overview;
 using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Enums;
@@ -11,7 +12,7 @@ namespace DSVHVN.Tests.Integration;
 /// <summary>
 /// Tổng quan của quản trị trường (giáo viên so với hạn mức, lớp theo cấp, học sinh đã và chưa đăng nhập, bài học, bài kiểm tra, lượt nộp, điểm trung bình theo lớp và theo cấp,
 /// lượt AI so với hạn mức, gói và lời nhắc hết hạn, chỉ số tổng không lộ tên) và của quản trị hệ thống (trường, giáo viên, học sinh, nội dung, lượt AI, số trường theo gói,
-/// doanh thu chưa có, biểu đồ theo thời gian theo giờ Việt Nam).
+/// doanh thu từ giao dịch VNPay thành công và danh sách giao dịch, biểu đồ theo thời gian theo giờ Việt Nam).
 /// </summary>
 public sealed class OverviewApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
@@ -303,21 +304,54 @@ public sealed class OverviewApiTests(ApiFactory factory) : IClassFixture<ApiFact
     }
 
     [Fact]
-    public async Task The_revenue_section_says_plainly_that_payment_data_is_not_connected_yet()
+    public async Task Revenue_counts_only_succeeded_vnpay_payments_and_lists_every_transaction()
     {
-        var overview = await SystemAsync(await AdminAsync());
-        Assert.False(overview.Revenue.Available);
-        Assert.Contains("VNPay", overview.Revenue.Message);
-        Assert.Contains("Google", overview.Revenue.Message);
-        Assert.Equal(SystemOverviewService.RevenueNotAvailable, overview.Revenue.Message);
-        Assert.NotEmpty(overview.Plans);
+        var admin = await AdminAsync();
+        var billing = new BillingTestKit(factory);
+        var plan = await billing.CreatePlanAsync(admin, price: 450_000m);
+        var (paidOrg, paidOrgAdmin) = await billing.Api.OrgWithAdminAsync();
+        var (_, failedOrgAdmin) = await billing.Api.OrgWithAdminAsync();
+        var today = BillingTestKit.Today;
+        var before = await SystemAsync(admin);
+        var trendBefore = await TrendAsync(admin, $"from={today:yyyy-MM-dd}&to={today:yyyy-MM-dd}");
+
+        var paid = await billing.CheckoutAsync(paidOrgAdmin, plan.Id);
+        Assert.Equal("00", await billing.PayAsync(paid));
+        var failed = await billing.CheckoutAsync(failedOrgAdmin, plan.Id);
+        Assert.Equal("00", await billing.PayAsync(failed, responseCode: "24", transactionStatus: "02"));   // người mua hủy: giao dịch thất bại
+
+        var after = await SystemAsync(admin);
+        Assert.True(after.Revenue.Available);
+        Assert.Contains("VNPay", after.Revenue.Message);
+        Assert.Contains("Google", after.Revenue.Message);
+        Assert.Equal((450_000m, 450_000m, 450_000m, 1),
+            (after.Revenue.Total - before.Revenue.Total, after.Revenue.ThisMonth - before.Revenue.ThisMonth,
+             after.Revenue.Today - before.Revenue.Today, after.Revenue.SucceededPayments - before.Revenue.SucceededPayments));
+
+        var trend = await TrendAsync(admin, $"from={today:yyyy-MM-dd}&to={today:yyyy-MM-dd}");
+        Assert.Equal(450_000m, trend.Points.Single().Revenue - trendBefore.Points.Single().Revenue);
+        Assert.Equal(trend.Points.Single().Revenue, trend.Totals.Revenue);
+
+        var (res, body) = await Http.GetAsync<PagedResult<SystemPaymentDto>>($"{Sys}/payments?organizationId={paidOrg.Id}", admin);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var row = Assert.Single(body.Data!.Items);
+        Assert.Equal((paid.PaymentId, paid.Invoice.InvoiceNumber, paidOrg.Name, plan.Name, "VNPAY", 450_000m, PaymentStatus.SUCCEEDED, true),
+            (row.Id, row.InvoiceNumber, row.OrganizationName, row.PlanName, row.ProviderCode, row.Amount!.Value, row.Status!.Value, row.PaidAt is not null));
+
+        var (_, failedBody) = await Http.GetAsync<PagedResult<SystemPaymentDto>>($"{Sys}/payments?status=FAILED&from={today:yyyy-MM-dd}&to={today:yyyy-MM-dd}", admin);
+        Assert.Contains(failedBody.Data!.Items, p => p.Id == failed.PaymentId && p.PaidAt is null);
+        Assert.DoesNotContain(failedBody.Data!.Items, p => p.Status != PaymentStatus.FAILED);
+
+        var (bad, _) = await Http.GetAsync<object>($"{Sys}/payments?from={today:yyyy-MM-dd}&to={today.AddDays(-1):yyyy-MM-dd}", admin);
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+        Assert.NotEmpty(after.Plans);
     }
 
     [Fact]
     public async Task The_system_overview_and_trend_are_for_the_system_admin_only()
     {
         var (quiz, _) = await SchoolSceneAsync();
-        foreach (var url in new[] { Sys, $"{Sys}/trend" })
+        foreach (var url in new[] { Sys, $"{Sys}/trend", $"{Sys}/payments" })
         {
             foreach (var token in new[] { quiz.Setup.Token, quiz.Setup.School.OrgAdminToken, quiz.StudentToken })
                 Assert.Equal(HttpStatusCode.Forbidden, (await Http.GetAsync<object>(url, token)).Response.StatusCode);

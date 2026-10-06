@@ -6,7 +6,7 @@ Phần backend cho ba việc của khu quản trị: **quản trị trường** 
 
 | Mục | Giá trị |
 |---|---|
-| Chức năng | Ẩn câu hỏi kém chất lượng (kiểm duyệt ngân hàng câu hỏi) · Xem tổng quan trường · Xem tổng quan hệ thống (phần doanh thu: xem mục 4) |
+| Chức năng | Ẩn câu hỏi kém chất lượng (kiểm duyệt ngân hàng câu hỏi) · Xem tổng quan trường · Xem tổng quan hệ thống và doanh thu (mục 4) |
 | Màn hình phục vụ | Web quản trị: Tổng quan trường (quản trị trường), Tổng quan hệ thống (quản trị hệ thống, tab Tổng quan), Kiểm duyệt ngân hàng câu hỏi (quản trị hệ thống) |
 | Bảng | Chỉ **đọc** (trừ `questions` và `audit_logs` khi ẩn, hiện lại câu): `organizations`, `users`, `classes`, `students`, `lessons`, `quizzes`, `attempts`, `attempt_answers`, `questions`, `quiz_questions`, `heritages`, `ai_generations`, `plans`, `subscriptions` |
 | Migration mới | **Không có.** Đặc tả ghi "không có bảng mới". Các truy vấn đã đo trên SQL Server với 45 học sinh × 20 bài kiểm tra × 20 câu (mục 7) nên chưa cần thêm chỉ mục |
@@ -53,7 +53,8 @@ Endpoint `GET /api/v1/org/school-summary` của luồng Lớp và học sinh v�
 | Method | Đường dẫn | Nội dung | Lỗi chính |
 |---|---|---|---|
 | GET | `/` | **Tổng quan hệ thống** (mục 3.2) | 401, 403 |
-| GET | `/trend?from&to&granularity` | **Biểu đồ theo thời gian** (mục 3.3) | 400, 401, 403 |
+| GET | `/trend?from&to&granularity` | **Biểu đồ theo thời gian** (mục 3.3), có chuỗi doanh thu | 400, 401, 403 |
+| GET | `/payments?status&organizationId&from&to&page&pageSize` | **Danh sách giao dịch** của tab Doanh thu (mục 4) | 400, 401, 403 |
 
 `SystemOverviewDto`: `{ generatedAt, schools, teachers, activeStudents, content, ai, plans[], revenue }`.
 
@@ -61,9 +62,9 @@ Endpoint `GET /api/v1/org/school-summary` của luồng Lớp và học sinh v�
 - `content`: `{ publishedHeritages, lessons, publishedLessons, publishedQuizzes, finishedAttempts, questions: { approved, pending, hidden } }`.
 - `ai`: `{ total, byTeachers, byAdmin, thisMonth }`.
 - `plans[]`: mỗi gói một dòng `{ planId, planName, price, isActive, activeSchools, expiringSoonSchools }`, gồm mọi gói trong bảng gói, kể cả gói đã ngừng bán (`isActive` false) còn trường đang dùng.
-- `revenue`: `{ available, message }`, hiện `available` = false (mục 4).
+- `revenue`: `{ available, message, total, thisMonth, today, succeededPayments }` (mục 4); `available` luôn true từ khi gộp với luồng gói và thanh toán VNPay.
 
-`SystemTrendDto`: `{ from, to, granularity, points[], totals }`; mỗi điểm `{ period, newSchools, newTeachers, newStudents, lessonsCreated, quizzesPublished, attemptsFinished, aiRequests }`; `totals` là tổng cả khoảng (`period` = `total`).
+`SystemTrendDto`: `{ from, to, granularity, points[], totals }`; mỗi điểm `{ period, newSchools, newTeachers, newStudents, lessonsCreated, quizzesPublished, attemptsFinished, aiRequests, revenue }`; `totals` là tổng cả khoảng (`period` = `total`).
 
 ### 2.3 Quản trị hệ thống: kiểm duyệt ngân hàng câu hỏi (`/api/v1/admin/questions`)
 
@@ -109,7 +110,7 @@ mỗi dòng `{ question (dòng câu hỏi của ngân hàng, kèm người tạo
 - `from`, `to` là ngày dạng `yyyy-MM-dd` theo lịch Việt Nam; bỏ trống `to` thì lấy hôm nay, bỏ trống `from` thì lấy 30 ngày gần nhất (tính cả hôm nay). Khoảng tối đa **366 ngày**.
 - Gom theo **ngày** khi khoảng không quá **92 ngày**, dài hơn gom theo **tháng**; có thể chỉ định `granularity` = `DAY` hoặc `MONTH` (`DAY` chỉ cho khoảng tới 92 ngày). Mọi kỳ trong khoảng đều có một điểm, kể cả kỳ không có gì (số 0), nên biểu đồ không bị đứt.
 - Một thời điểm thuộc ngày theo **giờ Việt Nam** (UTC+7): 16:59:59 UTC vẫn là ngày đó, 17:00:00 UTC đã sang ngày sau (test kiểm đúng biên).
-- Nguồn từng chuỗi: trường, giáo viên, học sinh, bài học tạo mới theo `created_at`; bài kiểm tra phát hành theo `published_at`; lượt nộp theo `submitted_at` của lượt đã nộp hoặc hết giờ tự nộp; lượt AI theo `created_at` (cùng điều kiện đếm lượt AI ở mục 3.2).
+- Nguồn từng chuỗi: trường, giáo viên, học sinh, bài học tạo mới theo `created_at`; bài kiểm tra phát hành theo `published_at`; lượt nộp theo `submitted_at` của lượt đã nộp hoặc hết giờ tự nộp; lượt AI theo `created_at` (cùng điều kiện đếm lượt AI ở mục 3.2); doanh thu theo `paid_at` của giao dịch thành công (mục 4).
 - Sai khoảng (`to` trước `from`, quá 366 ngày, `granularity` = `DAY` cho khoảng dài) trả **400** với lỗi theo trường.
 
 ### 3.4 Kiểm duyệt ngân hàng câu hỏi
@@ -125,11 +126,18 @@ mỗi dòng `{ question (dòng câu hỏi của ngân hàng, kèm người tạo
   câu hiện lại cho mọi giáo viên mọi trường, người tạo sửa, xóa, nhân bản được như câu thường (câu đã nằm trong bài kiểm tra vẫn chỉ đọc). `reason` tùy chọn vào nhật ký.
 - **Nhật ký thao tác:** ẩn ghi `QUESTION_HIDDEN` (có sẵn), hiện lại ghi `QUESTION_RESTORED` (nhãn "Hiện lại câu hỏi"); cả hai ghi người làm, địa chỉ IP, `old_value` và `new_value` (trạng thái, người duyệt, lý do) và hiện ở màn Nhật ký thao tác lọc theo hành động.
 
-## 4. Phần doanh thu (chưa nối)
+## 4. Doanh thu từ gói và thanh toán VNPay
 
-Nhánh này **chưa có gói trả phí và thanh toán VNPay**, nên tổng quan hệ thống **không có số doanh thu**: `revenue` = `{ available: false, message: "Doanh thu theo kỳ và danh sách giao dịch sẽ hiện khi nối với gói dịch vụ và thanh toán VNPay. Doanh thu quảng cáo xem ở bảng điều khiển của Google." }`.
-Giao diện hiện đúng câu này ở chỗ biểu đồ doanh thu và danh sách giao dịch. **Khi gộp với nhánh gói dịch vụ và thanh toán VNPay** sẽ thêm: doanh thu theo kỳ (tổng số tiền giao dịch thành công theo ngày thanh toán giờ Việt Nam, gói Miễn phí không tạo doanh thu),
-danh sách giao dịch lọc theo trạng thái, trường, khoảng ngày; khi đó `available` = true và mọi số khác của tổng quan không đổi. Doanh thu quảng cáo không bao giờ nằm ở đây (hệ thống không nhận số liệu doanh thu từ Google; trang quản trị chỉ dẫn sang bảng điều khiển của Google).
+Từ khi gộp với luồng Gói và thanh toán VNPay, phần doanh thu đọc thẳng các bảng `payments`, `invoices`, `subscriptions`, `plans` (không thêm bảng, cột, chỉ mục):
+
+- **Doanh thu** = tổng `amount` của giao dịch **thành công** (`SUCCEEDED`, có `paid_at`) theo **ngày thanh toán giờ Việt Nam**; giao dịch chờ, thất bại, hoàn tiền không tính; gói Miễn phí không qua VNPay nên không tạo doanh thu.
+  Giao dịch của trường đã ngừng **vẫn tính** (tiền đã thu).
+- `revenue` của tổng quan: `total` (từ trước tới nay), `thisMonth` (từ ngày 1 của tháng hiện tại tới hôm nay), `today`, `succeededPayments` (số giao dịch thành công); `message` nhắc "Doanh thu tính từ giao dịch VNPay thành công theo ngày thanh toán. Doanh thu quảng cáo xem ở bảng điều khiển Google AdMob và Google Ad Manager."
+- Biểu đồ theo thời gian có thêm chuỗi `revenue` mỗi kỳ (cùng cách gom ngày hoặc tháng); `totals.revenue` là doanh thu cả khoảng.
+- **Danh sách giao dịch** `GET /payments`: mọi giao dịch của mọi trường, mới nhất trước, lọc `status` (`PENDING`, `SUCCEEDED`, `FAILED`, `REFUNDED`), `organizationId`, `from`, `to` (ngày **tạo** giao dịch theo giờ Việt Nam, gồm cả hai đầu; `to` trước `from` trả 400), phân trang như các danh sách khác.
+  Mỗi dòng `{ id, invoiceId, invoiceNumber, organizationId, organizationName, planName, providerCode, providerTransactionId, amount, status, createdAt, paidAt }`; không có dữ liệu IPN thô.
+- Tiền cộng ở máy chủ sau khi lấy các dòng giao dịch thành công (cùng một cách trên SQL Server và SQLite của kiểm thử); số giao dịch của một nền tảng cho trường học nhỏ nên chưa cần cộng trong CSDL.
+- Doanh thu quảng cáo **không bao giờ nằm ở đây** (hệ thống không nhận số liệu doanh thu từ Google; giao diện chỉ dẫn sang bảng điều khiển của Google).
 
 ## 5. Mã lỗi
 
@@ -146,13 +154,13 @@ Dùng các mã chung của hệ thống: `INVALID` (400) với lỗi theo trư�
 
 ## 7. Kiểm thử và chạy thử
 
-- **Unit** `OverviewRulesTests` (ngày còn lại và biên 14 ngày, phần trăm điểm và làm tròn, trung bình, ngưỡng gom theo ngày hoặc tháng, kỳ qua ranh giới tháng và năm, ngưỡng 10 lượt và 30% đúng biên) và `AuditLabelTests` (22 mã, mỗi mã một nhãn tiếng Việt).
+- **Unit** `OverviewRulesTests` (ngày còn lại và biên 14 ngày, phần trăm điểm và làm tròn, trung bình, ngưỡng gom theo ngày hoặc tháng, kỳ qua ranh giới tháng và năm, ngưỡng 10 lượt và 30% đúng biên) và `AuditLabelTests` (26 mã sau khi gộp, mỗi mã một nhãn tiếng Việt).
 - **Tích hợp trên SQLite** (Api thật):
   `OverviewApiTests` (16 test: số liệu tổng quan trường kèm trung bình theo lớp và cấp; chỉ tính lượt đã nộp của học sinh đang hoạt động, lớp xóa mềm biến khỏi số liệu; trường này không thấy số của trường khác; phản hồi không có tên học sinh, giáo viên, mã học sinh; lượt AI so với hạn mức;
   lời nhắc gói ở các biên 14 và 15 ngày, hết hạn, hủy mà trang vẫn xem được; quyền; tổng quan hệ thống tăng đúng bằng những gì một trường mới thêm và giảm khi ngừng trường, ẩn câu chuyển từ đã duyệt sang đã ẩn, lượt AI của giáo viên và của quản trị hệ thống đếm riêng, lượt lỗi hoặc bỏ dở không tính;
-  phần doanh thu báo chưa nối; biểu đồ theo ngày Việt Nam đúng biên 16:59:59 và 17:00:00, kỳ trống vẫn có điểm, lượt đang làm dở không tính, gom theo tháng, mặc định 30 ngày, lỗi khoảng thời gian),
+  doanh thu chỉ tính giao dịch VNPay thành công (giao dịch thất bại không tính) ở tổng, tháng này, hôm nay và biểu đồ, danh sách giao dịch lọc theo trường, trạng thái, ngày và lỗi khoảng ngày; biểu đồ theo ngày Việt Nam đúng biên 16:59:59 và 17:00:00, kỳ trống vẫn có điểm, lượt đang làm dở không tính, gom theo tháng, mặc định 30 ngày, lỗi khoảng thời gian),
   `QuestionQualityApiTests` (8 test: số lượt trả lời, tỉ lệ đúng và cờ cần xem lại; chưa đủ 10 lượt thì không cờ và lượt đang làm không tính; lọc cần xem lại và sắp xếp theo tỉ lệ đúng; câu ẩn rời danh sách cờ nhưng còn số liệu; lọc theo trường, người tạo, dạng; hiện lại và nhật ký; chỉ hiện lại được câu đã ẩn; quyền).
-- **SQL Server LocalDB** (`OverviewSqlServerTests`, database tạm tự xóa): mọi endpoint dịch được sang SQL và cho cùng số liệu như SQLite; trường 45 học sinh × 20 bài kiểm tra × 20 câu (900 lượt, 18.900 dòng) trong giới hạn 3 giây ở mỗi màn
+- **SQL Server LocalDB** (`OverviewSqlServerTests`, database tạm tự xóa): mọi endpoint dịch được sang SQL và cho cùng số liệu như SQLite (cả doanh thu sau một lần mua gói qua IPN và danh sách giao dịch); trường 45 học sinh × 20 bài kiểm tra × 20 câu (900 lượt, 18.900 dòng) trong giới hạn 3 giây ở mỗi màn
   (đo: tổng quan trường 23 ms, tổng quan hệ thống 14 ms, biểu đồ 15 ms, kiểm duyệt 165-193 ms).
 - **Smoke** `scripts/smoke-quan-tri-tong-quan.sh` trên API thật (cổng 5180) và database tạm `dsvhvn_tam_wt_…` (đã xóa sau khi chạy), `Email__Mode=Log`, `Ai__Mode=Simulated`: **62 bước, đúng 62** (trường mới, thêm giáo viên, lớp, học sinh, số liệu hai tổng quan thay đổi đúng,
   biểu đồ mặc định, theo tháng và ba lỗi khoảng thời gian, tạo câu, danh sách kiểm duyệt, ẩn với lý do, hiện lại, hiện lại lần hai bị chặn, nhật ký có nhãn tiếng Việt và lý do, phân quyền 401, 403, 404). Số liệu cần lượt làm bài, gói sắp hết hạn và biểu đồ theo ngày kiểm trong bộ test tích hợp.

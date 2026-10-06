@@ -47,7 +47,22 @@ public sealed class OverviewSqlServerTests(SqlServerApiFactory factory, ITestOut
         var after = await DiscoveryTestKit.Expect(Http.GetAsync<SystemOverviewDto>("/api/v1/admin/overview", admin));
         Assert.Equal((1, 1, 0), (after.Schools.Total - before.Schools.Total, after.Schools.WithEffectivePlan - before.Schools.WithEffectivePlan, after.Schools.WithoutEffectivePlan - before.Schools.WithoutEffectivePlan));
         Assert.Equal((11, 10), (after.ActiveStudents - before.ActiveStudents, after.Content.FinishedAttempts - before.Content.FinishedAttempts));
-        Assert.False(after.Revenue.Available);
+        Assert.True(after.Revenue.Available);
+
+        // Doanh thu từ giao dịch VNPay thành công và danh sách giao dịch (cộng tiền, nối hóa đơn, trường, gói, cổng) chạy trên SQL Server.
+        var billing = new BillingTestKit(factory);
+        var plan = await billing.CreatePlanAsync(admin, price: 350_000m);
+        var (paidOrg, paidOrgAdmin) = await billing.Api.OrgWithAdminAsync();
+        var paid = await billing.CheckoutAsync(paidOrgAdmin, plan.Id);
+        Assert.Equal("00", await billing.PayAsync(paid));
+        var withRevenue = await DiscoveryTestKit.Expect(Http.GetAsync<SystemOverviewDto>("/api/v1/admin/overview", admin));
+        Assert.Equal((350_000m, 1), (withRevenue.Revenue.Total - after.Revenue.Total, withRevenue.Revenue.SucceededPayments - after.Revenue.SucceededPayments));
+        var today = BillingTestKit.Today;
+        var todayTrend = await DiscoveryTestKit.Expect(Http.GetAsync<SystemTrendDto>($"/api/v1/admin/overview/trend?from={today:yyyy-MM-dd}&to={today:yyyy-MM-dd}", admin));
+        Assert.True(todayTrend.Totals.Revenue >= 350_000m);
+        var payments = await DiscoveryTestKit.Expect(Http.GetAsync<DSVHVN.Application.Common.PagedResult<SystemPaymentDto>>(
+            $"/api/v1/admin/overview/payments?organizationId={paidOrg.Id}&status=SUCCEEDED&from={today:yyyy-MM-dd}&to={today:yyyy-MM-dd}", admin));
+        Assert.Equal((paid.PaymentId, paidOrg.Name, plan.Name, "VNPAY"), (payments.Items.Single().Id, payments.Items.Single().OrganizationName, payments.Items.Single().PlanName, payments.Items.Single().ProviderCode));
         var trend = await DiscoveryTestKit.Expect(Http.GetAsync<SystemTrendDto>("/api/v1/admin/overview/trend?from=2026-03-09&to=2026-03-12", admin));
         Assert.Equal([0, 5, 5, 0], trend.Points.Select(p => p.AttemptsFinished));   // 16:59:59Z còn ngày 10/03, 17:00:00Z sang 11/03 giờ Việt Nam
         var monthly = await DiscoveryTestKit.Expect(Http.GetAsync<SystemTrendDto>("/api/v1/admin/overview/trend?from=2026-01-01&to=2026-05-31", admin));

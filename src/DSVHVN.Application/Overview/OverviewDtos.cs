@@ -104,12 +104,13 @@ public sealed record SystemAiDto(int Total, int ByTeachers, int ByAdmin, int Thi
 public sealed record SystemPlanUsageDto(int PlanId, string? PlanName, decimal? Price, bool IsActive, int ActiveSchools, int ExpiringSoonSchools);
 
 /// <summary>
-/// Phần doanh thu của tổng quan hệ thống. Bản này chưa có thanh toán nên <see cref="Available"/> luôn false; <see cref="Message"/> nói rõ chỗ sẽ nối.
-/// Doanh thu quảng cáo không bao giờ nằm ở đây (xem ở bảng điều khiển của Google).
+/// Phần doanh thu của tổng quan hệ thống, tính từ giao dịch VNPay thành công (tổng <c>amount</c> của giao dịch SUCCEEDED theo ngày <c>paid_at</c> giờ Việt Nam;
+/// gói Miễn phí không tạo doanh thu): tổng từ trước tới nay, tháng này, hôm nay và số giao dịch thành công. <see cref="Message"/> nhắc doanh thu quảng cáo
+/// không nằm ở đây (xem ở bảng điều khiển của Google).
 /// </summary>
-public sealed record SystemRevenueDto(bool Available, string Message);
+public sealed record SystemRevenueDto(bool Available, string Message, decimal Total, decimal ThisMonth, decimal Today, int SucceededPayments);
 
-/// <summary>Tổng quan hệ thống (tab Tổng quan của quản trị hệ thống): trường, giáo viên, học sinh, nội dung, lượt AI, số trường theo từng gói, chỗ dành cho doanh thu.</summary>
+/// <summary>Tổng quan hệ thống (tab Tổng quan của quản trị hệ thống): trường, giáo viên, học sinh, nội dung, lượt AI, số trường theo từng gói, doanh thu từ giao dịch VNPay thành công.</summary>
 public sealed record SystemOverviewDto(
     DateTime GeneratedAt,
     SystemSchoolsDto Schools,
@@ -120,7 +121,7 @@ public sealed record SystemOverviewDto(
     IReadOnlyList<SystemPlanUsageDto> Plans,
     SystemRevenueDto Revenue);
 
-/// <summary>Một kỳ của biểu đồ theo thời gian (ngày <c>yyyy-MM-dd</c> hoặc tháng <c>yyyy-MM</c>, giờ Việt Nam).</summary>
+/// <summary>Một kỳ của biểu đồ theo thời gian (ngày <c>yyyy-MM-dd</c> hoặc tháng <c>yyyy-MM</c>, giờ Việt Nam); <c>Revenue</c> là doanh thu từ giao dịch thành công trả trong kỳ.</summary>
 public sealed record SystemTrendPointDto(
     string Period,
     int NewSchools,
@@ -129,7 +130,30 @@ public sealed record SystemTrendPointDto(
     int LessonsCreated,
     int QuizzesPublished,
     int AttemptsFinished,
-    int AiRequests);
+    int AiRequests,
+    decimal Revenue);
+
+/// <summary>
+/// Một giao dịch thanh toán trong danh sách giao dịch của tab Doanh thu (quản trị hệ thống): trường, hóa đơn, gói, cổng, số tiền, trạng thái,
+/// thời điểm tạo và thời điểm trả (chỉ giao dịch thành công).
+/// </summary>
+public sealed record SystemPaymentDto(
+    long Id,
+    long InvoiceId,
+    string? InvoiceNumber,
+    long OrganizationId,
+    string? OrganizationName,
+    string? PlanName,
+    string? ProviderCode,
+    string? ProviderTransactionId,
+    decimal? Amount,
+    DSVHVN.Domain.Enums.PaymentStatus? Status,
+    DateTime? CreatedAt,
+    DateTime? PaidAt);
+
+/// <summary>Lọc danh sách giao dịch: trạng thái, trường, khoảng ngày tạo giao dịch (ngày Việt Nam, gồm cả hai đầu), trang.</summary>
+public sealed record SystemPaymentListQuery(
+    DSVHVN.Domain.Enums.PaymentStatus? Status, long? OrganizationId, DateOnly? From, DateOnly? To, int? Page, int? PageSize);
 
 /// <summary>Biểu đồ theo thời gian: mỗi kỳ trong khoảng đều có một điểm (kể cả kỳ không có gì), kèm tổng cả khoảng.</summary>
 public sealed record SystemTrendDto(
