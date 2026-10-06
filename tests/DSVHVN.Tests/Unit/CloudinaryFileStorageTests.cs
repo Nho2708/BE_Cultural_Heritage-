@@ -158,6 +158,21 @@ public sealed class CloudinaryFileStorageTests
         await Assert.ThrowsAsync<FileStorageException>(() => storage.ExistsAsync($"images/{Id}.jpg", default));
     }
 
+    [Fact]
+    public async Task Size_of_reads_the_byte_count_from_the_resource_lookup_and_is_null_when_there_is_no_file()
+    {
+        var handler = new FakeCloudinaryHandler();
+        var storage = Create(handler);
+        Assert.Equal(10, await storage.SizeOfAsync($"models/{Id}.glb", default));
+        Assert.Contains(handler.Requests, r => r.Url.Contains("/raw/", StringComparison.Ordinal));   // mô hình tra theo loại raw
+
+        handler.ResourceStatus = HttpStatusCode.NotFound;
+        Assert.Null(await storage.SizeOfAsync($"models/{Id}.glb", default));
+
+        handler.ResourceStatus = HttpStatusCode.InternalServerError;
+        await Assert.ThrowsAsync<FileStorageException>(() => storage.SizeOfAsync($"models/{Id}.glb", default));
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.Unauthorized)]
     [InlineData(HttpStatusCode.BadRequest)]

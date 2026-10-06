@@ -69,7 +69,14 @@ public sealed class CloudinaryFileStorage : IFileStorage
             throw new FileStorageException("Cloudinary trả mã tệp khác với mã đã yêu cầu.");
     }
 
-    public async Task<bool> ExistsAsync(string key, CancellationToken cancellationToken)
+    public async Task<bool> ExistsAsync(string key, CancellationToken cancellationToken) =>
+        await GetResourceAsync(key) is not null;
+
+    public async Task<long?> SizeOfAsync(string key, CancellationToken cancellationToken) =>
+        (await GetResourceAsync(key))?.Bytes;
+
+    /// <summary>Hỏi Cloudinary về tệp; null nếu không có tệp. Lỗi khác đổi thành <see cref="FileStorageException"/>.</summary>
+    private async Task<GetResourceResult?> GetResourceAsync(string key)
     {
         var target = Resolve(key);
         try
@@ -78,8 +85,8 @@ public sealed class CloudinaryFileStorage : IFileStorage
             {
                 ResourceType = target.IsRaw ? ResourceType.Raw : ResourceType.Image,
             });
-            if (result.StatusCode == HttpStatusCode.NotFound) return false;
-            if (result.StatusCode == HttpStatusCode.OK && result.Error is null) return true;
+            if (result.StatusCode == HttpStatusCode.NotFound) return null;
+            if (result.StatusCode == HttpStatusCode.OK && result.Error is null) return result;
             throw new FileStorageException($"Cloudinary trả HTTP {(int)result.StatusCode} khi kiểm tra tệp.");
         }
         catch (FileStorageException)
