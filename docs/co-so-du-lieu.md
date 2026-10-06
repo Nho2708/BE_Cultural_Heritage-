@@ -3,13 +3,13 @@
 Backend hiện thực **đủ 27 bảng** của CSDL v3 (`doc/database/dsvhvn-v3.dbml` của nhóm, 8 nhóm bảng) bằng EF Core 9 trên
 SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `KhoiTaoCsdl`; mọi thay đổi về sau đi qua migration mới. Từ luồng
 "Bài học cho lớp theo cấp" backend thêm dần phần **CSDL v4** (`doc/database/dsvhvn-v4.dbml`) đúng phần luồng cần, mỗi luồng một migration
-(mục 5 và 6): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học) và các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi), tổng **28 bảng**.
+(mục 5 và 6): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học) và các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi) và bảng `attempt_answer_parts` cùng hai cột mới của `attempt_answers` (luồng học tập của học sinh), tổng **29 bảng**.
 
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
 | Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6) |
-| Số liệu | **28 bảng** (27 của v3 + `lesson_sections`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) = **257 trong database** · 43 khóa ngoại · 25 CHECK · 4 UNIQUE có lọc · 10 UNIQUE thường · 16 kiểu enum (18 cột) |
+| Số liệu | **29 bảng** (27 của v3 + `lesson_sections` + `attempt_answer_parts`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 11 cột của luồng học tập (9 của `attempt_answer_parts`, 2 của `attempt_answers`) = **268 trong database** · 46 khóa ngoại · 27 CHECK · 6 UNIQUE có lọc · 10 UNIQUE thường · 16 kiểu enum (18 cột) |
 | Dữ liệu khởi tạo trong migration khởi tạo | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
 
@@ -19,7 +19,7 @@ SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `Kh
 |---|---|
 | Tên | Bảng, cột `snake_case` đúng DBML (đổi tự động từ tên thuộc tính C#); khóa ngoại `fk_{bảng}_{cột}` như khối Ref của DBML; khóa chính `PK_{bảng}` |
 | Kiểu | `nvarchar(n)` / `nvarchar(max)`; `datetime2(3)` lưu UTC (đọc ra gắn `Kind=Utc`); `date` cho ngày của gói; `decimal(p,s)` đúng DBML; `tinyint` cho khối lớp; `smallint` cho tháng, ngày của sự kiện |
-| NULL / NOT NULL | Đúng DBML cho mọi cột. **32 khóa ngoại bắt buộc về nghiệp vụ là NOT NULL** (DBML ghi `not null` từ 29/09/2026, theo đặc tả mô hình dữ liệu của nhóm). 8 khóa ngoại được NULL: `users.organization_id`, `heritages.province_id`, `media.heritage_id`, `media.event_id`, `questions.ai_generation_id`, `questions.reviewed_by`, `attempt_answers.answer_id`, `audit_logs.user_id`. Thuộc tính C# nullable đúng theo cột |
+| NULL / NOT NULL | Đúng DBML cho mọi cột. **32 khóa ngoại bắt buộc về nghiệp vụ là NOT NULL** (DBML ghi `not null` từ 29/09/2026, theo đặc tả mô hình dữ liệu của nhóm). 13 khóa ngoại được NULL ở bản hiện tại (danh sách đầy đủ trong `SqlServerDatabaseTests`; 8 của bản đầu là): `users.organization_id`, `heritages.province_id`, `media.heritage_id`, `media.event_id`, `questions.ai_generation_id`, `questions.reviewed_by`, `attempt_answers.answer_id`, `audit_logs.user_id`. Thuộc tính C# nullable đúng theo cột |
 | DEFAULT | Chỉ 8 cột `bit` có DEFAULT như DBML (`must_change_password`, `is_correct` ×2, `shuffle_questions`, `show_answers_after_submit` = 0; `students.is_active`, `plans.is_active`, `payment_providers.is_active` = 1). Ứng dụng luôn gửi giá trị khi thêm dòng. `created_at` không có DEFAULT (DBML không quy định): DbContext tự điền giờ UTC |
 | Enum | `nvarchar(20)` + CHECK `CK_{bảng}_{cột}` liệt kê đúng giá trị; EF `HasConversion<string>()`. `roles.code`, `audit_logs.actor_role`, `audit_logs.action` là chuỗi không CHECK |
 | CHECK khác | `CK_classes_grade` (khối 1-12), `CK_media_owner` (ảnh thuộc đúng một trong di sản hoặc sự kiện) |
@@ -119,8 +119,8 @@ Khác biệt kỹ thuật, không đổi ý nghĩa lược đồ: tên khóa ch�
 ## 4. Kiểm thử trên SQL Server
 
 Ngoài bộ test trên SQLite trong bộ nhớ, lớp `SqlServerDatabaseTests` chạy trên **database tạm của LocalDB** (tên
-`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (28 bảng, 257 cột, 43 khóa ngoại,
-một Cascade, 25 CHECK, 4 UNIQUE có lọc đúng điều kiện, 11 khóa ngoại được NULL, 18 cột enum `nvarchar(20)`, DEFAULT của cột bit,
+`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (29 bảng, 268 cột, 46 khóa ngoại,
+một Cascade, 27 CHECK, 6 UNIQUE có lọc đúng điều kiện, 13 khóa ngoại được NULL, 18 cột enum `nvarchar(20)`, DEFAULT của cột bit,
 collation), dữ liệu di sản, luồng web quản trị qua HTTP và các ràng buộc của tài khoản học sinh, bài học, thanh toán; xong thì
 xóa database tạm. Máy không có LocalDB thì các test này được bỏ qua (Skip); không có thư mục dữ liệu di sản thì bỏ qua riêng
 test nạp di sản.
@@ -153,7 +153,7 @@ Migration `ThemDangCauHoiVaCapPhuHop` (05/10/2026) đưa vào phần của `dsvh
 | `questions` | Thêm `image_url`, `passage`, `passage_source`, `level_min` (NOT NULL, DEFAULT 1), `level_max` (NOT NULL, DEFAULT 3); CHECK `CK_questions_levels`, `CK_questions_passage`; `CK_questions_question_type` nhận đủ 8 dạng |
 | `answers` | Thêm `image_url`, `match_content`, `correct_position`, `blank_index`; CHECK `CK_answers_positions` (1..20) |
 | Câu cũ | `SINGLE_CHOICE` → cấp 2-3; `TRUE_FALSE` → cấp 2 |
-| Chưa làm | `attempt_answers.parts_total`, `parts_correct`, bảng `attempt_answer_parts` (thuộc luồng làm bài) |
+| Chưa làm | `attempt_answers.parts_total`, `parts_correct`, bảng `attempt_answer_parts`: đã làm ở luồng học tập (mục 8) |
 
 Số liệu sau migration: 28 bảng, 257 cột, 43 khóa ngoại, 25 CHECK, 11 khóa ngoại được NULL, DEFAULT thêm hai cột `level_min`, `level_max`. Chi tiết luồng và đường nâng cấp câu cũ:
 [ngan-hang-cau-hoi.md](ngan-hang-cau-hoi.md) mục 6.
@@ -161,3 +161,15 @@ Số liệu sau migration: 28 bảng, 257 cột, 43 khóa ngoại, 25 CHECK, 11 
 ## 7. Luồng "Bài kiểm tra của bài học": không thêm migration
 
 Luồng này dùng `quizzes`, `quiz_questions` của v3 **nguyên trạng**: `dsvhvn-v4.dbml` không đổi hai bảng này (mọi cột và ràng buộc cần cho soạn, phát hành, đóng đã có: `status` DRAFT/PUBLISHED/CLOSED có CHECK, `total_point decimal(6,2)`, `point decimal(5,2)`, khóa chính kép, độ khó, giờ mở, giờ đóng, thời gian làm, hai cờ xáo câu và hiện đáp án). Độ khó của bài học **không lưu**, tính khi truy vấn. Thời gian làm theo cấp, 1-50 câu, điểm bước 0,25 là quy tắc ở tầng code, không có CHECK trong CSDL (đúng ghi chú DBML). `attempts` và `attempt_answers` chỉ được luồng này cập nhật khi đóng bài (tự nộp lượt đang dở); phần v4 của luồng làm bài vẫn chưa thêm. Chi tiết: [bai-kiem-tra.md](bai-kiem-tra.md).
+
+## 8. Luồng "Học tập của học sinh theo cấp": migration `ThemCauTraLoiTungPhan`
+
+Thêm phần v4 của việc làm bài, đúng `dsvhvn-v4.dbml`:
+
+| Thay đổi | Chi tiết |
+|---|---|
+| `attempt_answers` | Thêm `parts_total smallint NOT NULL DEFAULT 1`, `parts_correct smallint NOT NULL DEFAULT 0`; CHECK `CK_attempt_answers_parts` (`parts_total >= 1 AND parts_correct BETWEEN 0 AND parts_total`) |
+| `attempt_answer_parts` (bảng mới, 9 cột) | `id`, `attempt_answer_id`, `answer_id` (NULL), `blank_index tinyint` (NULL), `selected_answer_id` (NULL), `selected_position tinyint` (NULL), `selected_bool bit` (NULL), `response_text nvarchar(255)` (NULL), `is_correct bit NOT NULL DEFAULT 0`; CHECK `CK_attempt_answer_parts_target` (đúng một trong `answer_id`, `blank_index`); UNIQUE có lọc `UX_attempt_answer_parts_answer` (`attempt_answer_id`, `answer_id`) khi `answer_id` không NULL và `UX_attempt_answer_parts_blank` (`attempt_answer_id`, `blank_index`) khi `blank_index` không NULL; 3 khóa ngoại (đều Restrict) |
+
+Dòng cũ của `attempt_answers` (từ luồng đóng bài) lấy giá trị mặc định (1 phần, 0 phần đúng). Số liệu sau migration: 29 bảng, 268 cột, 46 khóa ngoại, 27 CHECK, 13 khóa ngoại được NULL, 6 UNIQUE có lọc, thêm ba DEFAULT
+(`is_correct` của bảng mới, `parts_total`, `parts_correct`). Chi tiết: [hoc-tap-theo-cap.md](hoc-tap-theo-cap.md).
