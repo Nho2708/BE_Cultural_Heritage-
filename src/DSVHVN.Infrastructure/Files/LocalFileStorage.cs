@@ -42,6 +42,12 @@ public sealed class LocalFileStorage : IFileStorage
 
     public Task<bool> ExistsAsync(string key, CancellationToken cancellationToken) => Task.FromResult(File.Exists(PathOf(key)));
 
+    public Task<long?> SizeOfAsync(string key, CancellationToken cancellationToken)
+    {
+        var info = new FileInfo(PathOf(key));
+        return Task.FromResult<long?>(info.Exists ? info.Length : null);
+    }
+
     public Task DeleteAsync(string key, CancellationToken cancellationToken)
     {
         var path = PathOf(key);

@@ -19,16 +19,22 @@ internal sealed class MemoryFileStorage : IFileStorage
 {
     public Dictionary<string, byte[]> Files { get; } = [];
     public int? FailOnSave { get; set; }
+    /// <summary>Chạy ngay sau mỗi lần ghi thành công, để kiểm thử chen một thay đổi vào giữa các bước của dịch vụ.</summary>
+    public Action<string>? AfterSave { get; set; }
     private int _saves;
 
     public Task SaveAsync(string key, ReadOnlyMemory<byte> content, CancellationToken cancellationToken)
     {
         if (++_saves == FailOnSave) throw new IOException("Đĩa đầy (giả lập).");
         Files[key] = content.ToArray();
+        AfterSave?.Invoke(key);
         return Task.CompletedTask;
     }
 
     public Task<bool> ExistsAsync(string key, CancellationToken cancellationToken) => Task.FromResult(Files.ContainsKey(key));
+
+    public Task<long?> SizeOfAsync(string key, CancellationToken cancellationToken) =>
+        Task.FromResult<long?>(Files.TryGetValue(key, out var content) ? content.Length : null);
 
     public Task DeleteAsync(string key, CancellationToken cancellationToken)
     {

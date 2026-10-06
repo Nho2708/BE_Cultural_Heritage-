@@ -12,6 +12,9 @@ public interface IFileStorage
 
     Task<bool> ExistsAsync(string key, CancellationToken cancellationToken);
 
+    /// <summary>Dung lượng (byte) của tệp đã lưu; null nếu không có tệp. Dùng khi khai báo mô hình 3D bằng đường dẫn đã lưu, để máy chủ tự đo thay vì tin số khách gửi.</summary>
+    Task<long?> SizeOfAsync(string key, CancellationToken cancellationToken);
+
     /// <summary>Chỉ để hoàn tác một lần ghi chưa kịp ghi nhận vào CSDL. Tệp của ảnh đã bị gỡ khỏi di sản được giữ lại, không xóa.</summary>
     Task DeleteAsync(string key, CancellationToken cancellationToken);
 
