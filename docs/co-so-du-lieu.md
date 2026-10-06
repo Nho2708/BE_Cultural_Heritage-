@@ -3,13 +3,13 @@
 Backend hiện thực **đủ 27 bảng** của CSDL v3 (`doc/database/dsvhvn-v3.dbml` của nhóm, 8 nhóm bảng) bằng EF Core 9 trên
 SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `KhoiTaoCsdl`; mọi thay đổi về sau đi qua migration mới. Từ luồng
 "Bài học cho lớp theo cấp" backend thêm dần phần **CSDL v4** (`doc/database/dsvhvn-v4.dbml`) đúng phần luồng cần, mỗi luồng một migration
-(mục 5, 6 và 7): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học), các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi) và năm bảng đa ngôn ngữ (luồng đa ngôn ngữ), tổng **33 bảng**.
+(mục 5, 6, 7 và 8): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học), các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi), năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) và bảng `heritage_models` (luồng mô hình 3D), tổng **34 bảng**.
 
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
-| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7) |
-| Số liệu | **33 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ = **303 trong database** · 52 khóa ngoại (4 Cascade) · 35 CHECK · 4 UNIQUE có lọc · 15 UNIQUE thường · 18 kiểu enum (25 cột) |
+| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7); `20261006162139_ThemMoHinh3DCuaDiSan.cs` (bảng mô hình 3D, xem mục 8) |
+| Số liệu | **34 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ + `heritage_models`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ + 17 cột của `heritage_models` = **320 trong database** · 53 khóa ngoại (4 Cascade) · 38 CHECK · 5 UNIQUE có lọc · 15 UNIQUE thường · 19 kiểu enum (27 cột) |
 | Dữ liệu khởi tạo trong migration khởi tạo | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
 
@@ -119,8 +119,8 @@ Khác biệt kỹ thuật, không đổi ý nghĩa lược đồ: tên khóa ch�
 ## 4. Kiểm thử trên SQL Server
 
 Ngoài bộ test trên SQLite trong bộ nhớ, lớp `SqlServerDatabaseTests` chạy trên **database tạm của LocalDB** (tên
-`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (33 bảng, 303 cột, 52 khóa ngoại,
-bốn Cascade, 35 CHECK, 4 UNIQUE có lọc đúng điều kiện, 15 khóa ngoại được NULL, 25 cột enum `nvarchar(20)`, DEFAULT của cột bit,
+`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (34 bảng, 320 cột, 53 khóa ngoại,
+bốn Cascade, 38 CHECK, 5 UNIQUE có lọc đúng điều kiện, 15 khóa ngoại được NULL, 27 cột enum `nvarchar(20)`, DEFAULT của cột bit,
 collation), dữ liệu di sản, luồng web quản trị qua HTTP và các ràng buộc của tài khoản học sinh, bài học, thanh toán; xong thì
 xóa database tạm. Máy không có LocalDB thì các test này được bỏ qua (Skip); không có thư mục dữ liệu di sản thì bỏ qua riêng
 test nạp di sản.
@@ -179,3 +179,16 @@ từ migration của luồng bài học nên không đổi.
 Số liệu sau migration: 33 bảng, 303 cột (thêm 46), 52 khóa ngoại (thêm 9, trong đó 3 Cascade), 35 CHECK (thêm 10), 15 UNIQUE thường (thêm 5), 15 khóa ngoại được NULL (thêm 4), 25 cột enum (thêm 7), hai DEFAULT bit.
 Chi tiết luồng: [da-ngon-ngu.md](da-ngon-ngu.md).
 
+## 8. Phần CSDL v4 của luồng "Mô hình 3D di sản"
+
+Migration `ThemMoHinh3DCuaDiSan` (06/10/2026) thêm bảng `heritage_models` của nhóm Đa ngôn ngữ và 3D trong `dsvhvn-v4.dbml`; không sửa bảng cũ.
+
+| Bảng mới | Cột | Ràng buộc |
+|---|---|---|
+| `heritage_models` | `id`, `heritage_id`, `title` (255), `file_url` (500), `file_format`, `file_size_bytes`, `poster_url` (500), `license_name` (100), `license_url` (500), `author` (255), `source_url` (500), `credit` (500), `status`, `sort_order`, `created_at`, `updated_at`, `deleted_at` | CHECK `CK_heritage_models_file_format` (`GLB`), `CK_heritage_models_status` (`DRAFT`, `PUBLISHED`, `ARCHIVED`), `CK_heritage_models_file_size` (`> 0`); UNIQUE có lọc `UX_heritage_models_visible` (`heritage_id` khi `status = 'PUBLISHED'` và `deleted_at IS NULL`: một mô hình hiển thị mỗi di sản); chỉ mục `IX_heritage_models_heritage_status`; khóa ngoại `fk_heritage_models_heritage_id` **Restrict** |
+
+- `created_at` NOT NULL như các bảng đa ngôn ngữ (ứng dụng luôn điền); `deleted_at` là xóa mềm (gỡ mô hình), bảng thứ chín có `deleted_at`.
+- Nhật ký thao tác thêm mã `HERITAGE_MODEL_CHANGED` (không cần migration) và tên đối tượng `heritage_models`.
+
+Số liệu sau migration: 34 bảng, 320 cột (thêm 17), 53 khóa ngoại (thêm 1, Restrict), 38 CHECK (thêm 3), 5 UNIQUE có lọc (thêm 1), 15 UNIQUE thường, 27 cột enum (thêm 2), hai DEFAULT bit.
+Chi tiết luồng: [mo-hinh-3d.md](mo-hinh-3d.md).

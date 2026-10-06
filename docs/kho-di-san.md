@@ -155,7 +155,7 @@ Mọi endpoint trả khuôn `{ success, data, message, errorCode, traceId, error
 
 Sửa **chữ tiếng Việt đã được dịch** (tên, mô tả ngắn, địa chỉ, nội dung của di sản; thêm hoặc sửa tên, mô tả giai đoạn và sự kiện; thêm ảnh có chú thích hoặc sửa chú thích) đánh dấu mọi bản dịch và tóm tắt của di sản là "cần dịch lại"
 (bản cũ vẫn hiện cho khách tới khi dịch lại): [da-ngon-ngu.md](da-ngon-ngu.md) mục 7. Danh sách `GET /heritages` có bộ lọc `translationState` (`NONE`, `PENDING`, `APPROVED`, `OUTDATED`) và mỗi dòng,
-cũng như `GET /heritages/{id}`, có `translationState`. Dịch và duyệt ở màn hình riêng: [da-ngon-ngu.md](da-ngon-ngu.md) mục 8.
+cũng như `GET /heritages/{id}`, có `translationState`. Dịch và duyệt ở màn hình riêng: [da-ngon-ngu.md](da-ngon-ngu.md) mục 8. Danh sách còn có bộ lọc `hasModel` và mỗi dòng có `hasModel` (di sản có mô hình 3D đang hiển thị); khai báo mô hình ở tab Mô hình 3D: [mo-hinh-3d.md](mo-hinh-3d.md).
 
 ## 5. Nhật ký thao tác
 

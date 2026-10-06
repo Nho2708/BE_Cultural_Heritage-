@@ -100,8 +100,8 @@ Tải ảnh ghi một dòng `media` rồi mới trả về; ảnh đại diện 
 
 - Chỉ **`.glb`** (glTF 2.0 đóng gói một tệp), tối đa **15 MB**, kiểm bằng nội dung: đúng dấu đầu tệp, độ dài khớp, phiên bản 2.0, **không tham chiếu tài nguyên ngoài** (kết cấu và dữ liệu phải
   nằm trong tệp; dữ liệu nhúng dạng `data:` được chấp nhận). `.gltf` nhiều tệp và các định dạng khác bị từ chối.
-- Endpoint này **chỉ lưu tệp và trả đường dẫn trong kho**. Gắn mô hình vào di sản kèm ghi công đủ ba phần, giấy phép mở, bật/tắt hiển thị, ghi nhật ký thao tác và trình xem 3D thuộc luồng
-  Xem 3D (bảng mô hình 3D của CSDL v4), luồng đó sẽ dùng đường dẫn này.
+- Endpoint này **chỉ lưu tệp và trả đường dẫn trong kho**. Gắn mô hình vào di sản kèm ghi công đủ ba phần, giấy phép mở, bật/tắt hiển thị và ghi nhật ký thao tác do luồng
+  Mô hình 3D di sản làm (bảng `heritage_models`): khai báo bằng đường dẫn này hoặc tải lên và khai báo một bước, xem [mo-hinh-3d.md](mo-hinh-3d.md).
 
 **Giới hạn yêu cầu**: thân yêu cầu tối đa 5,5 MB (ảnh) hoặc 15,5 MB (mô hình); vượt quá thì 413 với khuôn phản hồi chung. Tệp quá dung lượng nhưng vẫn trong giới hạn thân yêu cầu bị từ chối ở mức
 dịch vụ với 400 và thông báo "Tệp ảnh không hợp lệ: tối đa 5 MB." (khóa lỗi `file`).
