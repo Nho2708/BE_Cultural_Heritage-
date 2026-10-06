@@ -1,4 +1,5 @@
 using DSVHVN.Application.Accounts;
+using DSVHVN.Application.Ads;
 using DSVHVN.Application.Attempts;
 using DSVHVN.Application.Audit;
 using DSVHVN.Application.Auth;
@@ -97,6 +98,9 @@ public static class DependencyInjection
         services.AddScoped<ClassRecommendationService>();
         services.AddScoped<GuestService>();
         services.AddScoped<GuestRecommendationService>();
+        services.AddScoped<AdUnlockService>();
+        services.AddScoped<AdRewardService>();
+        services.AddScoped<AdStatsService>();
         services.AddScoped<QuizResultsService>();
         services.AddScoped<ClassStatisticsService>();
         return services;

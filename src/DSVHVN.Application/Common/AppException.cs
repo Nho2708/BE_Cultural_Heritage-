@@ -20,6 +20,9 @@ public class AppException : Exception
     /// <summary>Lỗi theo trường (tên trường camelCase → câu hiển thị dưới ô nhập).</summary>
     public IReadOnlyDictionary<string, string>? Errors { get; }
 
+    /// <summary>Thời gian khách nên chờ trước khi thử lại (429); Api đổi thành tiêu đề <c>Retry-After</c>.</summary>
+    public TimeSpan? RetryAfter { get; init; }
+
     /// <summary>400: dữ liệu vào không hợp lệ.</summary>
     public static AppException Validation(string field, AppMessage message) =>
         new(400, message, new Dictionary<string, string> { [field] = message.Text });
@@ -36,6 +39,9 @@ public class AppException : Exception
     /// <summary>409: trùng dữ liệu (email, tên đăng nhập).</summary>
     public static AppException Conflict(string field, AppMessage message) =>
         new(409, message, new Dictionary<string, string> { [field] = message.Text });
+
+    /// <summary>429: vượt giới hạn tần suất, kèm thời gian chờ.</summary>
+    public static AppException TooManyRequests(AppMessage message, TimeSpan retryAfter) => new(429, message) { RetryAfter = retryAfter };
 
     /// <summary>422: vi phạm business rule.</summary>
     public static AppException BusinessRule(AppMessage message) => new(422, message);

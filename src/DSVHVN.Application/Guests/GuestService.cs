@@ -61,6 +61,30 @@ public sealed class GuestService(IAppDbContext db, DiscoveryService discovery, T
     public async Task<GuestDeviceDto> UpdateSettingsAsync(string key, GuestDeviceRequest request, ClientPlatform? headerPlatform, CancellationToken ct) =>
         ToDto((await UpsertAsync(key, request, headerPlatform, ct)).Device);
 
+    /// <summary>
+    /// Mã của bản ghi thiết bị, tạo nếu chưa có với nền tảng đã cho, nhưng KHÔNG chạm vào thiết bị đã có (không đổi nền tảng, không đặt lại lần thấy cuối): dùng khi việc ghi
+    /// không do chính thiết bị gọi, ví dụ lời gọi xác minh phần thưởng của AdMob về máy chủ.
+    /// </summary>
+    public async Task<long> EnsureDeviceAsync(string key, ClientPlatform platform, CancellationToken ct)
+    {
+        var existing = await FindDeviceIdAsync(key, ct);
+        if (existing is { } id) return id;
+
+        var now = Now();
+        var device = new GuestDevice { DeviceKey = key, Platform = platform, LanguageCode = LanguageCode.vi, LocationAllowed = false, CreatedAt = now, LastSeenAt = now };
+        db.GuestDevices.Add(device);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return device.Id;
+        }
+        catch (DbUpdateException)
+        {
+            db.GuestDevices.Remove(device);   // dòng vừa thêm chưa lưu: bỏ khỏi bộ theo dõi; yêu cầu thua đọc lại dòng của yêu cầu thắng
+            return await FindDeviceIdAsync(key, ct) ?? throw new InvalidOperationException("Không tạo được thiết bị của khách.");
+        }
+    }
+
     private async Task<(GuestDevice Device, bool Created)> UpsertAsync(string key, GuestDeviceRequest request, ClientPlatform? headerPlatform, CancellationToken ct)
     {
         var platform = request.Platform ?? headerPlatform;
