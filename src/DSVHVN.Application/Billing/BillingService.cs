@@ -25,9 +25,6 @@ public sealed class BillingService(
     IAuditLogger audit,
     TimeProvider clock)
 {
-    /// <summary>Số lần thử lại khi hai trường cùng lúc xin trùng số hóa đơn trong ngày.</summary>
-    private const int InvoiceNumberAttempts = 3;
-
     /// <summary>
     /// Mua, gia hạn hoặc nâng cấp: tạo đăng ký PENDING, hóa đơn UNPAID (số tiền = giá gói lúc này, hạn 24 giờ) và giao dịch PENDING, trả địa chỉ VNPay.
     /// Loại thao tác do hệ thống phân loại theo gói hiện tại của trường.
@@ -37,22 +34,10 @@ public sealed class BillingService(
         await validator.EnsureValidAsync(request, ct);
         var orgId = actor.RequireOrganizationId();
         EnsureGatewayReady();
-
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                return await CheckoutOnceAsync(actor, orgId, request.PlanId!.Value, ct);
-            }
-            catch (DbUpdateException) when (attempt < InvoiceNumberAttempts)
-            {
-                // Số hóa đơn trong ngày bị trường khác lấy trước: bỏ thay đổi chưa lưu và xin số mới.
-                db.ChangeTracker.Clear();
-            }
-        }
+        return await CheckoutAsync(actor, orgId, request.PlanId!.Value, ct);
     }
 
-    private async Task<PaymentStartDto> CheckoutOnceAsync(Actor actor, long orgId, int planId, CancellationToken ct)
+    private async Task<PaymentStartDto> CheckoutAsync(Actor actor, long orgId, int planId, CancellationToken ct)
     {
         Invoice invoice;
         Payment payment;
@@ -271,9 +256,13 @@ public sealed class BillingService(
             .FirstOrDefaultAsync(p => p.Code == BillingRules.VnPayProviderCode && p.IsActive, ct)
         ?? throw new AppException(503, BillingMessages.GatewayUnavailable);
 
-    /// <summary>Số hóa đơn kế tiếp của ngày: số lớn nhất đã có cộng một. Hai trường lấy cùng số thì chỉ mục duy nhất từ chối một bên và bên đó thử lại.</summary>
+    /// <summary>
+    /// Số hóa đơn kế tiếp của ngày: số lớn nhất đã có cộng một. Khóa đánh số giữ tới hết giao dịch nên hai trường mua cùng lúc không lấy trùng số;
+    /// chỉ mục duy nhất của CSDL vẫn là lưới an toàn cuối cùng.
+    /// </summary>
     private async Task<string> NextInvoiceNumberAsync(DateOnly today, CancellationToken ct)
     {
+        await db.LockInvoiceNumberingAsync(ct);
         var prefix = InvoiceNumber.DayPrefix(today);
         var last = await db.Invoices.AsNoTracking().Where(i => i.InvoiceNumber!.StartsWith(prefix))
             .OrderByDescending(i => i.InvoiceNumber).Select(i => i.InvoiceNumber).FirstOrDefaultAsync(ct);
