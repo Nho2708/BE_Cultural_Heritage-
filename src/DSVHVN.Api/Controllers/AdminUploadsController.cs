@@ -71,7 +71,7 @@ public sealed class AdminUploadsController(HeritageMediaService media, ModelFile
     public async Task<ActionResult<ApiResponse<MediaDto>>> UploadHeritageImage(
         long heritageId, [FromForm] UploadMediaForm form, CancellationToken ct)
         => CreatedEnvelope(
-            await media.UploadToHeritageAsync(heritageId, form.ToRequest(), await ReadAsync(form.File, StoredFileRules.MaxImageBytes, ct), ct),
+            await media.UploadToHeritageAsync(heritageId, form.ToRequest(), await FormFiles.ReadAsync(form.File, StoredFileRules.MaxImageBytes, ct), ct),
             Messages.Success("Tải ảnh lên").Text);
 
     /// <summary>Tải ảnh minh họa lên cho sự kiện (cùng quy tắc; không chọn làm ảnh đại diện được).</summary>
@@ -83,34 +83,18 @@ public sealed class AdminUploadsController(HeritageMediaService media, ModelFile
     public async Task<ActionResult<ApiResponse<MediaDto>>> UploadEventImage(
         long eventId, [FromForm] UploadMediaForm form, CancellationToken ct)
         => CreatedEnvelope(
-            await media.UploadToEventAsync(eventId, form.ToRequest(), await ReadAsync(form.File, StoredFileRules.MaxImageBytes, ct), ct),
+            await media.UploadToEventAsync(eventId, form.ToRequest(), await FormFiles.ReadAsync(form.File, StoredFileRules.MaxImageBytes, ct), ct),
             Messages.Success("Tải ảnh lên").Text);
 
     /// <summary>
     /// Tải mô hình 3D (<c>.glb</c>, glTF 2.0 đóng gói một tệp, tối đa 15 MB, mọi dữ liệu nằm trong tệp) lên kho tệp; trả đường dẫn trong kho.
-    /// Việc gắn mô hình vào di sản kèm ghi công thuộc luồng Xem 3D.
+    /// Việc gắn mô hình vào di sản kèm ghi công là của <see cref="AdminHeritageModelsController"/> (khai báo bằng đường dẫn này, hoặc tải lên và khai báo một bước).
     /// </summary>
     [HttpPost("files/models")]
     [RequestSizeLimit(ModelRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = ModelRequestLimit)]
     [ProducesResponseType<ApiResponse<StoredFileDto>>(StatusCodes.Status201Created)]
     public async Task<ActionResult<ApiResponse<StoredFileDto>>> UploadModel([FromForm] UploadModelForm form, CancellationToken ct)
-        => CreatedEnvelope(await models.UploadAsync(await ReadAsync(form.File, StoredFileRules.MaxModelBytes, ct), ct),
+        => CreatedEnvelope(await models.UploadAsync(await FormFiles.ReadAsync(form.File, StoredFileRules.MaxModelBytes, ct), ct),
             Messages.Success("Tải mô hình 3D lên").Text);
-
-    /// <summary>
-    /// Đọc tệp vào bộ nhớ nhưng dừng sau <paramref name="limit"/> + 1 byte: tệp quá cỡ vẫn bị dịch vụ từ chối bằng thông báo rõ ràng
-    /// mà máy chủ không phải nạp cả tệp khổng lồ.
-    /// </summary>
-    private static async Task<UploadedFile?> ReadAsync(IFormFile? file, int limit, CancellationToken ct)
-    {
-        if (file is null) return null;
-        await using var stream = file.OpenReadStream();
-        using var buffer = new MemoryStream();
-        var chunk = new byte[81920];
-        int read;
-        while (buffer.Length <= limit && (read = await stream.ReadAsync(chunk, ct)) > 0)
-            buffer.Write(chunk, 0, Math.Min(read, (int)(limit + 1 - buffer.Length)));
-        return new UploadedFile(file.FileName, buffer.ToArray());
-    }
 }

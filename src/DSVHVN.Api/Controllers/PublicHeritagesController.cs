@@ -3,6 +3,7 @@ using DSVHVN.Api.Security;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Heritages;
+using DSVHVN.Application.Models;
 using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Rules;
@@ -22,7 +23,7 @@ namespace DSVHVN.Api.Controllers;
 [AllowAnonymous]
 [EnableRateLimiting(PublicRateLimit.PolicyName)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status429TooManyRequests)]
-public sealed class PublicHeritagesController(DiscoveryService discovery, PublicSummaryService summaries) : ApiControllerBase
+public sealed class PublicHeritagesController(DiscoveryService discovery, PublicSummaryService summaries, PublicModelService models) : ApiControllerBase
 {
     private const int StaticCatalogSeconds = 3600;
 
@@ -100,6 +101,17 @@ public sealed class PublicHeritagesController(DiscoveryService discovery, Public
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<PublicSummaryDto>>> Summary(string slug, [FromQuery] string? lang, CancellationToken ct)
         => OkEnvelope(await summaries.GetAsync(slug, PublicLanguage(lang), ct));
+
+    /// <summary>
+    /// Mô hình 3D đang hiển thị của di sản (nút "Xem 3D", trình xem dùng chung): đường dẫn tệp <c>.glb</c>, dung lượng, ảnh xem trước và ghi công (tác giả, giấy phép, nguồn; không dịch).
+    /// Xem miễn phí, không qua quảng cáo. Di sản không có mô hình đang hiển thị thì 404 kèm mã MODEL_UNAVAILABLE ("Không tải được mô hình 3D. Bạn có thể xem bộ ảnh của di sản."):
+    /// trình xem quay về bộ ảnh. Chi tiết di sản có cờ <c>hasModel</c> để bật nút.
+    /// </summary>
+    [HttpGet("heritages/{slug}/model")]
+    [ProducesResponseType<ApiResponse<PublicModelDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<PublicModelDto>>> Model(string slug, CancellationToken ct)
+        => OkEnvelope(await models.GetAsync(slug, ct));
 
     /// <summary>Timeline đầy đủ của một di sản: giai đoạn theo thứ tự, sự kiện theo năm-tháng-ngày, ảnh của sự kiện.</summary>
     [HttpGet("heritages/{slug}/timeline")]
