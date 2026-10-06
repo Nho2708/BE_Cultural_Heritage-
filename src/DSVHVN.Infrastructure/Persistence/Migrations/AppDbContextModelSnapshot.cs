@@ -148,6 +148,9 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SubscriptionId");
 
+                    b.HasIndex("Status", "DueAt")
+                        .HasDatabaseName("IX_invoices_status_due_at");
+
                     b.ToTable("invoices", null, t =>
                         {
                             t.HasCheckConstraint("CK_invoices_status", "[status] IN ('UNPAID', 'PAID', 'CANCELLED')");
@@ -204,12 +207,18 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("PK_payments");
 
-                    b.HasIndex("InvoiceId");
+                    b.HasIndex("InvoiceId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_payments_one_pending_per_invoice")
+                        .HasFilter("[status] = 'PENDING'");
 
                     b.HasIndex("ProviderId", "ProviderTransactionId")
                         .IsUnique()
                         .HasDatabaseName("UX_payments_provider_txn")
                         .HasFilter("[provider_transaction_id] IS NOT NULL");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("IX_payments_status_created_at");
 
                     b.ToTable("payments", null, t =>
                         {
@@ -290,6 +299,11 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("PK_plans");
 
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_plans_name")
+                        .HasFilter("[name] IS NOT NULL");
+
                     b.ToTable("plans", (string)null);
                 });
 
@@ -332,9 +346,15 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("PK_subscriptions");
 
-                    b.HasIndex("OrganizationId");
+                    b.HasIndex("OrganizationId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_subscriptions_one_pending")
+                        .HasFilter("[status] = 'PENDING'");
 
                     b.HasIndex("PlanId");
+
+                    b.HasIndex("OrganizationId", "Status")
+                        .HasDatabaseName("IX_subscriptions_organization_status");
 
                     b.ToTable("subscriptions", null, t =>
                         {

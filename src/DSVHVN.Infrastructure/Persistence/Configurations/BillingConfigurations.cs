@@ -15,6 +15,9 @@ internal sealed class PlanConfiguration : IEntityTypeConfiguration<Plan>
         b.Property(x => x.Name).HasMaxLength(100);
         b.Property(x => x.Price).HasPrecision(12, 2);
         b.Property(x => x.IsActive).BitWithDefault(true);
+
+        // Tên gói không trùng; theo collation Vietnamese_CI_AI nên không phân biệt hoa thường và dấu. Cột được NULL nên chỉ xét dòng có tên.
+        b.HasIndex(x => x.Name).IsUnique().HasDatabaseName("UX_plans_name");
     }
 }
 
@@ -29,6 +32,11 @@ internal sealed class SubscriptionConfiguration : IEntityTypeConfiguration<Subsc
         b.HasOne(x => x.Organization).WithMany().HasForeignKey(x => x.OrganizationId).IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Plan).WithMany().HasForeignKey(x => x.PlanId).IsRequired().OnDelete(DeleteBehavior.Restrict);
+
+        // Mỗi trường có tối đa một yêu cầu mua chưa thanh toán.
+        b.HasIndex(x => x.OrganizationId).IsUnique().HasFilter("[status] = 'PENDING'").HasDatabaseName("UX_subscriptions_one_pending");
+        // Tra gói hiệu lực, gói chờ bắt đầu, quá hạn của từng trường.
+        b.HasIndex(x => new { x.OrganizationId, x.Status }).HasDatabaseName("IX_subscriptions_organization_status");
     }
 }
 
@@ -42,6 +50,8 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         b.Property(x => x.Description).HasMaxLength(500);
         b.Property(x => x.Status).AsEnumText();
         b.HasIndex(x => x.InvoiceNumber).IsPlainUnique("UX_invoices_invoice_number");
+        // Tác vụ nền tìm hóa đơn chưa trả quá hạn.
+        b.HasIndex(x => new { x.Status, x.DueAt }).HasDatabaseName("IX_invoices_status_due_at");
 
         b.HasOne(x => x.Organization).WithMany().HasForeignKey(x => x.OrganizationId).IsRequired()
             .OnDelete(DeleteBehavior.Restrict);
@@ -75,6 +85,11 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         // UNIQUE có lọc: nhiều giao dịch PENDING chưa có mã cổng; có mã rồi thì chống ghi nhận trùng giao dịch.
         b.HasIndex(x => new { x.ProviderId, x.ProviderTransactionId }).IsUnique()
             .HasFilter("[provider_transaction_id] IS NOT NULL").HasDatabaseName("UX_payments_provider_txn");
+
+        // Mỗi hóa đơn có tối đa một giao dịch chờ tại một thời điểm.
+        b.HasIndex(x => x.InvoiceId).IsUnique().HasFilter("[status] = 'PENDING'").HasDatabaseName("UX_payments_one_pending_per_invoice");
+        // Tác vụ nền tìm giao dịch chờ quá lâu.
+        b.HasIndex(x => new { x.Status, x.CreatedAt }).HasDatabaseName("IX_payments_status_created_at");
 
         b.HasOne(x => x.Invoice).WithMany().HasForeignKey(x => x.InvoiceId).IsRequired().OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Provider).WithMany().HasForeignKey(x => x.ProviderId).IsRequired().OnDelete(DeleteBehavior.Restrict);
