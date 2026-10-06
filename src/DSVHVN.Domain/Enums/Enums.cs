@@ -21,6 +21,12 @@ public enum ContentStatus
     ARCHIVED,
 }
 
+/// <summary><c>heritage_models.file_format</c>: chỉ nhận <c>.glb</c> (glTF 2.0 nhị phân một tệp), không nhận <c>.gltf</c> nhiều tệp.</summary>
+public enum ModelFormat
+{
+    GLB,
+}
+
 /// <summary><c>heritages.heritage_type</c>: vật thể, phi vật thể, thiên nhiên, hỗn hợp, tư liệu.</summary>
 public enum HeritageType
 {
@@ -233,4 +239,5 @@ public enum AuditAction
     SUBSCRIPTION_CHANGED,
     BILLING_STATUS_CHANGED,
     IPN_REJECTED,
+    HERITAGE_MODEL_CHANGED,
 }

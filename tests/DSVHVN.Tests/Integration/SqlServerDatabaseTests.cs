@@ -40,18 +40,19 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.True(LocalDb.Exists(factory.DatabaseName));
         Assert.Equal("Vietnamese_CI_AI",
             (await SqlAsync<string>($"SELECT CAST(DATABASEPROPERTYEX(DB_NAME(), 'Collation') AS nvarchar(128)) AS [Value]")).Single());
-        Assert.Equal(33, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(303, (await SqlAsync<int>(   // 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi)
+        Assert.Equal(34, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
+        Assert.Equal(320, (await SqlAsync<int>(   // 17 cột của heritage_models (luồng mô hình 3D) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi)
             $"SELECT COUNT(*) AS [Value] FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id WHERE t.name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(52, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());
+        Assert.Equal(53, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());
         Assert.Equal(["fk_event_translations_event_id", "fk_media_translations_media_id", "fk_password_reset_tokens_user_id", "fk_timeline_translations_timeline_id"],
             await SqlAsync<string>($"SELECT name AS [Value] FROM sys.foreign_keys WHERE delete_referential_action_desc = 'CASCADE' ORDER BY name"));
-        Assert.Equal(35, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());
+        Assert.Equal(38, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());
 
         var filtered = await SqlAsync<string>(
             $"SELECT i.name + ' ' + i.filter_definition AS [Value] FROM sys.indexes i WHERE i.is_unique = 1 AND i.has_filter = 1 ORDER BY i.name");
         Assert.Equal(
         [
+            "UX_heritage_models_visible ([status]='PUBLISHED' AND [deleted_at] IS NULL)",
             "UX_lessons_access_code ([access_code] IS NOT NULL)",
             "UX_payments_provider_txn ([provider_transaction_id] IS NOT NULL)",
             "UX_users_email ([email] IS NOT NULL AND [deleted_at] IS NULL)",
@@ -70,7 +71,7 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.Equal(NullableForeignKeys, nullableFks);
 
         // Cột enum là nvarchar(20); DEFAULT của cột bit đúng thiết kế.
-        Assert.Equal(25, (await SqlAsync<int>($"""
+        Assert.Equal(27, (await SqlAsync<int>($"""
             SELECT COUNT(*) AS [Value] FROM sys.columns c
             WHERE TYPE_NAME(c.user_type_id) = 'nvarchar' AND c.max_length = 40
               AND EXISTS (SELECT 1 FROM sys.check_constraints k

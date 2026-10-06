@@ -641,6 +641,121 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageModel", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Author")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("author");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Credit")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("credit");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("FileFormat")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("file_format");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size_bytes");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("file_url");
+
+                    b.Property<long>("HeritageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("heritage_id");
+
+                    b.Property<string>("LicenseName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("license_name");
+
+                    b.Property<string>("LicenseUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("license_url");
+
+                    b.Property<string>("PosterUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("poster_url");
+
+                    b.Property<int?>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("SourceUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("source_url");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("PK_heritage_models");
+
+                    b.HasIndex("HeritageId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_heritage_models_visible")
+                        .HasFilter("[status] = 'PUBLISHED' AND [deleted_at] IS NULL");
+
+                    b.HasIndex("HeritageId", "Status")
+                        .HasDatabaseName("IX_heritage_models_heritage_status");
+
+                    b.ToTable("heritage_models", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_heritage_models_file_format", "[file_format] IN ('GLB')");
+
+                            t.HasCheckConstraint("CK_heritage_models_file_size", "[file_size_bytes] > 0");
+
+                            t.HasCheckConstraint("CK_heritage_models_status", "[status] IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')");
+                        });
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageReference", b =>
                 {
                     b.Property<long>("Id")
@@ -2224,6 +2339,18 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_heritages_province_id");
 
                     b.Navigation("Province");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageModel", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Heritages.Heritage", "Heritage")
+                        .WithMany()
+                        .HasForeignKey("HeritageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_heritage_models_heritage_id");
+
+                    b.Navigation("Heritage");
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageReference", b =>

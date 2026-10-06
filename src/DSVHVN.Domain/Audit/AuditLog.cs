@@ -54,4 +54,5 @@ public static class AuditTargets
     public const string Payments = "payments";
     public const string HeritageTranslations = "heritage_translations";
     public const string HeritageSummaries = "heritage_summaries";
+    public const string HeritageModels = "heritage_models";
 }
