@@ -9,12 +9,13 @@ namespace DSVHVN.Application.Overview;
 
 /// <summary>
 /// Tổng quan hệ thống cho quản trị hệ thống: số liệu toàn nền tảng và biểu đồ theo thời gian, tính khi hiển thị. Chỉ tính trường chưa ngừng và lớp chưa xóa.
-/// Doanh thu từ giao dịch thanh toán chưa có ở bản này: phần doanh thu báo rõ chỗ sẽ nối khi có gói và thanh toán; mọi số khác không phụ thuộc thanh toán.
+/// Doanh thu = tổng số tiền của giao dịch VNPay thành công theo ngày trả tiền giờ Việt Nam (gói Miễn phí không tạo doanh thu); tính cả giao dịch của trường
+/// đã ngừng vì tiền đã thu. Doanh thu quảng cáo không tính ở đây (hệ thống không nhận số liệu doanh thu từ Google).
 /// </summary>
 public sealed class SystemOverviewService(IAppDbContext db, TimeProvider clock)
 {
-    public const string RevenueNotAvailable =
-        "Doanh thu theo kỳ và danh sách giao dịch sẽ hiện khi nối với gói dịch vụ và thanh toán VNPay. Doanh thu quảng cáo xem ở bảng điều khiển của Google.";
+    public const string RevenueNote =
+        "Doanh thu tính từ giao dịch VNPay thành công theo ngày thanh toán. Doanh thu quảng cáo xem ở bảng điều khiển Google AdMob và Google Ad Manager.";
 
     public async Task<SystemOverviewDto> GetAsync(Actor actor, CancellationToken ct)
     {
@@ -64,7 +65,7 @@ public sealed class SystemOverviewService(IAppDbContext db, TimeProvider clock)
             new SystemTeachersDto(teacherTotal, teacherActive),
             activeStudents, content, aiDto,
             await PlanUsageAsync(today, ct),
-            new SystemRevenueDto(false, RevenueNotAvailable));
+            await RevenueAsync(today, ct));
     }
 
     /// <summary>
@@ -110,6 +111,9 @@ public sealed class SystemOverviewService(IAppDbContext db, TimeProvider clock)
         var ai = await LiveAi(nowUtc.UtcDateTime).Where(g => g.CreatedAt >= fromUtc && g.CreatedAt < toUtc).Select(g => g.CreatedAt).ToListAsync(ct);
 
         var keys = OverviewRules.Periods(start, end, grain);
+        var revenue = await SucceededPayments().Where(p => p.PaidAt >= fromUtc && p.PaidAt < toUtc)
+            .Select(p => new { p.PaidAt, p.Amount }).ToListAsync(ct);
+
         var buckets = keys.ToDictionary(k => k, _ => new int[7]);
         Bump(buckets, schools, 0, grain);
         Bump(buckets, teachers, 1, grain);
@@ -119,10 +123,70 @@ public sealed class SystemOverviewService(IAppDbContext db, TimeProvider clock)
         Bump(buckets, attempts, 5, grain);
         Bump(buckets, ai, 6, grain);
 
-        var points = keys.Select(k => Point(k, buckets[k])).ToList();
-        var totals = Point("total", Enumerable.Range(0, 7).Select(i => buckets.Values.Sum(v => v[i])).ToArray());
+        var money = keys.ToDictionary(k => k, _ => 0m);
+        foreach (var p in revenue)
+        {
+            var key = OverviewRules.PeriodKey(ToVietnamDate(p.PaidAt!.Value), grain);
+            if (money.ContainsKey(key)) money[key] += p.Amount ?? 0m;
+        }
+
+        var points = keys.Select(k => Point(k, buckets[k], money[k])).ToList();
+        var totals = Point("total", Enumerable.Range(0, 7).Select(i => buckets.Values.Sum(v => v[i])).ToArray(), money.Values.Sum());
         return new SystemTrendDto(start, end, grain, points, totals);
     }
+
+    /// <summary>
+    /// Danh sách giao dịch thanh toán của mọi trường, mới nhất trước; lọc theo trạng thái, trường và khoảng ngày tạo giao dịch (ngày Việt Nam, gồm cả hai đầu).
+    /// </summary>
+    public async Task<PagedResult<SystemPaymentDto>> ListPaymentsAsync(Actor actor, SystemPaymentListQuery query, CancellationToken ct)
+    {
+        EnsureAdmin(actor);
+        if (query.From is { } f && query.To is { } t && t < f)
+            throw AppException.Validation("to", Messages.Invalid("Ngày kết thúc", "không được trước ngày bắt đầu"));
+
+        var payments = db.Payments.AsNoTracking();
+        if (query.Status is { } status) payments = payments.Where(p => p.Status == status);
+        if (query.OrganizationId is { } org) payments = payments.Where(p => p.Invoice!.OrganizationId == org);
+        if (query.From is { } from)
+        {
+            var fromUtc = VietnamTime.StartOfDayUtc(from);
+            payments = payments.Where(p => p.CreatedAt >= fromUtc);
+        }
+        if (query.To is { } to)
+        {
+            var toUtc = VietnamTime.StartOfDayUtc(to.AddDays(1));
+            payments = payments.Where(p => p.CreatedAt < toUtc);
+        }
+
+        return await payments.OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
+            .Select(p => new SystemPaymentDto(
+                p.Id, p.InvoiceId, p.Invoice!.InvoiceNumber, p.Invoice.OrganizationId, p.Invoice.Organization!.Name,
+                p.Invoice.Subscription!.Plan!.Name, p.Provider!.Code, p.ProviderTransactionId, p.Amount, p.Status, p.CreatedAt, p.PaidAt))
+            .ToPagedAsync(query.Page, query.PageSize, ct);
+    }
+
+    private IQueryable<Domain.Billing.Payment> SucceededPayments() =>
+        db.Payments.AsNoTracking().Where(p => p.Status == PaymentStatus.SUCCEEDED && p.PaidAt != null);
+
+    // Số tiền cộng ở bộ nhớ (số giao dịch nhỏ) để cùng một cách tính trên SQL Server và SQLite của kiểm thử.
+    private async Task<SystemRevenueDto> RevenueAsync(DateOnly today, CancellationToken ct)
+    {
+        var rows = await SucceededPayments().Select(p => new { p.PaidAt, p.Amount }).ToListAsync(ct);
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+        decimal total = 0m, month = 0m, day = 0m;
+        foreach (var r in rows)
+        {
+            var amount = r.Amount ?? 0m;
+            var date = ToVietnamDate(r.PaidAt!.Value);
+            total += amount;
+            if (date >= monthStart && date <= today) month += amount;
+            if (date == today) day += amount;
+        }
+        return new SystemRevenueDto(true, RevenueNote, total, month, day, rows.Count);
+    }
+
+    private static DateOnly ToVietnamDate(DateTime utc) =>
+        DateOnly.FromDateTime(DateTime.SpecifyKind(utc, DateTimeKind.Utc).Add(VietnamTime.Offset));
 
     // Lượt AI tính vào số liệu: thành công, hoặc đang xử lý chưa quá lâu (như cách đếm hạn mức của trường); lượt lỗi không tính.
     private IQueryable<Domain.Lessons.AiGeneration> LiveAi(DateTime now)
@@ -160,12 +224,11 @@ public sealed class SystemOverviewService(IAppDbContext db, TimeProvider clock)
         foreach (var t in times)
         {
             if (t is not { } utc) continue;
-            var local = DateOnly.FromDateTime(DateTime.SpecifyKind(utc, DateTimeKind.Utc).Add(VietnamTime.Offset));
-            if (buckets.TryGetValue(OverviewRules.PeriodKey(local, grain), out var cell)) cell[slot]++;
+            if (buckets.TryGetValue(OverviewRules.PeriodKey(ToVietnamDate(utc), grain), out var cell)) cell[slot]++;
         }
     }
 
-    private static SystemTrendPointDto Point(string period, int[] v) => new(period, v[0], v[1], v[2], v[3], v[4], v[5], v[6]);
+    private static SystemTrendPointDto Point(string period, int[] v, decimal revenue) => new(period, v[0], v[1], v[2], v[3], v[4], v[5], v[6], revenue);
 
     private static void EnsureAdmin(Actor actor)
     {

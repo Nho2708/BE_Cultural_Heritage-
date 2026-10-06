@@ -100,7 +100,7 @@ ADMIN=$(val 01-login-admin.json accessToken)
 step 02-tong-quan-he-thong-truoc 200 GET /api/v1/admin/overview "" "$ADMIN"
 SCHOOLS_BEFORE=$(val 02-tong-quan-he-thong-truoc.json schools.total)
 STUDENTS_BEFORE=$(val 02-tong-quan-he-thong-truoc.json activeStudents)
-check 02-phan-doanh-thu-chua-co "d['revenue']['available'] is False and 'VNPay' in d['revenue']['message'] and 'Google' in d['revenue']['message'] and len(d['plans'])>=1 and d['content']['questions']['approved']>=0" 02-tong-quan-he-thong-truoc.json
+check 02-phan-doanh-thu "d['revenue']['available'] is True and d['revenue']['total']>=0 and 'VNPay' in d['revenue']['message'] and 'Google' in d['revenue']['message'] and len(d['plans'])>=1 and d['content']['questions']['approved']>=0" 02-tong-quan-he-thong-truoc.json
 
 # ---- Một di sản đã xuất bản (có dòng thời gian) ----
 step 03-ds-di-san-nhap     200 GET "/api/v1/admin/heritages?status=DRAFT&pageSize=100" "" "$ADMIN"

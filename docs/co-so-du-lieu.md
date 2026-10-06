@@ -231,3 +231,4 @@ Database đã có ba migration kia chỉ cần `dotnet ef database update` để
 khớp model (`dotnet ef migrations has-pending-model-changes` báo không có thay đổi), nên không cần migration đồng bộ.
 
 Số liệu sau khi gộp: **35 bảng, 331 cột, 56 khóa ngoại (4 Cascade), 40 CHECK, 10 UNIQUE có lọc, 15 UNIQUE thường, 17 khóa ngoại được NULL**.
+Doanh thu của tổng quan hệ thống đọc thẳng `payments` (SUCCEEDED, `paid_at`) nối `invoices`, `subscriptions`, `plans`; không thêm bảng, cột hay chỉ mục.
