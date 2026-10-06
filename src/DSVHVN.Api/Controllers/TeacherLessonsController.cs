@@ -20,13 +20,13 @@ namespace DSVHVN.Api.Controllers;
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
 public sealed class TeacherLessonsController(LessonService lessons, LessonAiService ai) : ApiControllerBase
 {
-    /// <summary>Danh sách bài học của giáo viên ở mọi lớp: tiêu đề, lớp, di sản, trạng thái, mã bài học, số bài kiểm tra. Lọc theo lớp, trạng thái, loại di sản, từ khóa trong tiêu đề.</summary>
+    /// <summary>Danh sách bài học của giáo viên ở mọi lớp: tiêu đề, lớp, di sản, trạng thái, mã bài học, số bài kiểm tra. Lọc theo lớp, trạng thái, loại di sản, độ khó (EASY, MEDIUM, HARD), từ khóa trong tiêu đề. Độ khó không lưu: là mức khó chiếm nhiều câu nhất trong các bài kiểm tra của bài (hòa thì lấy mức cao hơn); bài chưa có bài kiểm tra nào có câu hiện "Chưa có bài kiểm tra" và không khớp bộ lọc nào.</summary>
     [HttpGet]
     [ProducesResponseType<ApiResponse<LessonPageDto>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<LessonPageDto>>> List(
         [FromQuery] long? classId, [FromQuery] ContentStatus? status, [FromQuery] HeritageType? heritageType, [FromQuery] string? keyword,
-        [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct)
-        => OkEnvelope(await lessons.ListAsync(CurrentActor, new LessonListQuery(classId, status, heritageType, keyword, page, pageSize), ct));
+        [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] DifficultyLevel? difficulty, CancellationToken ct)
+        => OkEnvelope(await lessons.ListAsync(CurrentActor, new LessonListQuery(classId, status, heritageType, keyword, page, pageSize, difficulty), ct));
 
     /// <summary>
     /// Tạo bài học nháp cho một lớp của giáo viên với 1-10 di sản đã xuất bản. Cần gói còn hiệu lực. Cấp của bài là cấp của lớp,
@@ -102,7 +102,7 @@ public sealed class TeacherLessonsController(LessonService lessons, LessonAiServ
         => OkEnvelope(await lessons.ArchiveAsync(CurrentActor, lessonId, ct), Messages.Success("Lưu trữ bài học").Text);
 
     /// <summary>
-    /// Nhân bản bài sang một lớp khác của chính giáo viên: tạo bài Nháp mới chưa có mã, chép nội dung, các phần và di sản đang xuất bản.
+    /// Nhân bản bài sang một lớp khác của chính giáo viên: tạo bài Nháp mới chưa có mã, chép nội dung, các phần và di sản đang xuất bản. <c>includeQuizzes</c> = true chép kèm các bài kiểm tra thành bản nháp (giờ mở, giờ đóng để trống; câu đã ẩn hoặc không hợp cấp của lớp đích bị bỏ và báo số câu).
     /// Cần gói hiệu lực, không tốn lượt AI. Lớp đích khác cấp thì vẫn chép kèm lời nhắc xem lại.
     /// </summary>
     [HttpPost("{lessonId:long}/duplicate")]
