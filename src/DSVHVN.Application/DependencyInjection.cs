@@ -1,4 +1,5 @@
 using DSVHVN.Application.Accounts;
+using DSVHVN.Application.Attempts;
 using DSVHVN.Application.Audit;
 using DSVHVN.Application.Auth;
 using DSVHVN.Application.Billing;
@@ -63,6 +64,10 @@ public static class DependencyInjection
         services.AddScoped<QuizDetailBuilder>();
         services.AddScoped<QuizService>();
         services.AddScoped<QuizAutoCloser>();
+        services.AddScoped<AttemptLifecycle>();
+        services.AddScoped<AttemptResultService>();
+        services.AddScoped<AttemptService>();
+        services.AddScoped<StudentLearningService>();
         return services;
     }
 }

@@ -1,3 +1,4 @@
+using DSVHVN.Application.Attempts;
 using DSVHVN.Application.Audit;
 using DSVHVN.Application.Common;
 using DSVHVN.Domain.Audit;
@@ -108,19 +109,19 @@ internal static class QuizLifecycle
     /// </summary>
     public static async Task<int> CloseAsync(IAppDbContext db, IAuditLogger audit, Quiz quiz, DateTime now, Actor? actor, CancellationToken ct)
     {
-        var attempts = await db.Attempts.Include(a => a.Answers)
-            .Where(a => a.QuizId == quiz.Id && a.Status == AttemptStatus.IN_PROGRESS).ToListAsync(ct);
-        var questionCount = await db.QuizQuestions.CountAsync(x => x.QuizId == quiz.Id, ct);
-        foreach (var attempt in attempts)
+        var attempts = await db.Attempts.Where(a => a.QuizId == quiz.Id && a.Status == AttemptStatus.IN_PROGRESS).ToListAsync(ct);
+        if (attempts.Count > 0)
         {
-            attempt.Status = AttemptStatus.EXPIRED;
-            attempt.SubmittedAt = now;
-            var seconds = attempt.StartedAt is { } started ? (int)Math.Max(0, (now - started).TotalSeconds) : 0;
-            attempt.DurationSeconds = quiz.TimeLimitMinutes is { } limit ? Math.Min(seconds, limit * 60) : seconds;
-            attempt.Score = attempt.Answers.Sum(a => a.PointEarned ?? 0m);
-            attempt.TotalPoint = quiz.TotalPoint;
-            attempt.CorrectCount = attempt.Answers.Count(a => a.IsCorrect);
-            attempt.TotalQuestions = questionCount;
+            // Chấm các câu em đã lưu, ghi thêm dòng 0 điểm cho câu bỏ trống; lúc nộp không muộn hơn hạn nộp của từng lượt.
+            var grade = await db.Lessons.Where(l => l.Id == quiz.LessonId).Select(l => l.Class!.Grade).SingleAsync(ct);
+            var level = SchoolClass.SchoolLevelOf(grade);
+            var items = await AttemptFinisher.LoadQuizQuestionsAsync(db, quiz.Id, ct);
+            foreach (var attempt in attempts)
+            {
+                var answers = await AttemptFinisher.LoadAnswersAsync(db, attempt.Id, ct);
+                var deadline = AttemptFinisher.DeadlineOf(attempt, quiz, level);
+                AttemptFinisher.Finish(db, quiz, items, attempt, answers, AttemptStatus.EXPIRED, AttemptFinisher.SubmitTime(now, deadline), level);
+            }
         }
 
         var before = quiz.Status;
@@ -145,8 +146,10 @@ public sealed class QuizAutoCloser(IAppDbContext db, IAuditLogger audit, TimePro
         var now = clock.GetUtcNow().UtcDateTime;
         now = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMillisecond));
 
+        // Em còn thêm 30 giây ân hạn đường truyền sau giờ đóng để nộp bài đang làm dở, nên bài chỉ được đóng hẳn sau đó.
+        var cutoff = now.AddSeconds(-AttemptRules.GraceSeconds);
         var due = await db.Quizzes
-            .Where(q => q.DeletedAt == null && q.Status == QuizStatus.PUBLISHED && q.CloseAt != null && q.CloseAt <= now)
+            .Where(q => q.DeletedAt == null && q.Status == QuizStatus.PUBLISHED && q.CloseAt != null && q.CloseAt <= cutoff)
             .OrderBy(q => q.CloseAt).Take(BatchSize).ToListAsync(ct);
 
         var expired = 0;

@@ -44,6 +44,10 @@ public static class MessageCodes
     public const string QuizClosed = "QUIZ_CLOSED";
     public const string QuizDuplicated = "QUIZ_DUPLICATED";
     public const string QuestionLevelMismatch = "QUESTION_LEVEL_MISMATCH";
+    public const string QuizNotOpen = "QUIZ_NOT_OPEN";
+    public const string QuizEnded = "QUIZ_ENDED";
+    public const string AttemptFinished = "ATTEMPT_FINISHED";
+    public const string AttemptInProgress = "ATTEMPT_IN_PROGRESS";
 }
 
 /// <summary>
@@ -259,6 +263,28 @@ public static class Messages
     /// <summary>Thêm câu vào bài kiểm tra, hoặc phát hành, khi câu có dạng hoặc cấp không dùng được ở cấp của lớp.</summary>
     public static AppMessage QuestionLevelMismatch(string typeName, int level) =>
         new(MessageCodes.QuestionLevelMismatch, $"Câu hỏi dạng \"{typeName}\" không dùng được ở lớp cấp {level}.");
+
+    // ---- Làm bài của học sinh (xưng "em") ----
+
+    /// <summary>Em chưa tới giờ làm bài kiểm tra.</summary>
+    public static AppMessage QuizNotOpen(DateTime? openAt) => new(MessageCodes.QuizNotOpen,
+        $"Bài kiểm tra chưa mở. Em quay lại làm bài từ {Domain.Rules.QuizRules.FormatVietnamTime(openAt)} nhé.");
+
+    /// <summary>Bài kiểm tra đã đóng hoặc quá giờ đóng, em chưa có lượt làm bài.</summary>
+    public static readonly AppMessage QuizEnded = new(MessageCodes.QuizEnded,
+        "Bài kiểm tra đã đóng nên em không làm bài được nữa. Em hãy hỏi thầy cô nếu cần.");
+
+    /// <summary>Lượt đã nộp (em nộp rồi hoặc hết giờ nên hệ thống tự nộp): chỉ còn xem kết quả.</summary>
+    public static AppMessage AttemptFinished(bool autoSubmitted) => new(MessageCodes.AttemptFinished, autoSubmitted
+        ? "Đã hết giờ làm bài nên bài của em được nộp tự động. Em hãy xem kết quả."
+        : "Em đã nộp bài này rồi. Em hãy xem kết quả.");
+
+    /// <summary>Xem kết quả khi lượt còn đang làm dở.</summary>
+    public static readonly AppMessage AttemptInProgress = new(MessageCodes.AttemptInProgress,
+        "Em chưa nộp bài này nên chưa xem được kết quả. Em hãy làm tiếp và nộp bài nhé.");
+
+    /// <summary>Lời nhắc trước khi bắt đầu làm bài kiểm tra.</summary>
+    public const string QuizOnlyOnceNotice = "Em chỉ được làm bài kiểm tra này một lần. Em bấm \"Bắt đầu\" khi đã sẵn sàng nhé.";
 
     /// <summary>Lỗi hệ thống ngoài dự kiến.</summary>
     public static readonly AppMessage SystemError =

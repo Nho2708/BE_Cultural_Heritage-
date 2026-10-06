@@ -1,3 +1,4 @@
+using DSVHVN.Application.Attempts;
 using DSVHVN.Application.Quizzes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -7,7 +8,8 @@ using Microsoft.Extensions.Options;
 namespace DSVHVN.Infrastructure.Background;
 
 /// <summary>
-/// Tác vụ nền chuyển bài kiểm tra đã phát hành quá giờ đóng sang đã đóng và tự nộp các lượt làm bài đang dở. Lỗi một vòng chỉ ghi log,
+/// Tác vụ nền chuyển bài kiểm tra đã phát hành quá giờ đóng sang đã đóng và tự nộp các lượt làm bài đang dở, và tự nộp (hết giờ) các lượt đã quá hạn
+/// nộp cộng 30 giây ân hạn dù bài chưa đóng. Lỗi một vòng chỉ ghi log,
 /// vòng sau chạy lại; chu kỳ theo <see cref="QuizAutoCloseOptions"/>.
 /// </summary>
 public sealed class QuizAutoCloseService(IServiceScopeFactory scopes, IOptions<QuizAutoCloseOptions> options, ILogger<QuizAutoCloseService> logger)
@@ -28,6 +30,8 @@ public sealed class QuizAutoCloseService(IServiceScopeFactory scopes, IOptions<Q
             try
             {
                 using var scope = scopes.CreateScope();
+                var expiredAttempts = await scope.ServiceProvider.GetRequiredService<AttemptLifecycle>().ExpireOverdueAsync(stoppingToken);
+                if (expiredAttempts > 0) logger.LogInformation("Đã tự nộp {Attempts} lượt làm bài quá hạn nộp.", expiredAttempts);
                 var result = await scope.ServiceProvider.GetRequiredService<QuizAutoCloser>().CloseDueAsync(stoppingToken);
                 if (result.ClosedQuizzes > 0)
                     logger.LogInformation("Đã tự đóng {Quizzes} bài kiểm tra quá giờ đóng, tự nộp {Attempts} lượt làm bài đang dở.",
