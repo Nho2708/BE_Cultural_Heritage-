@@ -26,12 +26,17 @@ public static class LocalDb
     public static string ConnectionString(string database) =>
         $"Server={Server};Database={database};Trusted_Connection=True;TrustServerCertificate=True";
 
+    /// <summary>Tiền tố tên database tạm của kiểm thử luồng hiện tại; tiền tố cũ vẫn được xóa để dọn database còn sót từ các lần chạy trước.</summary>
+    public const string TemporaryPrefix = "dsvhvn_tam_a2_";
+
+    private const string LegacyTemporaryPrefix = "dsvhvn_kiem_thu_";
+
     /// <summary>Tên database tạm riêng cho mỗi lần chạy; không bao giờ trùng CSDL thật của nhóm.</summary>
-    public static string NewTemporaryName() => "dsvhvn_kiem_thu_" + Guid.NewGuid().ToString("N")[..12];
+    public static string NewTemporaryName() => TemporaryPrefix + Guid.NewGuid().ToString("N")[..12];
 
     public static void Drop(string database)
     {
-        if (!database.StartsWith("dsvhvn_kiem_thu_", StringComparison.Ordinal))
+        if (!database.StartsWith(TemporaryPrefix, StringComparison.Ordinal) && !database.StartsWith(LegacyTemporaryPrefix, StringComparison.Ordinal))
             throw new InvalidOperationException($"Chỉ xóa database tạm của kiểm thử, không xóa {database}.");
         SqlConnection.ClearAllPools();
         using var connection = new SqlConnection(ConnectionString("master"));
