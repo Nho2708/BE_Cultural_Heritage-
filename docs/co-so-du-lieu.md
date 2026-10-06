@@ -8,8 +8,8 @@ SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `Kh
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
-| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7); `20261006162139_ThemMoHinh3DCuaDiSan.cs` (bảng mô hình 3D, xem mục 8) |
-| Số liệu | **34 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ + `heritage_models`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ + 17 cột của `heritage_models` = **320 trong database** · 53 khóa ngoại (4 Cascade) · 38 CHECK · 5 UNIQUE có lọc · 15 UNIQUE thường · 19 kiểu enum (27 cột) |
+| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7); `20261006162139_ThemMoHinh3DCuaDiSan.cs` (bảng mô hình 3D, xem mục 8); `20261006172743_ThemRangBuocGoiVaThanhToan.cs` (chỉ mục của nhóm Thanh toán, xem mục 9) |
+| Số liệu | **34 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ + `heritage_models`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ + 17 cột của `heritage_models` = **320 trong database** · 53 khóa ngoại (4 Cascade) · 38 CHECK · 8 UNIQUE có lọc · 15 UNIQUE thường · 19 kiểu enum (27 cột) |
 | Dữ liệu khởi tạo trong migration khởi tạo | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
 
@@ -119,8 +119,8 @@ Khác biệt kỹ thuật, không đổi ý nghĩa lược đồ: tên khóa ch�
 ## 4. Kiểm thử trên SQL Server
 
 Ngoài bộ test trên SQLite trong bộ nhớ, lớp `SqlServerDatabaseTests` chạy trên **database tạm của LocalDB** (tên
-`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (34 bảng, 320 cột, 53 khóa ngoại,
-bốn Cascade, 38 CHECK, 5 UNIQUE có lọc đúng điều kiện, 15 khóa ngoại được NULL, 27 cột enum `nvarchar(20)`, DEFAULT của cột bit,
+`dsvhvn_tam_a2_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (34 bảng, 320 cột, 53 khóa ngoại,
+bốn Cascade, 38 CHECK, 8 UNIQUE có lọc đúng điều kiện, 15 khóa ngoại được NULL, 27 cột enum `nvarchar(20)`, DEFAULT của cột bit,
 collation), dữ liệu di sản, luồng web quản trị qua HTTP và các ràng buộc của tài khoản học sinh, bài học, thanh toán; xong thì
 xóa database tạm. Máy không có LocalDB thì các test này được bỏ qua (Skip); không có thư mục dữ liệu di sản thì bỏ qua riêng
 test nạp di sản.
@@ -192,3 +192,17 @@ Migration `ThemMoHinh3DCuaDiSan` (06/10/2026) thêm bảng `heritage_models` c�
 
 Số liệu sau migration: 34 bảng, 320 cột (thêm 17), 53 khóa ngoại (thêm 1, Restrict), 38 CHECK (thêm 3), 5 UNIQUE có lọc (thêm 1), 15 UNIQUE thường, 27 cột enum (thêm 2), hai DEFAULT bit.
 Chi tiết luồng: [mo-hinh-3d.md](mo-hinh-3d.md).
+
+## 9. Phần CSDL của luồng "Gói và thanh toán VNPay"
+
+Migration `ThemRangBuocGoiVaThanhToan` (06/10/2026) **không thêm bảng và cột** (năm bảng `plans`, `subscriptions`, `invoices`, `payment_providers`, `payments` có từ CSDL v3); chỉ thêm chỉ mục để chính CSDL giữ các quy tắc:
+
+| Chỉ mục | Bảo vệ |
+|---|---|
+| `UX_plans_name` (duy nhất, lọc `name IS NOT NULL`) | tên gói không trùng, không phân biệt hoa thường và dấu thanh |
+| `UX_subscriptions_one_pending` (duy nhất trên `organization_id`, lọc `status = 'PENDING'`) | mỗi trường tối đa một yêu cầu mua chưa thanh toán |
+| `UX_payments_one_pending_per_invoice` (duy nhất trên `invoice_id`, lọc `status = 'PENDING'`) | mỗi hóa đơn tối đa một giao dịch chờ |
+| `IX_subscriptions_organization_status`, `IX_payments_status_created_at`, `IX_invoices_status_due_at` | tra gói của trường; tác vụ nền tìm giao dịch treo và hóa đơn quá hạn |
+
+Bỏ hai chỉ mục thường `IX_subscriptions_organization_id` và `IX_payments_invoice_id` (chỉ mục mới đã bao trùm cột đầu). Dữ liệu khởi tạo thêm bốn dòng `payment_providers` (chỉ `VNPAY` bật) và, ở môi trường phát triển, hai gói mẫu.
+Số liệu sau migration: 34 bảng, 320 cột, 53 khóa ngoại, 38 CHECK, **8 UNIQUE có lọc** (thêm 3), 15 UNIQUE thường. Chi tiết: [goi-thanh-toan.md](goi-thanh-toan.md).
