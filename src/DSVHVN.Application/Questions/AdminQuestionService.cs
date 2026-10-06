@@ -37,7 +37,7 @@ public sealed class AdminQuestionService(IAppDbContext db, QuestionPresenter pre
                 Organization = q.Creator.Organization!.Name,
                 Heritage = q.Heritage!.Name,
                 Hidden = q.ReviewStatus == ReviewStatus.REJECTED,
-                Quizzes = db.QuizQuestions.Count(x => x.QuestionId == q.Id),
+                Quizzes = db.QuizQuestions.Count(x => x.QuestionId == q.Id && x.Quiz!.DeletedAt == null),
             });
         var page = await rows.ToPagedAsync(query.Page, query.PageSize, ct);
         var items = page.Items.Select(r => QuestionPresenter.Row(r.Question, r.Creator, r.Organization, r.Heritage, false, r.Hidden, r.Quizzes)).ToList();
