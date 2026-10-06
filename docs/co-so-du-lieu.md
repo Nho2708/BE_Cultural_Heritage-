@@ -3,13 +3,13 @@
 Backend hiện thực **đủ 27 bảng** của CSDL v3 (`doc/database/dsvhvn-v3.dbml` của nhóm, 8 nhóm bảng) bằng EF Core 9 trên
 SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `KhoiTaoCsdl`; mọi thay đổi về sau đi qua migration mới. Từ luồng
 "Bài học cho lớp theo cấp" backend thêm dần phần **CSDL v4** (`doc/database/dsvhvn-v4.dbml`) đúng phần luồng cần, mỗi luồng một migration
-(mục 5 đến 11): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học), các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi), năm bảng đa ngôn ngữ (luồng đa ngôn ngữ), bảng `heritage_models` (luồng mô hình 3D), bảng `attempt_answer_parts` cùng hai cột mới của `attempt_answers` (luồng học tập của học sinh), tổng **35 bảng**.
+(mục 5 đến 11): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học), các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi), năm bảng đa ngôn ngữ (luồng đa ngôn ngữ), bảng `heritage_models` (luồng mô hình 3D), bảng `attempt_answer_parts` cùng hai cột mới của `attempt_answers` (luồng học tập của học sinh), hai bảng `guest_devices`, `guest_activities` (luồng khách tham quan, mục 13), tổng **37 bảng**.
 
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
-| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7); `20261006150550_ThemCauTraLoiTungPhan.cs` (phần v4 của luồng học tập, xem mục 11); `20261006162139_ThemMoHinh3DCuaDiSan.cs` (bảng mô hình 3D, xem mục 8); `20261006172743_ThemRangBuocGoiVaThanhToan.cs` (chỉ mục của nhóm Thanh toán, xem mục 9) |
-| Số liệu | **35 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ + `heritage_models` + `attempt_answer_parts`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ + 17 cột của `heritage_models` + 11 cột của luồng học tập (9 của `attempt_answer_parts`, 2 của `attempt_answers`) = **331 trong database** · 56 khóa ngoại (4 Cascade) · 40 CHECK · 10 UNIQUE có lọc · 15 UNIQUE thường · 19 kiểu enum (27 cột) |
+| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7); `20261006150550_ThemCauTraLoiTungPhan.cs` (phần v4 của luồng học tập, xem mục 11); `20261006162139_ThemMoHinh3DCuaDiSan.cs` (bảng mô hình 3D, xem mục 8); `20261006172743_ThemRangBuocGoiVaThanhToan.cs` (chỉ mục của nhóm Thanh toán, xem mục 9); `20261006193419_ThemKhachThamQuanVaLichSu.cs` (hai bảng của khách tham quan, xem mục 13) |
+| Số liệu | **37 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ + `heritage_models` + `attempt_answer_parts` + `guest_devices` + `guest_activities`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ + 17 cột của `heritage_models` + 11 cột của luồng học tập (9 của `attempt_answer_parts`, 2 của `attempt_answers`) + 14 cột của hai bảng khách tham quan (7 + 7) = **345 trong database** · 58 khóa ngoại (4 Cascade) · 45 CHECK · 10 UNIQUE có lọc · 16 UNIQUE thường · 21 kiểu enum (31 cột) |
 | Dữ liệu khởi tạo trong migration khởi tạo | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
 
@@ -119,8 +119,8 @@ Khác biệt kỹ thuật, không đổi ý nghĩa lược đồ: tên khóa ch�
 ## 4. Kiểm thử trên SQL Server
 
 Ngoài bộ test trên SQLite trong bộ nhớ, lớp `SqlServerDatabaseTests` chạy trên **database tạm của LocalDB** (tên
-`dsvhvn_tam_a2_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (35 bảng, 331 cột, 56 khóa ngoại,
-bốn Cascade, 40 CHECK, 10 UNIQUE có lọc đúng điều kiện, 17 khóa ngoại được NULL, 27 cột enum `nvarchar(20)`, DEFAULT của cột bit,
+`dsvhvn_tam_a2_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (37 bảng, 345 cột, 58 khóa ngoại,
+bốn Cascade, 45 CHECK, 10 UNIQUE có lọc đúng điều kiện, 18 khóa ngoại được NULL, 31 cột enum `nvarchar(20)`, DEFAULT của cột bit và của ngôn ngữ thiết bị,
 collation), dữ liệu di sản, luồng web quản trị qua HTTP và các ràng buộc của tài khoản học sinh, bài học, thanh toán; xong thì
 xóa database tạm. Máy không có LocalDB thì các test này được bỏ qua (Skip); không có thư mục dữ liệu di sản thì bỏ qua riêng
 test nạp di sản.
@@ -232,3 +232,20 @@ khớp model (`dotnet ef migrations has-pending-model-changes` báo không có t
 
 Số liệu sau khi gộp: **35 bảng, 331 cột, 56 khóa ngoại (4 Cascade), 40 CHECK, 10 UNIQUE có lọc, 15 UNIQUE thường, 17 khóa ngoại được NULL**.
 Doanh thu của tổng quan hệ thống đọc thẳng `payments` (SUCCEEDED, `paid_at`) nối `invoices`, `subscriptions`, `plans`; không thêm bảng, cột hay chỉ mục.
+
+## 13. Phần CSDL v4 của luồng "Khách tham quan trên web và app"
+
+Migration `ThemKhachThamQuanVaLichSu` (06/10/2026) thêm hai bảng của nhóm Khách tham quan và quảng cáo trong `dsvhvn-v4.dbml`; không sửa bảng cũ, nên chạy được trên CSDL có dữ liệu. Bảng `ad_unlocks` của
+nhóm này thuộc luồng Quảng cáo Google có thưởng, chưa thêm.
+
+| Bảng mới | Cột | Ràng buộc |
+|---|---|---|
+| `guest_devices` | `id`, `device_key` (64), `platform`, `language_code` (DEFAULT `'vi'`), `location_allowed` (bit, DEFAULT 0), `created_at`, `last_seen_at` | UNIQUE thường `UX_guest_devices_device_key`; CHECK `CK_guest_devices_platform` (`ANDROID`, `IOS`, `WEB`), `CK_guest_devices_language_code` (`vi`, `en`, `ko`, `zh`, `ja`) |
+| `guest_activities` | `id`, `guest_device_id`, `activity_type`, `heritage_id` (được NULL), `search_query` (255), `language_code`, `created_at` | CHECK `CK_guest_activities_activity_type` (`SEARCH`, `VIEW`, `READ_SUMMARY`, `LISTEN`, `VIEW_3D`), `CK_guest_activities_language_code`, `CK_guest_activities_target` (tìm kiếm cần từ khóa, loại khác cần di sản); chỉ mục `IX_guest_activities_device_time` (`guest_device_id`, `created_at`); khóa ngoại `fk_guest_activities_guest_device_id`, `fk_guest_activities_heritage_id` **Restrict** |
+
+- Không có `deleted_at`: lịch sử của khách **xóa hẳn** (khách xóa, tác vụ nền xóa lượt quá 90 ngày, mỗi thiết bị giữ tối đa 500 lượt gần nhất).
+- Hai bảng không có cột vị trí, địa chỉ IP hay thông tin cá nhân. Mã thiết bị không ghép với `users`; không có khóa ngoại nào tới `users`.
+- Không ghi nhật ký thao tác cho hoạt động của khách (đã có lịch sử khách).
+
+Số liệu sau migration: 37 bảng, 345 cột (thêm 14), 58 khóa ngoại (thêm 2, Restrict), 45 CHECK (thêm 5), 10 UNIQUE có lọc, 16 UNIQUE thường (thêm 1), 31 cột enum (thêm 4), hai DEFAULT mới (`language_code`, `location_allowed`).
+Chi tiết luồng: [khach-tham-quan.md](khach-tham-quan.md).

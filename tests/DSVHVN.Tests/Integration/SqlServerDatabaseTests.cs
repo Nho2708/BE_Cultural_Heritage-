@@ -67,7 +67,7 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.Equal(16, (await SqlAsync<int>(   // 10 + năm khóa không trùng (bản gốc, ngôn ngữ) của các bảng đa ngôn ngữ + mã thiết bị của khách
             $"SELECT COUNT(*) AS [Value] FROM sys.indexes i JOIN sys.tables t ON t.object_id = i.object_id WHERE i.is_unique = 1 AND i.has_filter = 0 AND i.is_primary_key = 0 AND t.name <> '__EFMigrationsHistory'")).Single());
 
-        // 17 khóa ngoại được NULL; 39 khóa ngoại bắt buộc là NOT NULL.
+        // 18 khóa ngoại được NULL; 40 khóa ngoại bắt buộc là NOT NULL.
         var nullableFks = await SqlAsync<string>($"""
             SELECT OBJECT_NAME(fkc.parent_object_id) + '.' + c.name AS [Value]
             FROM sys.foreign_key_columns fkc

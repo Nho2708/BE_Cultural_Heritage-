@@ -135,4 +135,4 @@ hồ sơ một học sinh 169 ms, gợi ý cho em 9 ms; giới hạn của yêu 
 - **"Bài mới tạo trước"** (khi em chưa có kết quả) được hiểu là bài **mới tạo gần đây nhất** trước, theo `lessons.created_at` (CSDL không lưu thời điểm xuất bản bài học).
 - **Đã nộp = đã chốt:** lượt hết giờ tự nộp cũng tính vào thống kê, như quy tắc Kiên trì của luồng làm bài.
 - **Tab "Gợi ý" của kết quả bài** dùng cùng bộ tính với tab của lớp nhưng lọc theo bài; tạo bài ôn tập đi qua API tạo bài học đã có, không có endpoint riêng.
-- **Chưa làm ở luồng này:** màn hình web quản trị và khu học (luồng giao diện), tổng quan trường cho quản trị trường (đã làm ở [quan-tri-tong-quan.md](quan-tri-tong-quan.md)), gợi ý cho khách tham quan (luồng khách), dịch vụ Python phía Dịch vụ AI cho `POST /v1/rank-related`.
+- **Chưa làm ở luồng này:** màn hình web quản trị và khu học (luồng giao diện), tổng quan trường cho quản trị trường (đã làm ở [quan-tri-tong-quan.md](quan-tri-tong-quan.md)), gợi ý cho khách tham quan (đã làm ở luồng khách: [khach-tham-quan.md](khach-tham-quan.md), dùng chung bộ tính độ tương đồng và `RelatedRanker`), dịch vụ Python phía Dịch vụ AI cho `POST /v1/rank-related`.
