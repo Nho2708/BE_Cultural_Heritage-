@@ -4,6 +4,7 @@ using DSVHVN.Domain.Audit;
 using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Common;
+using DSVHVN.Domain.Guests;
 using DSVHVN.Domain.Heritages;
 using DSVHVN.Domain.Identity;
 using DSVHVN.Domain.Lessons;
@@ -52,6 +53,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
     public DbSet<MediaTranslation> MediaTranslations => Set<MediaTranslation>();
     public DbSet<HeritageSummary> HeritageSummaries => Set<HeritageSummary>();
     public DbSet<HeritageModel> HeritageModels => Set<HeritageModel>();
+
+    // 10. Khách tham quan (CSDL v4)
+    public DbSet<GuestDevice> GuestDevices => Set<GuestDevice>();
+    public DbSet<GuestActivity> GuestActivities => Set<GuestActivity>();
 
     // 4. Bài học + AI (lesson_sections thêm ở CSDL v4)
     public DbSet<Lesson> Lessons => Set<Lesson>();

@@ -484,6 +484,126 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.ToTable("students", (string)null);
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Guests.GuestActivity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActivityType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("activity_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("GuestDeviceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("guest_device_id");
+
+                    b.Property<long?>("HeritageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("heritage_id");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("language_code");
+
+                    b.Property<string>("SearchQuery")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("search_query");
+
+                    b.HasKey("Id")
+                        .HasName("PK_guest_activities");
+
+                    b.HasIndex("HeritageId");
+
+                    b.HasIndex("GuestDeviceId", "CreatedAt")
+                        .HasDatabaseName("IX_guest_activities_device_time");
+
+                    b.ToTable("guest_activities", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_guest_activities_activity_type", "[activity_type] IN ('SEARCH', 'VIEW', 'READ_SUMMARY', 'LISTEN', 'VIEW_3D')");
+
+                            t.HasCheckConstraint("CK_guest_activities_language_code", "[language_code] IN ('vi', 'en', 'ko', 'zh', 'ja')");
+
+                            t.HasCheckConstraint("CK_guest_activities_target", "([activity_type] = 'SEARCH' AND [search_query] IS NOT NULL) OR ([activity_type] <> 'SEARCH' AND [heritage_id] IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Guests.GuestDevice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DeviceKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("device_key");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("vi")
+                        .HasColumnName("language_code");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<bool>("LocationAllowed")
+                        .HasColumnType("bit")
+                        .HasColumnName("location_allowed")
+                        .HasDefaultValueSql("0");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("platform");
+
+                    b.HasKey("Id")
+                        .HasName("PK_guest_devices");
+
+                    b.HasIndex("DeviceKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_guest_devices_device_key");
+
+                    b.ToTable("guest_devices", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_guest_devices_language_code", "[language_code] IN ('vi', 'en', 'ko', 'zh', 'ja')");
+
+                            t.HasCheckConstraint("CK_guest_devices_platform", "[platform] IN ('ANDROID', 'IOS', 'WEB')");
+                        });
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Heritages.EventTranslation", b =>
                 {
                     b.Property<long>("Id")
@@ -2416,6 +2536,26 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("Class");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Guests.GuestActivity", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Guests.GuestDevice", "GuestDevice")
+                        .WithMany()
+                        .HasForeignKey("GuestDeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_guest_activities_guest_device_id");
+
+                    b.HasOne("DSVHVN.Domain.Heritages.Heritage", "Heritage")
+                        .WithMany()
+                        .HasForeignKey("HeritageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_guest_activities_heritage_id");
+
+                    b.Navigation("GuestDevice");
+
+                    b.Navigation("Heritage");
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Heritages.EventTranslation", b =>

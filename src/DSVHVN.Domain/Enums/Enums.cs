@@ -250,3 +250,24 @@ public enum TrendGranularity
     DAY,
     MONTH,
 }
+
+/// <summary><c>client_platform</c> (CSDL v4): nền tảng của thiết bị khách. Web và app dùng chung một API.</summary>
+public enum ClientPlatform
+{
+    ANDROID,
+    IOS,
+    WEB,
+}
+
+/// <summary>
+/// <c>guest_activities.activity_type</c> (CSDL v4): tìm kiếm (lưu từ khóa), xem chi tiết, đọc tóm tắt, nghe thuyết minh, xem mô hình 3D.
+/// Tìm kiếm cần từ khóa; các loại còn lại cần di sản (CHECK trong CSDL).
+/// </summary>
+public enum GuestActivityType
+{
+    SEARCH,
+    VIEW,
+    READ_SUMMARY,
+    LISTEN,
+    VIEW_3D,
+}
