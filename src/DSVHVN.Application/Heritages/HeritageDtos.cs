@@ -166,7 +166,20 @@ public sealed record MediaDto(
     string? License,
     string? Source,
     int? SortOrder,
-    bool IsThumbnail);
+    bool IsThumbnail,
+    string? PreviewUrl = null);
+
+/// <summary>
+/// Thông tin kèm tệp ảnh tải lên (ghi công đủ ba phần như thêm ảnh bằng đường dẫn); tệp gửi riêng dạng multipart.
+/// Loại media luôn là IMAGE, đường dẫn do hệ thống sinh.
+/// </summary>
+public sealed record UploadMediaRequest(
+    string? Caption,
+    string? Author,
+    string? License,
+    string? Source,
+    int? SortOrder,
+    bool? SetAsThumbnail);
 
 /// <summary>Nguồn tham chiếu: tiêu đề bắt buộc, loại nguồn GOV_DOC | WEBSITE | BOOK, nguồn WEBSITE bắt buộc có đường dẫn.</summary>
 public sealed record ReferenceRequest(string? Title, string? Url, string? SourceType);

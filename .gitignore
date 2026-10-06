@@ -37,3 +37,7 @@ appsettings.*.local.json
 # He dieu hanh
 .DS_Store
 Thumbs.db
+
+# Tep tai len (kho tep Local), khong dua vao git
+src/DSVHVN.Api/storage/
+storage/

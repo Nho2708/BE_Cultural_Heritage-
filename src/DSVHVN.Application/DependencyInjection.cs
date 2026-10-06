@@ -5,6 +5,7 @@ using DSVHVN.Application.Billing;
 using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Discovery;
+using DSVHVN.Application.Files;
 using DSVHVN.Application.Heritages;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Organizations;
@@ -38,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<HeritageService>();
         services.AddScoped<TimelineService>();
         services.AddScoped<HeritageMediaService>();
+        services.AddScoped<ModelFileService>();
         services.AddScoped<HeritageReferenceService>();
         services.AddScoped<DiscoveryService>();
         services.AddSingleton<IStudentCredentialGenerator, RandomStudentCredentialGenerator>();

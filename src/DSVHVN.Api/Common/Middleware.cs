@@ -41,6 +41,16 @@ public sealed class ExceptionEnvelopeMiddleware(RequestDelegate next, ILogger<Ex
             context.Response.Clear();
             await ApiJson.WriteFailAsync(context, ex.StatusCode, ex.AppMessage, ex.Errors);
         }
+        catch (BadHttpRequestException ex) when (!context.Response.HasStarted)
+        {
+            // Tệp tải lên vượt giới hạn của yêu cầu (413) hoặc yêu cầu multipart hỏng: báo như dữ liệu không hợp lệ, không phải lỗi hệ thống.
+            logger.LogInformation("{Status} {Path}", ex.StatusCode, LoggablePath(context.Request.Path));
+            context.Response.Clear();
+            var tooLarge = ex.StatusCode == StatusCodes.Status413PayloadTooLarge;
+            var message = Messages.Invalid("Tệp tải lên", tooLarge ? "vượt quá dung lượng cho phép" : "yêu cầu không đọc được");
+            await ApiJson.WriteFailAsync(context, tooLarge ? StatusCodes.Status413PayloadTooLarge : StatusCodes.Status400BadRequest, message,
+                new Dictionary<string, string> { ["file"] = message.Text });
+        }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
             // Client đã ngắt kết nối: không còn ai nhận phản hồi.

@@ -205,7 +205,7 @@ public sealed class DiscoveryService(IAppDbContext db)
     {
         var parts = HeritageRules.ParseCredit(m.Credit);
         return new PublicMediaDto(m.Id, m.MediaType, m.Url, m.Caption, m.Credit, parts?.Author, parts?.License, parts?.Source,
-            HeritageMapper.IsThumbnail(m, thumbnailUrl));
+            HeritageMapper.IsThumbnail(m, thumbnailUrl), StoredFileRules.ThumbnailUrlOf(m.Url));
     }
 
     /// <summary>Bộ lọc đã kiểm tra: các từ của từ khóa (đã gấp), cụm từ khóa gấp để xếp hạng theo tên, vùng đã đưa về giá trị CSDL.</summary>

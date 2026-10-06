@@ -77,9 +77,10 @@ UNESCO (nhận ra qua tiêu đề hoặc tên miền dsvh.gov.vn, unesco.org).
   `sortOrder` (sự kiện thiếu tháng hoặc ngày đứng trước trong cùng kỳ). Đặt thứ tự có tác dụng khi nhiều sự kiện cùng thời điểm.
 - Xóa giai đoạn xóa luôn các sự kiện và ảnh của sự kiện; xóa sự kiện xóa luôn ảnh của sự kiện.
 
-**Ảnh và media** (lưu **đường dẫn**, không tải tệp lên; video, audio là đường dẫn nhúng)
+**Ảnh và media** (thêm bằng **đường dẫn**, hoặc **tải tệp ảnh lên** kho tệp của nền tảng, xem [tai-tep-len.md](tai-tep-len.md); video, audio chỉ là đường dẫn nhúng)
 
-- `mediaType` là IMAGE, VIDEO hoặc AUDIO. `url` là đường dẫn http/https, tối đa 500 ký tự, không trùng trong cùng thư viện (di sản hoặc sự kiện).
+- `mediaType` là IMAGE, VIDEO hoặc AUDIO. `url` là đường dẫn http/https hoặc đường dẫn tệp đã tải lên kho (`/files/images/...`), tối đa 500 ký tự, không trùng trong cùng thư viện (di sản hoặc sự kiện).
+  Ảnh tải lên (JPG, PNG, WEBP, tối đa 5 MB, kiểm theo nội dung, bỏ EXIF, có ảnh thu nhỏ `previewUrl`) đi qua `POST .../media/upload`; **xóa ảnh chỉ gỡ dòng khỏi thư viện, tệp trong kho được giữ lại**.
 - **Ghi công bắt buộc đủ ba phần**: `author` (tác giả), `license` (giấy phép), `source` (nguồn: đường dẫn hoặc tên nơi đăng). Hệ thống ghép thành
   `credit` = `tác giả · giấy phép · nguồn` (tối đa 255 ký tự cả ba) và trả lại cả ba phần đã tách. Ba phần không chứa dấu `·`.
 - Giấy phép chỉ nhận: CC0, CC BY, CC BY-SA (kèm số phiên bản), phạm vi công cộng / Public domain, ảnh nhóm tự chụp. CC BY-NC, CC BY-ND... bị từ chối.
@@ -135,12 +136,14 @@ Mọi endpoint trả khuôn `{ success, data, message, errorCode, traceId, error
 
 | Method | Đường dẫn | Body | Thành công | Lỗi chính |
 |---|---|---|---|---|
-| POST | `/heritages/{heritageId}/media` | `{ mediaType, url, caption?, author, license, source, sortOrder?, setAsThumbnail? }` | 201 `Media` `{ id, heritageId, eventId, mediaType, url, caption, credit, author, license, source, sortOrder, isThumbnail }` | 400 (thiếu ghi công, giấy phép không được dùng…) · 404 · 409 `DUPLICATE` (`url`) |
+| POST | `/heritages/{heritageId}/media` | `{ mediaType, url, caption?, author, license, source, sortOrder?, setAsThumbnail? }` | 201 `Media` `{ id, heritageId, eventId, mediaType, url, caption, credit, author, license, source, sortOrder, isThumbnail, previewUrl }` | 400 (thiếu ghi công, giấy phép không được dùng…) · 404 · 409 `DUPLICATE` (`url`) |
+| POST | `/heritages/{heritageId}/media/upload` | multipart: `file`, `author`, `license`, `source`, `caption?`, `sortOrder?`, `setAsThumbnail?` | 201 `Media` | 400 (tệp hoặc ghi công) · 404 · 413 |
+| POST | `/events/{eventId}/media/upload` | như trên (`setAsThumbnail` không dùng được) | 201 `Media` | 400 · 404 · 413 |
 | PUT | `/heritages/{heritageId}/media/order` | `{ ids }` (ảnh của di sản, không gồm ảnh của sự kiện) | 200 danh sách ảnh đã xếp | 400 |
 | POST | `/events/{eventId}/media` | như trên (`setAsThumbnail` không dùng được) | 201 `Media` | 400 · 404 · 409 |
 | PUT | `/events/{eventId}/media/order` | `{ ids }` | 200 | 400 |
 | PUT | `/media/{mediaId}` | như POST; `setAsThumbnail` true chọn, false bỏ chọn, bỏ trống giữ nguyên | 200 `Media` | 400 · 404 · 409 · 422 `BLOCKED` (bỏ ảnh đại diện của di sản đang xuất bản) |
-| DELETE | `/media/{mediaId}` | — | 200 | 404 · 422 `BLOCKED` (ảnh đại diện của di sản đang xuất bản) |
+| DELETE | `/media/{mediaId}` | — | 200 (gỡ dòng; tệp đã tải lên vẫn giữ trong kho) | 404 · 422 `BLOCKED` (ảnh đại diện của di sản đang xuất bản) |
 
 ### Nguồn tham chiếu
 
@@ -171,7 +174,7 @@ Chữ tiếng Việt theo danh mục thông báo của nhóm (`Messages`), mã t
 | Tình huống | Mã | Ví dụ |
 |---|---|---|
 | Bỏ trống trường bắt buộc | `REQUIRED` | "Vui lòng nhập tên di sản." |
-| Sai định dạng, vượt độ dài, tọa độ ngoài phạm vi | `INVALID` | "Vĩ độ không hợp lệ: phải từ 8,0 đến 23,5." |
+| Sai định dạng, vượt độ dài, tọa độ ngoài phạm vi, tệp sai loại hoặc quá dung lượng | `INVALID` | "Vĩ độ không hợp lệ: phải từ 8,0 đến 23,5." · "Tệp ảnh không hợp lệ: tối đa 5 MB." |
 | Trùng đường dẫn di sản, đường dẫn ảnh | `DUPLICATE` (409) | "Đường dẫn không hợp lệ: đã có di sản khác dùng đường dẫn này." |
 | Thao tác bị quy tắc chặn, hoặc không tìm thấy | `BLOCKED` (422, 404) | "Không thể xóa di sản. Di sản đang xuất bản. Hãy ẩn di sản trước." |
 | Xuất bản, hiện lại, lưu di sản đang xuất bản khi chưa đủ điều kiện | `NOT_READY` (422) | "Chưa đủ điều kiện xuất bản di sản. Còn thiếu: mô tả ngắn, nguồn tham chiếu (ít nhất một)." |
@@ -193,10 +196,13 @@ Lỗi theo trường nằm trong `errors` (khóa camelCase như JSON gửi lên;
 |---|---|
 | `Unit/HeritageRulesTests` | Sinh đường dẫn, số từ, tọa độ, ngày có thật (năm nhuận, năm âm), so sánh thời điểm kết thúc, giấy phép được dùng, ghép và tách ghi công, từng điều kiện xuất bản |
 | `Integration/HeritageApiTests` (SQLite trong bộ nhớ, chạy cả Api) | Chỉ ADMIN dùng được; tạo nháp và đường dẫn; kiểm dữ liệu từng trường; xuất bản thiếu điều kiện không đổi gì; vòng ẩn, hiện lại; nhật ký ghi đúng người, IP, mã hành động; sửa di sản đang xuất bản; timeline và sự kiện (năm âm, thứ tự, xóa kéo theo); ảnh và ghi công; ảnh đại diện; nguồn; xóa mềm; danh sách, tìm không dấu, lọc, phân trang |
+| `Integration/FileUploadApiTests` và các nhóm tải tệp | Xem [tai-tep-len.md](tai-tep-len.md) mục Kiểm thử |
 | `Integration/HeritageSqlServerTests` (database tạm của LocalDB, tự xóa) | 20 di sản đợt 1 nạp vào DRAFT, loại nguồn đã quy đổi, xuất bản được cả 20 và nhật ký đủ 20 dòng; tìm có dấu, không dấu, "thang long" theo collation `Vietnamese_CI_AI`; hai yêu cầu tranh một đường dẫn: một thành công, một 409 (không phải lỗi hệ thống); năm âm lưu đúng; thứ tự sự kiện của dữ liệu thật |
 
 ```bash
 dotnet test --filter "FullyQualifiedName~Heritage"
 ```
+
+**Tọa độ trên bản đồ**: vĩ độ 8,0-23,5 và kinh độ 102,0-117,5 (khung lãnh thổ Việt Nam), nhập đủ cả hai hoặc bỏ trống cả hai, lưu 6 chữ số thập phân; ô chọn điểm trên bản đồ của web quản trị gửi hai số này qua `latitude`, `longitude` của `POST` và `PUT /heritages`. Điểm ngoài khung bị từ chối ở backend (400 `INVALID`) dù giao diện đã chặn.
 
 Thử nhanh bằng Swagger (`http://localhost:5080/swagger`, chỉ Development): đăng nhập bằng `POST /api/v1/auth/login` với tài khoản ADMIN seed, dán access token vào nút Authorize.

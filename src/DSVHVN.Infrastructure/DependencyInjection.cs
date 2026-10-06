@@ -1,4 +1,5 @@
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Files;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Students;
@@ -41,11 +42,24 @@ public static class DependencyInjection
         services.AddSingleton<ILessonCodeThrottle, InMemoryLessonCodeThrottle>();
         services.AddEmail(configuration);
         services.AddLessonAi(configuration);
+        services.AddFileStorage(configuration);
 
         // Phiếu đăng nhập của học sinh lấy địa chỉ web học tập và đường dẫn tải app từ mục App.
         services.AddOptions<StudentSheetOptions>().Bind(configuration.GetSection(StudentSheetOptions.Section));
         services.AddSingleton<IStudentListFile, StudentListFileReader>();
         return services;
+    }
+
+    /// <summary>
+    /// Kho tệp (ảnh di sản, mô hình 3D): <c>Storage:Provider</c> chọn nhà cung cấp lúc tạo dịch vụ. <c>Local</c> (mặc định) lưu trên đĩa máy chủ ở
+    /// <c>Storage:Local:RootPath</c>; <c>Cloud</c> là chỗ để sẵn cho dịch vụ đám mây, chưa có bản cài đặt nên chọn thì dừng khởi động.
+    /// </summary>
+    private static void AddFileStorage(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<StorageOptions>().Bind(configuration.GetSection(StorageOptions.Section)).ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<StorageOptions>, StorageOptionsValidator>());
+        services.AddSingleton<IFileStorage, LocalFileStorage>();
+        services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
     }
 
     /// <summary>
