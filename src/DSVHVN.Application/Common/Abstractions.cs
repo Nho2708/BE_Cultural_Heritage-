@@ -54,6 +54,7 @@ public interface IAppDbContext
     DbSet<QuizQuestion> QuizQuestions { get; }
     DbSet<Attempt> Attempts { get; }
     DbSet<AttemptAnswer> AttemptAnswers { get; }
+    DbSet<AttemptAnswerPart> AttemptAnswerParts { get; }
 
     DbSet<Plan> Plans { get; }
     DbSet<Subscription> Subscriptions { get; }
@@ -81,6 +82,12 @@ public interface IAppDbContext
     /// không xin trùng số hóa đơn của ngày. Phải gọi bên trong giao dịch, sau khi đã khóa dòng trường.
     /// </summary>
     Task LockInvoiceNumberingAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Khóa dòng <c>attempts</c> tới hết giao dịch hiện tại để lưu câu trả lời, nộp bài và tự nộp khi hết giờ của cùng một lượt chạy tuần tự.
+    /// Phải gọi bên trong giao dịch.
+    /// </summary>
+    Task LockAttemptAsync(long attemptId, CancellationToken cancellationToken);
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

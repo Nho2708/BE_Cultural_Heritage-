@@ -4,6 +4,7 @@ using DSVHVN.Application.Accounts;
 using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Organizations;
+using DSVHVN.Application.Overview;
 using DSVHVN.Application.Teachers;
 using DSVHVN.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -19,7 +20,8 @@ namespace DSVHVN.Api.Controllers;
 [Authorize(Policy = Policies.OrgAdmin)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
-public sealed class OrgController(MyOrganizationService myOrganization, TeacherService teachers, SchoolSummaryService schoolSummary)
+public sealed class OrgController(MyOrganizationService myOrganization, TeacherService teachers, SchoolSummaryService schoolSummary,
+    SchoolOverviewService schoolOverview)
     : ApiControllerBase
 {
     /// <summary>Thông tin trường của mình, gói hiện tại, bộ đếm giáo viên.</summary>
@@ -43,6 +45,16 @@ public sealed class OrgController(MyOrganizationService myOrganization, TeacherS
     [ProducesResponseType<ApiResponse<SchoolSummaryDto>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<SchoolSummaryDto>>> SchoolSummary(CancellationToken ct)
         => OkEnvelope(await schoolSummary.GetAsync(CurrentActor, ct));
+
+    /// <summary>
+    /// Tổng quan trường: giáo viên so với hạn mức, lớp theo cấp, học sinh (đã và chưa đăng nhập), bài học, bài kiểm tra đã phát hành, lượt nộp, điểm trung bình
+    /// theo lớp và theo cấp, lượt AI đã dùng so với hạn mức trong kỳ, gói hiện tại và lời nhắc sắp hết hạn. Chỉ có số tổng: không có tên giáo viên,
+    /// học sinh hay bài làm cụ thể. Trường không có gói hiệu lực vẫn xem được (kèm lời nhắc).
+    /// </summary>
+    [HttpGet("overview")]
+    [ProducesResponseType<ApiResponse<SchoolOverviewDto>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<SchoolOverviewDto>>> Overview(CancellationToken ct)
+        => OkEnvelope(await schoolOverview.GetAsync(CurrentActor, ct));
 
     /// <summary>Giáo viên của trường: tìm theo tên, tên đăng nhập, email; lọc trạng thái; kèm bộ đếm hạn mức.</summary>
     [HttpGet("teachers")]

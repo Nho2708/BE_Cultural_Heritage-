@@ -68,7 +68,7 @@ public enum QuestionReadOnlyReason
     HIDDEN_BY_ADMIN,
 }
 
-/// <summary>Quyền của người đang xem trên một câu, để giao diện bật tắt nút (Sửa, Xóa, Duyệt, Loại, Nhân bản; quản trị hệ thống: Ẩn).</summary>
+/// <summary>Quyền của người đang xem trên một câu, để giao diện bật tắt nút (Sửa, Xóa, Duyệt, Loại, Nhân bản; quản trị hệ thống: Ẩn, Hiện lại).</summary>
 public sealed record QuestionAccessDto(
     bool IsReadOnly,
     QuestionReadOnlyReason? Reason,
@@ -78,7 +78,8 @@ public sealed record QuestionAccessDto(
     bool CanApprove,
     bool CanReject,
     bool CanDuplicate,
-    bool CanHide = false);
+    bool CanHide = false,
+    bool CanRestore = false);
 
 /// <summary>Một dòng của danh sách ngân hàng câu hỏi.</summary>
 public sealed record QuestionRowDto(

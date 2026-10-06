@@ -1,4 +1,5 @@
 using DSVHVN.Application.Accounts;
+using DSVHVN.Application.Attempts;
 using DSVHVN.Application.Audit;
 using DSVHVN.Application.Auth;
 using DSVHVN.Application.Billing;
@@ -9,8 +10,12 @@ using DSVHVN.Application.Files;
 using DSVHVN.Application.Heritages;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Organizations;
+using DSVHVN.Application.Overview;
 using DSVHVN.Application.Profile;
 using DSVHVN.Application.Questions;
+using DSVHVN.Application.Quizzes;
+using DSVHVN.Application.Recommendations;
+using DSVHVN.Application.Statistics;
 using DSVHVN.Application.StudentAuth;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Teachers;
@@ -61,6 +66,8 @@ public static class DependencyInjection
         services.AddSingleton<IStudentCredentialGenerator, RandomStudentCredentialGenerator>();
         services.AddScoped<ClassService>();
         services.AddScoped<SchoolSummaryService>();
+        services.AddScoped<SchoolOverviewService>();
+        services.AddScoped<SystemOverviewService>();
         services.AddScoped<StudentAccountFactory>();
         services.AddScoped<LoginSheetBuilder>();
         services.AddScoped<StudentService>();
@@ -77,6 +84,18 @@ public static class DependencyInjection
         services.AddScoped<QuestionAiService>();
         services.AddScoped<AdminQuestionService>();
         services.AddScoped<StudentLessonService>();
+        services.AddScoped<QuizDetailBuilder>();
+        services.AddScoped<QuizService>();
+        services.AddScoped<QuizAutoCloser>();
+        services.AddScoped<AttemptLifecycle>();
+        services.AddScoped<AttemptResultService>();
+        services.AddScoped<AttemptService>();
+        services.AddScoped<StudentLearningService>();
+        services.AddScoped<RelatedRanker>();
+        services.AddScoped<StudentRecommendationService>();
+        services.AddScoped<ClassRecommendationService>();
+        services.AddScoped<QuizResultsService>();
+        services.AddScoped<ClassStatisticsService>();
         return services;
     }
 }

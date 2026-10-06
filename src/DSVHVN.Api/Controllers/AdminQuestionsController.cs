@@ -29,7 +29,23 @@ public sealed class AdminQuestionsController(AdminQuestionService questions) : A
         => OkEnvelope(await questions.ListAsync(CurrentActor,
             new QuestionListQuery(null, questionType, level, difficultyLevel, heritageId, status, source, createdBy, keyword, page, pageSize), ct));
 
-    /// <summary>Chi tiết câu chỉ đọc (có đáp án), kèm quyền: chỉ có thể ẩn khi câu đang được duyệt.</summary>
+    /// <summary>
+    /// Danh sách kiểm duyệt: câu đã duyệt và câu đã bị ẩn kèm số lượt trả lời, số lượt đúng, tỉ lệ đúng và dấu hiệu "cần xem lại" (đủ 10 lượt trả lời mà tỉ lệ
+    /// đúng dưới 30%). <c>lowQualityOnly</c> = true chỉ giữ câu cần xem lại; <c>sort</c> = NEWEST (mặc định) hoặc LOWEST_RATE; lọc thêm theo trường của người tạo
+    /// (<c>organizationId</c>). Kèm ba số đếm của cả ngân hàng: đã duyệt, đã ẩn, cần xem lại.
+    /// </summary>
+    [HttpGet("quality")]
+    [ProducesResponseType<ApiResponse<QuestionQualityPageDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<QuestionQualityPageDto>>> Quality(
+        [FromQuery] ReviewStatus? status, [FromQuery] bool? lowQualityOnly, [FromQuery] QuestionQualitySort? sort,
+        [FromQuery] QuestionType? questionType, [FromQuery] int? level, [FromQuery] DifficultyLevel? difficultyLevel,
+        [FromQuery] long? heritageId, [FromQuery] long? organizationId, [FromQuery] long? createdBy, [FromQuery] string? keyword,
+        [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct)
+        => OkEnvelope(await questions.ListQualityAsync(CurrentActor,
+            new QuestionQualityQuery(status, lowQualityOnly ?? false, sort, questionType, level, difficultyLevel, heritageId, organizationId, createdBy, keyword, page, pageSize), ct));
+
+    /// <summary>Chi tiết câu chỉ đọc (có đáp án), kèm quyền: ẩn được khi câu đang được duyệt, hiện lại được khi câu đã bị ẩn.</summary>
     [HttpGet("{questionId:long}")]
     [ProducesResponseType<ApiResponse<QuestionDetailDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
@@ -48,4 +64,17 @@ public sealed class AdminQuestionsController(AdminQuestionService questions) : A
     public async Task<ActionResult<ApiResponse<QuestionDetailDto>>> Hide(long questionId, AdminHideQuestionRequest? request, CancellationToken ct)
         => OkEnvelope(await questions.HideAsync(CurrentActor, questionId, request ?? new AdminHideQuestionRequest(null), ct),
             Messages.Success("Ẩn câu hỏi").Text);
+
+    /// <summary>
+    /// Hiện lại câu đã bị ẩn: câu về trạng thái đã duyệt của người tạo, chọn lại được vào bài kiểm tra mới và hiện lại cho mọi giáo viên; lý do (tùy chọn)
+    /// ghi vào nhật ký thao tác. 422 khi câu chưa bị ẩn.
+    /// </summary>
+    [HttpPost("{questionId:long}/restore")]
+    [ProducesResponseType<ApiResponse<QuestionDetailDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<ApiResponse<QuestionDetailDto>>> Restore(long questionId, AdminHideQuestionRequest? request, CancellationToken ct)
+        => OkEnvelope(await questions.RestoreAsync(CurrentActor, questionId, request ?? new AdminHideQuestionRequest(null), ct),
+            Messages.Success("Hiện lại câu hỏi").Text);
 }

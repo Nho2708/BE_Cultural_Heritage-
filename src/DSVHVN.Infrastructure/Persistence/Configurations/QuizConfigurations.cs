@@ -62,8 +62,11 @@ internal sealed class AttemptAnswerConfiguration : IEntityTypeConfiguration<Atte
 {
     public void Configure(EntityTypeBuilder<AttemptAnswer> b)
     {
-        b.ToTable("attempt_answers");
+        b.ToTable("attempt_answers", t => t.HasCheckConstraint("CK_attempt_answers_parts",
+            "[parts_total] >= 1 AND [parts_correct] BETWEEN 0 AND [parts_total]"));
         b.Property(x => x.IsCorrect).BitWithDefault(false);
+        b.Property(x => x.PartsTotal).IsRequired().HasDefaultValue((short)1).ValueGeneratedNever();
+        b.Property(x => x.PartsCorrect).IsRequired().HasDefaultValue((short)0).ValueGeneratedNever();
         b.Property(x => x.PointEarned).HasPrecision(5, 2);
 
         // Mỗi câu một dòng trong mỗi lượt; chặn ghi trùng khi nộp hai lần.
@@ -73,5 +76,27 @@ internal sealed class AttemptAnswerConfiguration : IEntityTypeConfiguration<Atte
             .OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Question).WithMany().HasForeignKey(x => x.QuestionId).IsRequired().OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Answer).WithMany().HasForeignKey(x => x.AnswerId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class AttemptAnswerPartConfiguration : IEntityTypeConfiguration<AttemptAnswerPart>
+{
+    public void Configure(EntityTypeBuilder<AttemptAnswerPart> b)
+    {
+        b.ToTable("attempt_answer_parts", t => t.HasCheckConstraint("CK_attempt_answer_parts_target",
+            "([answer_id] IS NOT NULL AND [blank_index] IS NULL) OR ([answer_id] IS NULL AND [blank_index] IS NOT NULL)"));
+        b.Property(x => x.ResponseText).HasMaxLength(255).IsUnicode();
+        b.Property(x => x.IsCorrect).BitWithDefault(false);
+
+        // Mỗi cặp, bước, mệnh đề một dòng và mỗi chỗ trống một dòng trong một câu trả lời (unique có lọc, như CSDL v4).
+        b.HasIndex(x => new { x.AttemptAnswerId, x.AnswerId }).IsUnique().HasFilter("[answer_id] IS NOT NULL")
+            .HasDatabaseName("UX_attempt_answer_parts_answer");
+        b.HasIndex(x => new { x.AttemptAnswerId, x.BlankIndex }).IsUnique().HasFilter("[blank_index] IS NOT NULL")
+            .HasDatabaseName("UX_attempt_answer_parts_blank");
+
+        b.HasOne(x => x.AttemptAnswer).WithMany(a => a.Parts).HasForeignKey(x => x.AttemptAnswerId).IsRequired()
+            .OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Answer).WithMany().HasForeignKey(x => x.AnswerId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.SelectedAnswer).WithMany().HasForeignKey(x => x.SelectedAnswerId).OnDelete(DeleteBehavior.Restrict);
     }
 }

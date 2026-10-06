@@ -14,7 +14,7 @@ namespace DSVHVN.Tests.Integration;
 
 /// <summary>
 /// Kiểm trên SQL Server thật: database tạm tạo bằng migration khởi tạo (khi Api khởi động) và tự xóa khi xong.
-/// Lược đồ phải đúng CSDL v3 cộng phần v4 của luồng bài học (28 bảng, 43 khóa ngoại, 25 CHECK, 4 UNIQUE có lọc, collation Vietnamese_CI_AI);
+/// Lược đồ phải đúng CSDL v3 cộng phần v4 đã làm (35 bảng, 56 khóa ngoại, 40 CHECK, 10 UNIQUE có lọc, collation Vietnamese_CI_AI);
 /// dữ liệu tỉnh/thành và di sản nạp được; luồng web quản trị chạy được; ràng buộc tài khoản học sinh đúng thiết kế.
 /// </summary>
 public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClassFixture<SqlServerApiFactory>
@@ -23,7 +23,8 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
 
     private static readonly string[] NullableForeignKeys =
     [
-        "ai_generations.heritage_id", "ai_generations.lesson_id", "attempt_answers.answer_id", "audit_logs.user_id",
+        "ai_generations.heritage_id", "ai_generations.lesson_id", "attempt_answer_parts.answer_id", "attempt_answer_parts.selected_answer_id",
+        "attempt_answers.answer_id", "audit_logs.user_id",
         "heritage_summaries.ai_generation_id", "heritage_summaries.reviewed_by", "heritage_translations.ai_generation_id",
         "heritage_translations.reviewed_by", "heritages.province_id", "lesson_sections.event_id", "media.event_id", "media.heritage_id",
         "questions.ai_generation_id", "questions.reviewed_by", "users.organization_id",
@@ -40,18 +41,20 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.True(LocalDb.Exists(factory.DatabaseName));
         Assert.Equal("Vietnamese_CI_AI",
             (await SqlAsync<string>($"SELECT CAST(DATABASEPROPERTYEX(DB_NAME(), 'Collation') AS nvarchar(128)) AS [Value]")).Single());
-        Assert.Equal(34, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(320, (await SqlAsync<int>(   // 17 cột của heritage_models (luồng mô hình 3D) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi)
+        Assert.Equal(35, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
+        Assert.Equal(331, (await SqlAsync<int>(   // 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 17 cột của heritage_models (luồng mô hình 3D) + 9 cột của attempt_answer_parts và 2 cột parts_total, parts_correct của attempt_answers (luồng học tập)
             $"SELECT COUNT(*) AS [Value] FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id WHERE t.name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(53, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());
+        Assert.Equal(56, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());
         Assert.Equal(["fk_event_translations_event_id", "fk_media_translations_media_id", "fk_password_reset_tokens_user_id", "fk_timeline_translations_timeline_id"],
             await SqlAsync<string>($"SELECT name AS [Value] FROM sys.foreign_keys WHERE delete_referential_action_desc = 'CASCADE' ORDER BY name"));
-        Assert.Equal(38, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());
+        Assert.Equal(40, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());
 
         var filtered = await SqlAsync<string>(
             $"SELECT i.name + ' ' + i.filter_definition AS [Value] FROM sys.indexes i WHERE i.is_unique = 1 AND i.has_filter = 1 ORDER BY i.name");
         Assert.Equal(
         [
+            "UX_attempt_answer_parts_answer ([answer_id] IS NOT NULL)",
+            "UX_attempt_answer_parts_blank ([blank_index] IS NOT NULL)",
             "UX_heritage_models_visible ([status]='PUBLISHED' AND [deleted_at] IS NULL)",
             "UX_lessons_access_code ([access_code] IS NOT NULL)",
             "UX_payments_one_pending_per_invoice ([status]='PENDING')",
@@ -64,7 +67,7 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.Equal(15, (await SqlAsync<int>(   // 10 + năm khóa không trùng (bản gốc, ngôn ngữ) của các bảng đa ngôn ngữ
             $"SELECT COUNT(*) AS [Value] FROM sys.indexes i JOIN sys.tables t ON t.object_id = i.object_id WHERE i.is_unique = 1 AND i.has_filter = 0 AND i.is_primary_key = 0 AND t.name <> '__EFMigrationsHistory'")).Single());
 
-        // 11 khóa ngoại được NULL; 32 khóa ngoại bắt buộc là NOT NULL.
+        // 17 khóa ngoại được NULL; 39 khóa ngoại bắt buộc là NOT NULL.
         var nullableFks = await SqlAsync<string>($"""
             SELECT OBJECT_NAME(fkc.parent_object_id) + '.' + c.name AS [Value]
             FROM sys.foreign_key_columns fkc
@@ -81,7 +84,7 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
                           WHERE k.parent_object_id = c.object_id AND k.definition LIKE '%[[]' + c.name + '] IN %'
                              OR k.parent_object_id = c.object_id AND k.definition LIKE '%[[]' + c.name + ']=''%')
             """)).Single());
-        Assert.Equal(["((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((1))", "((1))", "((1))", "(CONVERT([tinyint],(1)))", "(CONVERT([tinyint],(3)))"],   // hai DEFAULT cuối: questions.level_min = 1, level_max = 3
+        Assert.Equal(["((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((1))", "((1))", "((1))", "(CONVERT([smallint],(0)))", "(CONVERT([smallint],(1)))", "(CONVERT([tinyint],(1)))", "(CONVERT([tinyint],(3)))"],   // smallint: attempt_answers.parts_correct = 0, parts_total = 1; tinyint: questions.level_min = 1, level_max = 3
             await SqlAsync<string>($"SELECT definition AS [Value] FROM sys.default_constraints ORDER BY definition"));
 
         var roles = await factory.WithDbAsync(db => db.Roles.OrderBy(r => r.Id).Select(r => r.Name).ToListAsync());

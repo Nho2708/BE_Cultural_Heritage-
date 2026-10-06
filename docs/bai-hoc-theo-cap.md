@@ -38,7 +38,7 @@ Khuôn phản hồi chung `{ success, data, message, errorCode, traceId, errors 
 | DELETE | `/teacher/lessons/{lessonId}` | — | 200, xóa mềm | 404; 422 `BLOCKED` khi bài đã có bài kiểm tra (chỉ lưu trữ) |
 | POST | `/teacher/lessons/{lessonId}/publish` | — | 200 `{ lesson, codeCreated, accessCode, message }`; lần đầu sinh mã (`message` là câu "Đã xuất bản bài học. Mã bài học: …"), xuất bản lại giữ mã | 404; 422 `NOT_READY` ("Chưa đủ điều kiện xuất bản bài học. Còn thiếu: …") |
 | POST | `/teacher/lessons/{lessonId}/archive` | — | 200 | 404; 422 `BLOCKED` (bài Nháp; bài còn bài kiểm tra đang mở) |
-| POST | `/teacher/lessons/{lessonId}/duplicate` | `{ targetClassId }` | 201 `{ lesson, skippedHeritages, levelNotice, message }` | 400 (lớp đích trùng lớp nguồn); 404; 422 `PLAN_REQUIRED` |
+| POST | `/teacher/lessons/{lessonId}/duplicate` | `{ targetClassId, includeQuizzes? }` | 201 `{ lesson, skippedHeritages, levelNotice, message, copiedQuizzes, skippedQuestions }` | 400 (lớp đích trùng lớp nguồn); 404; 422 `PLAN_REQUIRED` |
 | GET | `/teacher/lessons/{lessonId}/preview` | "Xem như học sinh" (mục 4.8) | 200 `{ lesson, status, quizzesViewOnly }`; `lesson` cùng cấu trúc `StudentLessonDto` của API học sinh, `accessCode` rỗng khi bài Nháp | 401; 403 (không phải giáo viên); 404 (bài của người khác) |
 | GET | `/teacher/lessons/{lessonId}/materials` | — | 200 `{ images[], events[] }`: ảnh (kèm ghi công tách tác giả, giấy phép, nguồn) và sự kiện trên dòng thời gian của các di sản đang xuất bản của bài, để chọn hình và mốc thời gian | 404 |
 | POST | `/teacher/lessons/{lessonId}/ai/compose` | `{ length? }` = `SHORT` / `MEDIUM` (mặc định) / `DETAILED` | 200 **bản nháp** `{ generationId, level, length, summary, keyPoints[], sections[], wordCount, warnings[], model, aiQuota, message }` | 400; 404; 422 `PLAN_REQUIRED`, `AI_QUOTA_REACHED`, `BLOCKED`; 503 `AI_UNAVAILABLE` |
@@ -101,7 +101,8 @@ Trường **không có gói hiệu lực** thì chặn **tạo bài**, **nhân b
 Mọi trạng thái trừ đã xóa, sang **một lớp khác** của chính giáo viên (chưa xóa), cần gói hiệu lực, **không tốn lượt AI**. Tạo bài **Nháp** mới chưa có mã, chép tiêu đề, tóm tắt, ý chính,
 các phần nội dung và di sản. Di sản đã ẩn bị bỏ (báo số lượng) và hình, mốc lấy từ chúng bị gỡ. Lớp đích **khác cấp** thì vẫn chép nguyên nội dung kèm lời nhắc
 (`levelNotice`) rằng nội dung đang theo khung của cấp cũ, nên xem lại hoặc nhờ AI soạn lại. Bài gốc không đổi.
-**Chép kèm bài kiểm tra chưa làm ở luồng này**: bài kiểm tra có luồng riêng; khi luồng đó xong sẽ thêm tùy chọn chép kèm.
+**Chép kèm bài kiểm tra** (`includeQuizzes` = `true`): chép các bài kiểm tra chưa xóa của bài thành bài kiểm tra nháp của bài mới, bỏ câu đã ẩn và câu không hợp cấp lớp đích, giờ mở và giờ đóng để trống; chi tiết ở [bai-kiem-tra.md](bai-kiem-tra.md) mục 3.9.
+Danh sách bài học (`GET /teacher/lessons`) có thêm bộ lọc `difficulty` và cột `difficulty`, `difficultyLabel` (mục 3.10 của cùng tài liệu).
 
 ### 4.5 Lưu trữ và xóa
 
@@ -252,7 +253,7 @@ phân loại lỗi), giới hạn nhập sai mã (tua giờ), hạn mức lượ
 |---|---|---|
 | Cấu trúc `steps` trong hợp đồng AI | Đặc tả chỉ ghi "mảng"; hiện thực chốt kiểu phần tử như mục 5.2 | Ghi vào hợp đồng khi viết Dịch vụ AI thật |
 | Nội dung chính | `lessons.summary` là nội dung chính; các phần `lesson_sections` là cấu trúc kèm theo; bước câu chuyện cấp 1 không đếm thêm vào số từ | Ghi rõ vào mô tả bảng `lessons` của v4 nếu nhóm đồng ý |
-| Chép kèm bài kiểm tra khi nhân bản | Chưa có (bài kiểm tra chưa có API) | Làm cùng luồng Bài kiểm tra |
+| Chép kèm bài kiểm tra khi nhân bản | Đã có từ luồng Bài kiểm tra: tùy chọn `includeQuizzes` | — |
 | Xuất bản, lưu trữ bài học vào nhật ký thao tác | Không ghi (theo danh sách hành động của đặc tả) | Quyết định của nhóm |
 | Lưu trữ bài Nháp | Không cho (trạng thái chỉ đi DRAFT → PUBLISHED ⇄ ARCHIVED); bài Nháp thì xóa | Giữ như đặc tả |
 | Chọn trùng di sản khi tạo | Từ chối (400), không tự gộp | — |

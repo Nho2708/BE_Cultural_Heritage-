@@ -3,7 +3,7 @@
 Phần backend của khu **Ngân hàng câu hỏi** của giáo viên (web quản trị) và việc **ẩn câu kém chất lượng** của quản trị hệ thống. Ngân hàng **dùng chung mọi trường**,
 có **8 dạng câu** (mỗi dạng dùng được ở những cấp 1/2/3 nhất định); giáo viên tạo câu bằng trình soạn theo dạng hoặc nhờ **AI sinh câu** từ một bài học (đúng dạng và cấp của lớp),
 duyệt câu AI trước khi dùng, nhân bản câu của người khác để sửa. Backend cũng có phép **chấm từng phần** theo dạng, dùng để chấm thử khi soạn và để kiểm câu hợp lệ;
-luồng làm bài sẽ dùng lại đúng phép chấm này.
+luồng học tập của học sinh dùng lại đúng phép chấm này ([hoc-tap-theo-cap.md](hoc-tap-theo-cap.md)).
 
 | Mục | Giá trị |
 |---|---|
@@ -109,7 +109,7 @@ Quản trị trường và học sinh không dùng ngân hàng. Bộ lọc: dạ
 
 | `reason` | Khi nào | Thông báo hiện ở đầu câu |
 |---|---|---|
-| `USED_IN_QUIZ` | Câu của mình nhưng đã nằm trong ít nhất một quiz (mọi trạng thái, mọi trường; tính cả quiz đã xóa mềm để kết quả cũ không bị đổi) | "Câu hỏi này chỉ xem được vì đã được dùng trong bài kiểm tra. Bấm "Nhân bản" để tạo bản của bạn rồi sửa." |
+| `USED_IN_QUIZ` | Câu của mình nhưng đã nằm trong ít nhất một quiz chưa xóa (mọi trạng thái, mọi trường). Quiz nháp đã xóa mềm không còn giữ câu: quiz nháp chưa có lượt làm bài nên kết quả cũ không bị ảnh hưởng, còn quiz đã phát hành hoặc đã đóng không xóa được | "Câu hỏi này chỉ xem được vì đã được dùng trong bài kiểm tra. Bấm "Nhân bản" để tạo bản của bạn rồi sửa." |
 | `NOT_OWNER` | Câu do người khác tạo | "Câu hỏi này chỉ xem được vì do người khác tạo. Bấm "Nhân bản" để tạo bản của bạn rồi sửa." |
 | `HIDDEN_BY_ADMIN` | Quản trị hệ thống đã ẩn câu | "Câu hỏi này chỉ xem được vì đã bị quản trị hệ thống ẩn. Câu bị ẩn không nhân bản được; bạn có thể tạo câu mới." |
 
@@ -198,7 +198,7 @@ Dùng chung hạn mức với soạn nội dung bài học (`PlanGuard`): kỳ c
 | `question_type` | `CK_questions_question_type` nhận đủ 8 giá trị; enum `QuestionType` thêm `IMAGE_CHOICE`, `MATCHING`, `ORDERING`, `FILL_BLANK`, `MULTI_TRUE_FALSE`, `SOURCE_READING` |
 | CHECK mới | `CK_questions_levels` (cấp 1-3 và `level_min` ≤ `level_max`) · `CK_questions_passage` (dạng đọc tư liệu bắt buộc có `passage`) · `CK_answers_positions` (`correct_position`, `blank_index` NULL hoặc 1..20) |
 | Câu cũ lên v4 | Gán cấp phù hợp mặc định theo bảng dạng câu theo cấp: `SINGLE_CHOICE` → cấp 2-3; `TRUE_FALSE` → cấp 2 (câu Đúng/Sai cũ chưa có hình nên chưa dùng được ở cấp 1 cho tới khi người tạo thêm hình) |
-| **Chưa thêm** | `attempt_answers.parts_total`, `parts_correct` và bảng `attempt_answer_parts` của v4: thuộc luồng làm bài, sẽ có migration riêng cùng luồng đó (cũng như `lesson_sections` thuộc luồng bài học) |
+| **Thêm sau, ở luồng học tập** | `attempt_answers.parts_total`, `parts_correct` và bảng `attempt_answer_parts` của v4: migration `ThemCauTraLoiTungPhan` (xem [hoc-tap-theo-cap.md](hoc-tap-theo-cap.md)), dùng lại đúng phép chấm của luồng này |
 | Dạng nào dùng ở cấp nào | Kiểm ở tầng code (bảng `QuestionTypes`), không có CHECK trong CSDL, đúng ghi chú của DBML |
 
 Số liệu sau migration (kiểm bằng `SqlServerDatabaseTests` và `QuestionSqlServerTests`): 28 bảng, **257 cột**, 43 khóa ngoại, **25 CHECK**, 4 UNIQUE có lọc.
@@ -207,7 +207,7 @@ Số liệu sau migration (kiểm bằng `SqlServerDatabaseTests` và `QuestionS
 ## 7. Nhật ký
 
 - **Lượt gọi AI** ghi ở `ai_generations` (`QUIZ_GENERATION`: đầu vào, tham số, mô hình, kết quả thô, trạng thái, lỗi). Câu sinh ra truy được về lần gọi qua `questions.ai_generation_id`.
-- **Ẩn câu** ghi `audit_logs` mã `QUESTION_HIDDEN` (có sẵn trong danh sách 21 mã của đặc tả). Tạo, sửa, duyệt, loại, xóa, nhân bản câu **không** vào `audit_logs` vì đặc tả không liệt kê; dấu vết duyệt nằm ở `reviewed_by`, `reviewed_at`.
+- **Ẩn câu** ghi `audit_logs` mã `QUESTION_HIDDEN` (có sẵn trong danh sách 21 mã của đặc tả). Hiện lại câu đã ẩn, danh sách kiểm duyệt kèm chất lượng và tổng quan nằm ở [quan-tri-tong-quan.md](quan-tri-tong-quan.md) (mã `QUESTION_RESTORED` là bổ sung ngoài 21 mã của đặc tả). Tạo, sửa, duyệt, loại, xóa, nhân bản câu **không** vào `audit_logs` vì đặc tả không liệt kê; dấu vết duyệt nằm ở `reviewed_by`, `reviewed_at`.
 
 ## 8. Mã lỗi
 
@@ -250,7 +250,7 @@ tìm và lọc, xem trước, chấm thử, kiểm không lưu, AI sinh theo c�
 | AI sinh từ "bài học hoặc di sản" | Chỉ từ **bài học** (như màn hình Sinh và duyệt câu hỏi bằng AI): cấp lấy từ lớp của bài, di sản chọn trong các di sản của bài. Ràng buộc `CK_ai_generations_subject` của v4 cũng buộc tác vụ sinh câu gắn bài học | Giữ như đặc tả; muốn sinh từ di sản không qua bài học thì phải sửa CHECK |
 | Sắp xếp sự kiện theo thời gian (cấp 2) | Mỗi mục là một câu chữ; chưa lưu năm riêng cho từng mục nên chưa kiểm "không có hai mục cùng năm" (bản giả lập AI chỉ lấy các sự kiện khác năm) | Quyết định có thêm cột năm vào `answers` không |
 | Kho từ của câu điền từ | Kho gồm từ đúng **đầu tiên** của mỗi chỗ trống cộng từ gây nhiễu (3-8 từ); các cách viết đúng khác chỉ dùng khi gõ chữ | Xác nhận với giao diện học sinh |
-| Câu nằm trong quiz đã xóa mềm | Vẫn tính là "đã nằm trong quiz" (câu chỉ đọc) để kết quả cũ không bị đổi | Xác nhận khi làm luồng quiz |
+| Câu nằm trong quiz đã xóa mềm | Không tính: chỉ quiz nháp xóa mềm được (chưa có kết quả) nên câu được mở khóa lại (đổi ở luồng Bài kiểm tra) | — |
 | Độ khó khi AI sinh | Không chọn thì mặc định `MEDIUM`; số câu mặc định 5 | — |
 | Ghi nhật ký thao tác | Chỉ ẩn câu (`QUESTION_HIDDEN`) theo danh sách hành động của đặc tả | Quyết định của nhóm |
-| `attempt_answers.parts_*`, `attempt_answer_parts` | Chưa thêm, thuộc luồng làm bài | Migration riêng ở luồng đó |
+| `attempt_answers.parts_*`, `attempt_answer_parts` | Đã thêm ở luồng học tập | Migration `ThemCauTraLoiTungPhan` |

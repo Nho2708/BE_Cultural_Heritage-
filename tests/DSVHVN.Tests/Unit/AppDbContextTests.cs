@@ -22,7 +22,7 @@ public sealed class AppDbContextTests : IDisposable
 
     public static readonly string[] Tables =
     [
-        "ai_generations", "answers", "attempt_answers", "attempts", "audit_logs", "classes", "event_translations", "events",
+        "ai_generations", "answers", "attempt_answer_parts", "attempt_answers", "attempts", "audit_logs", "classes", "event_translations", "events",
         "heritage_models", "heritage_references", "heritage_summaries", "heritage_translations", "heritages", "invoices", "lesson_heritages", "lesson_sections",
         "lessons", "media", "media_translations", "organizations", "password_reset_tokens", "payment_providers", "payments", "plans",
         "provinces", "questions", "quiz_questions", "quizzes", "roles", "students", "subscriptions", "timeline_translations", "timelines",
@@ -30,7 +30,7 @@ public sealed class AppDbContextTests : IDisposable
     ];
 
     [Fact]
-    public async Task Model_has_the_34_tables_and_the_column_names_of_the_database_design()
+    public async Task Model_has_the_35_tables_and_the_column_names_of_the_database_design()
     {
         var (tables, userColumns, fkCount, checkCount) = await _h.QueryAsync(db => Task.FromResult((
             db.Model.GetEntityTypes().Select(e => e.GetTableName()).OrderBy(n => n, StringComparer.Ordinal).ToList(),
@@ -39,8 +39,8 @@ public sealed class AppDbContextTests : IDisposable
             db.GetService<IDesignTimeModel>().Model.GetEntityTypes().Sum(e => e.GetCheckConstraints().Count()))));
 
         Assert.Equal(Tables, tables);
-        Assert.Equal(53, fkCount);   // 43 + 9 khóa ngoại của năm bảng đa ngôn ngữ + 1 của mô hình 3D
-        Assert.Equal(38, checkCount);   // 25 + 10 CHECK của năm bảng đa ngôn ngữ (mã ngôn ngữ, trạng thái theo ngôn ngữ, không có dòng tiếng Việt ở bảng con) + 3 CHECK của mô hình 3D (định dạng, trạng thái, dung lượng)
+        Assert.Equal(56, fkCount);   // 43 + 9 khóa ngoại của năm bảng đa ngôn ngữ + 1 của mô hình 3D + 3 của attempt_answer_parts
+        Assert.Equal(40, checkCount);   // 25 + 10 CHECK của năm bảng đa ngôn ngữ (mã ngôn ngữ, trạng thái theo ngôn ngữ, không có dòng tiếng Việt ở bảng con) + 3 CHECK của mô hình 3D (định dạng, trạng thái, dung lượng) + CK_attempt_answers_parts, CK_attempt_answer_parts_target (luồng học tập)
         Assert.Contains("organization_id", userColumns);
         Assert.Contains("must_change_password", userColumns);
         Assert.Contains("last_login_at", userColumns);

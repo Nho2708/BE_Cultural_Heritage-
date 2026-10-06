@@ -56,7 +56,7 @@ public sealed class QuestionService(IAppDbContext db, QuestionPresenter presente
                 Organization = q.Creator.Organization!.Name,
                 Heritage = q.Heritage!.Name,
                 Hidden = q.ReviewStatus == ReviewStatus.REJECTED && q.Reviewer!.RoleId == Roles.AdminId,
-                Quizzes = db.QuizQuestions.Count(x => x.QuestionId == q.Id),
+                Quizzes = db.QuizQuestions.Count(x => x.QuestionId == q.Id && x.Quiz!.DeletedAt == null),
             });
         var page = await rows.ToPagedAsync(query.Page, query.PageSize, ct);
         var items = page.Items.Select(r => QuestionPresenter.Row(
