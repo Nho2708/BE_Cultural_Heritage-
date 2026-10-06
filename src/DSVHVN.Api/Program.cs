@@ -39,7 +39,7 @@ builder.Services.AddSwaggerGen(o =>
         Title = "DSVHVN API",
         Version = "v1",
         Description = "Nền tảng giáo dục di sản văn hóa cho trường học — nền tảng: đăng nhập, đặt mật khẩu qua email, hồ sơ, " +
-            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác, kho di sản (ADMIN), khám phá di sản công khai (/api/v1/public, không cần đăng nhập), lớp học và học sinh của giáo viên (/api/v1/teacher), bài học cho lớp theo cấp với AI soạn nội dung và mã bài học (/api/v1/teacher/lessons), đăng nhập và học của học sinh, mở bài học bằng mã (/api/v1/student). CSDL v3 đủ 27 bảng cộng bảng lesson_sections của v4.",
+            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác, kho di sản (ADMIN), khám phá di sản công khai (/api/v1/public, không cần đăng nhập), lớp học và học sinh của giáo viên (/api/v1/teacher), bài học cho lớp theo cấp với AI soạn nội dung và mã bài học (/api/v1/teacher/lessons), đăng nhập và học của học sinh, mở bài học bằng mã (/api/v1/student), ngân hàng câu hỏi 8 dạng và bài kiểm tra của bài học với phát hành, đóng, nhân bản (/api/v1/teacher/quizzes). CSDL v3 đủ 27 bảng cộng bảng lesson_sections của v4.",
     });
     o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {

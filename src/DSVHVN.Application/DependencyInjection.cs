@@ -10,6 +10,7 @@ using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Organizations;
 using DSVHVN.Application.Profile;
 using DSVHVN.Application.Questions;
+using DSVHVN.Application.Quizzes;
 using DSVHVN.Application.StudentAuth;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Teachers;
@@ -59,6 +60,9 @@ public static class DependencyInjection
         services.AddScoped<QuestionAiService>();
         services.AddScoped<AdminQuestionService>();
         services.AddScoped<StudentLessonService>();
+        services.AddScoped<QuizDetailBuilder>();
+        services.AddScoped<QuizService>();
+        services.AddScoped<QuizAutoCloser>();
         return services;
     }
 }

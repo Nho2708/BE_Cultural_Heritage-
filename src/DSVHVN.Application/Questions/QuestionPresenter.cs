@@ -71,8 +71,9 @@ public sealed class QuestionPresenter(IAppDbContext db, LessonMaterialService ma
             q.ReviewedAt, quizCount, access, q.CreatedAt, q.UpdatedAt);
     }
 
+    /// <summary>Số bài kiểm tra chưa xóa đang dùng câu này; bài kiểm tra nháp đã xóa không còn giữ câu ở trạng thái chỉ đọc.</summary>
     public Task<int> QuizCountAsync(long questionId, CancellationToken ct) =>
-        db.QuizQuestions.CountAsync(x => x.QuestionId == questionId, ct);
+        db.QuizQuestions.CountAsync(x => x.QuestionId == questionId && x.Quiz!.DeletedAt == null, ct);
 
     /// <summary>Thư viện ảnh (đường dẫn) của một di sản đã xuất bản: ảnh của di sản và ảnh của các sự kiện trên dòng thời gian.</summary>
     public async Task<HashSet<string>> LibraryUrlsAsync(long heritageId, CancellationToken ct)
