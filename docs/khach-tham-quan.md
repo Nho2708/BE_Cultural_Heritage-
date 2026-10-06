@@ -160,7 +160,7 @@ curl -s -X DELETE http://localhost:5080/api/v1/public/guest/history -H "X-Device
 ## 9. Chưa làm ở luồng này
 
 - **Giao diện** (chọn chế độ, trang chủ khách, Lịch sử và cài đặt, nút Gần bạn, xin quyền vị trí, tệp chuỗi 5 ngôn ngữ, sinh và lưu mã thiết bị ở app và trình duyệt): luồng giao diện của web học tập và app.
-- **Cổng quảng cáo mở khóa tóm tắt và nghe** và bảng `ad_unlocks`: luồng Quảng cáo Google có thưởng. Luồng này chỉ cấp bảng thiết bị mà luồng đó sẽ dùng; chưa có thống kê lượt mở khóa.
-- **Thống kê khách cho quản trị hệ thống** (số thiết bị mới và hoạt động theo ngày, nền tảng, ngôn ngữ; lượt xem, nghe theo di sản): chưa có API; dữ liệu đã nằm sẵn ở hai bảng, chỉ thiếu truy vấn tổng hợp (không tra theo từng mã thiết bị).
+- **Cổng quảng cáo mở khóa tóm tắt và nghe** và bảng `ad_unlocks`: đã làm ở luồng Quảng cáo Google có thưởng, xem [quang-cao-google.md](quang-cao-google.md) (luồng đó đọc bảng thiết bị của luồng này và có thống kê lượt mở khóa).
+- **Thống kê khách cho quản trị hệ thống**: đã có ở `GET /api/v1/admin/ads/stats` (thiết bị hoạt động, ngôn ngữ, di sản xem, nghe, xem 3D nhiều nhất; xem [quang-cao-google.md](quang-cao-google.md)); còn thiếu "thiết bị mới theo ngày" và theo nền tảng (không tra theo từng mã thiết bị).
 - **Dịch vụ Python phía Dịch vụ AI** cho `POST /v1/rank-related`: dùng chung với gợi ý của học sinh, chưa có; bản giả lập và phương án dự phòng chạy được.
 - **Đồng bộ lịch sử giữa hai thiết bị**: không làm theo quy tắc (hai thiết bị của cùng một người là hai khách khác nhau, không có tài khoản để ghép).

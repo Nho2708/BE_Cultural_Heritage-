@@ -8,7 +8,7 @@ Web quản trị và khu học của học sinh chỉ có tiếng Việt; **ph�
 Làm theo từng luồng (vertical slice): bảng của luồng → migration → API → UI → bổ sung cột bằng migration mới.
 Lược đồ nguồn: `doc/database/dsvhvn-v3.dbml` (27 bảng); backend đã có **đủ 27 bảng** trong một migration khởi tạo, tên bảng,
 tên cột giữ đúng DBML (`snake_case`). Phần CSDL v4 (`doc/database/dsvhvn-v4.dbml`) được thêm **dần theo từng luồng bằng migration mới** (hiện có bảng
-`lesson_sections`, các cột mới của `ai_generations` và `questions`, `answers`, năm bảng đa ngôn ngữ, bảng `heritage_models` của mô hình 3D, bảng `attempt_answer_parts` và hai cột mới của `attempt_answers` của luồng học tập, hai bảng `guest_devices` và `guest_activities` của khách tham quan, tổng 37 bảng) — xem [docs/co-so-du-lieu.md](docs/co-so-du-lieu.md).
+`lesson_sections`, các cột mới của `ai_generations` và `questions`, `answers`, năm bảng đa ngôn ngữ, bảng `heritage_models` của mô hình 3D, bảng `attempt_answer_parts` và hai cột mới của `attempt_answers` của luồng học tập, hai bảng `guest_devices` và `guest_activities` của khách tham quan, bảng `ad_unlocks` của quảng cáo Google có thưởng, tổng 38 bảng) — xem [docs/co-so-du-lieu.md](docs/co-so-du-lieu.md).
 
 | Luồng | Trạng thái | Tài liệu |
 |---|---|---|
@@ -29,11 +29,12 @@ tên cột giữ đúng DBML (`snake_case`). Phần CSDL v4 (`doc/database/dsvhv
 | Thống kê và gợi ý: **"Gợi ý cho em"** của học sinh (năm phần: quiz nên làm tiếp, bài học nên ôn lại, di sản nên ôn, di sản liên quan, bài học mới nên học; content-based, cùng cách tính ở mọi cấp, bài mới không lộ mã bài học, dự phòng khi Dịch vụ AI lỗi), giáo viên xem **kết quả bài kiểm tra của lớp** (tổng quan và phổ điểm, từng câu kèm lỗi hay gặp, từng học sinh, theo chủ đề, chi tiết bài làm), **tiến độ và mức thành thạo của lớp** (theo di sản, tỉnh, loại, dạng câu, bảng nhiệt), **hồ sơ học tập** của từng học sinh và **gợi ý ôn tập cho lớp**; tính khi hiển thị từ lượt làm bài, không bảng mới, không migration | Xong phần backend | [docs/thong-ke-goi-y.md](docs/thong-ke-goi-y.md) |
 | Quản trị và tổng quan: **tổng quan trường** cho quản trị trường (giáo viên so với hạn mức, lớp và học sinh theo cấp, học sinh chưa đăng nhập, bài học, bài kiểm tra đã phát hành, lượt nộp, điểm trung bình theo lớp và theo cấp, lượt AI so với hạn mức, gói và lời nhắc sắp hết hạn; chỉ số tổng, không lộ tên học sinh hay giáo viên), **tổng quan hệ thống** cho quản trị hệ thống (trường có và không có gói, giáo viên, học sinh, nội dung, ngân hàng câu hỏi, lượt AI, số trường theo từng gói, **biểu đồ theo thời gian** theo ngày hoặc tháng giờ Việt Nam, **doanh thu từ giao dịch VNPay thành công** theo ngày thanh toán (tổng, tháng này, hôm nay, theo kỳ trên biểu đồ) và **danh sách giao dịch** lọc theo trạng thái, trường, khoảng ngày; doanh thu quảng cáo không tính), **kiểm duyệt ngân hàng câu hỏi** (danh sách kèm số lượt trả lời, tỉ lệ đúng và dấu hiệu cần xem lại, ẩn câu kèm lý do, **hiện lại câu**, nhật ký thao tác); tính khi hiển thị, không bảng mới, không migration | Xong phần backend | [docs/quan-tri-tong-quan.md](docs/quan-tri-tong-quan.md) |
 | Khách tham quan trên web và app (không tài khoản): **mã thiết bị ẩn danh** (UUID phiên bản 4 do app hoặc trình duyệt sinh, gửi ở tiêu đề `X-Device-Key`; máy chủ chỉ giữ mã, nền tảng, ngôn ngữ, cờ "Gần bạn", không ghi IP hay vị trí), đăng ký và cài đặt thiết bị, **lịch sử** tìm, xem, đọc tóm tắt, nghe, xem 3D (tự ghi khi gọi API công khai kèm mã, lượt lặp trong 10 phút ghi một lần, giữ 90 ngày và tối đa 500 lượt mỗi thiết bị, khách xóa từng mục hoặc hết là xóa thật, học sinh đăng nhập không bị ghi), **"Gợi ý cho bạn"** (tối đa 6 di sản giống di sản khách đã xem, đọc tóm tắt, nghe, xem 3D trong 20 lượt gần nhất, cùng bộ tính với gợi ý của học sinh, không gọi mô hình ngôn ngữ, bỏ di sản đã xem từ 3 lần, chưa có lịch sử thì di sản nổi bật, Dịch vụ AI lỗi thì máy chủ tự chọn cùng loại hoặc cùng vùng), **"Gần bạn"** (tối đa 6 di sản gần nhất, tọa độ gửi trong thân yêu cầu, làm tròn 3 chữ số, không lưu, không vào nhật ký, ngoài khung Việt Nam nới 1 độ thì không hiện), tác vụ nền dọn lịch sử quá 90 ngày; migration `ThemKhachThamQuanVaLichSu` | Xong | [docs/khach-tham-quan.md](docs/khach-tham-quan.md) |
+| Quảng cáo Google có thưởng cho khách (cổng quảng cáo): khách xem hết một quảng cáo **thật của Google** (app: **AdMob**; web: **Ad Manager**) để mở **tóm tắt và nghe thuyết minh của một di sản trong 24 giờ trên đúng thiết bị đó** (mọi thứ khác miễn phí); **chỉ mở khóa khi Google xác nhận đã trao thưởng**: app qua **xác minh phía máy chủ của AdMob** (`GET /api/v1/ads/admob/ssv`, kiểm **chữ ký ECDSA bằng khóa công khai của Google** tải từ gstatic.com và đệm 24 giờ, đơn vị quảng cáo, thiết bị, di sản, thời điểm lệch tối đa 1 giờ, mã giao dịch không trùng), web qua **mã giao dịch một lần có chữ ký HMAC cấp lúc bắt đầu xem** (hết hạn sau 10 phút) và báo "đã cấp thưởng" từ trình duyệt với **giới hạn 10 lượt mỗi giờ mỗi thiết bị và 60 lượt mỗi giờ mỗi IP** (đếm trong bộ nhớ, IP không lưu); tóm tắt và ghi lượt nghe trả **403 `AD_UNLOCK_REQUIRED`** khi chưa mở khóa; học sinh đã đăng nhập, cổng tắt hoặc thiết bị khai báo không có quảng cáo (khi môi trường cho phép) mở thẳng; lời gọi gửi lại không ghi thêm, lời gọi sai bị từ chối và ghi nhật ký thao tác `AD_REWARD_REJECTED` (không IP, không chữ ký); mã đơn vị quảng cáo trong cấu hình (đơn vị thử của Google khi phát triển); quản trị hệ thống xem **thống kê lượt mở khóa** (theo ngày, nền tảng, mạng, di sản, lượt bị từ chối theo lý do) và khách; tác vụ nền xóa lượt quá 12 tháng; migration `ThemLuotMoKhoaQuangCao` | Xong phần backend (chưa có giao diện của cổng) | [docs/quang-cao-google.md](docs/quang-cao-google.md) |
 
 ## Cấu trúc
 
 ```
-src/DSVHVN.Domain          Thực thể 27 bảng của CSDL v3 và mười bảng của v4 (lesson_sections, năm bảng đa ngôn ngữ, heritage_models, attempt_answer_parts, guest_devices, guest_activities), enum, quy tắc nghiệp vụ thuần (tài khoản, di sản, lớp và mã học sinh, khung bài học theo cấp, mã bài học, bảng dạng câu hỏi theo cấp, quy tắc bài kiểm tra và độ khó của bài học)
+src/DSVHVN.Domain          Thực thể 27 bảng của CSDL v3 và mười một bảng của v4 (lesson_sections, năm bảng đa ngôn ngữ, heritage_models, attempt_answer_parts, guest_devices, guest_activities, ad_unlocks), enum, quy tắc nghiệp vụ thuần (tài khoản, di sản, lớp và mã học sinh, khung bài học theo cấp, mã bài học, bảng dạng câu hỏi theo cấp, quy tắc bài kiểm tra và độ khó của bài học)
 src/DSVHVN.Application     Dịch vụ nghiệp vụ, kiểm gói và hạn mức, validator, danh mục thông điệp tiếng Việt, nhật ký thao tác, tổng quan trường và hệ thống (Overview)
 src/DSVHVN.Infrastructure  EF Core (DbContext, cấu hình theo nhóm bảng, migration, seed, nạp dữ liệu di sản), JWT,
                            băm mật khẩu PBKDF2, gửi thư (ghi log hoặc SMTP qua MailKit), đọc và dựng tệp danh sách học sinh (ClosedXML),
@@ -133,6 +134,19 @@ dotnet user-secrets set "VnPay:HashSecret" "<khóa bí mật sandbox>" --project
 
 Chỉ IPN hợp lệ mới kích hoạt gói. Tác vụ nền gói và thanh toán chạy cùng Api (`Billing:Maintenance:Enabled`, `IntervalSeconds`). Gói trả phí mẫu "Cơ bản", "Nâng cao" chỉ nạp ở môi trường Development (`Seed:Plans`); UAT và Release 1.0 do quản trị hệ thống tạo ở màn hình
 Gói dịch vụ. Quy tắc, endpoint, mã phản hồi IPN, kiểm thử: [docs/goi-thanh-toan.md](docs/goi-thanh-toan.md).
+
+## Quảng cáo Google có thưởng (cổng quảng cáo của khách)
+
+Khách xem hết một quảng cáo của Google để mở tóm tắt và nghe thuyết minh của một di sản trong 24 giờ. Mã đơn vị quảng cáo nằm trong mục `Ads` của cấu hình; `appsettings.Development.json` đã điền **đơn vị quảng cáo thử của Google**
+(dùng mã thật khi đang phát triển là vi phạm chính sách của Google). Cổng **tắt mặc định** (`Ads:GateEnabled`); mã thật chỉ đặt bằng User Secrets hoặc biến môi trường, không commit:
+
+```bash
+dotnet user-secrets set "Ads:GateEnabled" "true" --project src/DSVHVN.Api
+# Địa chỉ cho xác minh phía máy chủ khai ở bảng điều khiển AdMob (HTTPS công khai): https://<máy chủ>/api/v1/ads/admob/ssv
+# Ads:AllowNoAdsDeclaration chỉ bật ở môi trường phát triển và demo (bản demo iOS bằng Expo Go không có quảng cáo).
+```
+
+Quy tắc, endpoint, cấu hình, kiểm thử: [docs/quang-cao-google.md](docs/quang-cao-google.md).
 
 ## Thư đặt mật khẩu
 

@@ -3,13 +3,13 @@
 Backend hiện thực **đủ 27 bảng** của CSDL v3 (`doc/database/dsvhvn-v3.dbml` của nhóm, 8 nhóm bảng) bằng EF Core 9 trên
 SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `KhoiTaoCsdl`; mọi thay đổi về sau đi qua migration mới. Từ luồng
 "Bài học cho lớp theo cấp" backend thêm dần phần **CSDL v4** (`doc/database/dsvhvn-v4.dbml`) đúng phần luồng cần, mỗi luồng một migration
-(mục 5 đến 11): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học), các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi), năm bảng đa ngôn ngữ (luồng đa ngôn ngữ), bảng `heritage_models` (luồng mô hình 3D), bảng `attempt_answer_parts` cùng hai cột mới của `attempt_answers` (luồng học tập của học sinh), hai bảng `guest_devices`, `guest_activities` (luồng khách tham quan, mục 13), tổng **37 bảng**.
+(mục 5 đến 11): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học), các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi), năm bảng đa ngôn ngữ (luồng đa ngôn ngữ), bảng `heritage_models` (luồng mô hình 3D), bảng `attempt_answer_parts` cùng hai cột mới của `attempt_answers` (luồng học tập của học sinh), hai bảng `guest_devices`, `guest_activities` (luồng khách tham quan, mục 13), bảng `ad_unlocks` (luồng quảng cáo Google có thưởng, mục 14), tổng **38 bảng**.
 
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
-| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7); `20261006150550_ThemCauTraLoiTungPhan.cs` (phần v4 của luồng học tập, xem mục 11); `20261006162139_ThemMoHinh3DCuaDiSan.cs` (bảng mô hình 3D, xem mục 8); `20261006172743_ThemRangBuocGoiVaThanhToan.cs` (chỉ mục của nhóm Thanh toán, xem mục 9); `20261006193419_ThemKhachThamQuanVaLichSu.cs` (hai bảng của khách tham quan, xem mục 13) |
-| Số liệu | **37 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ + `heritage_models` + `attempt_answer_parts` + `guest_devices` + `guest_activities`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ + 17 cột của `heritage_models` + 11 cột của luồng học tập (9 của `attempt_answer_parts`, 2 của `attempt_answers`) + 14 cột của hai bảng khách tham quan (7 + 7) = **345 trong database** · 58 khóa ngoại (4 Cascade) · 45 CHECK · 10 UNIQUE có lọc · 16 UNIQUE thường · 21 kiểu enum (31 cột) |
+| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7); `20261006150550_ThemCauTraLoiTungPhan.cs` (phần v4 của luồng học tập, xem mục 11); `20261006162139_ThemMoHinh3DCuaDiSan.cs` (bảng mô hình 3D, xem mục 8); `20261006172743_ThemRangBuocGoiVaThanhToan.cs` (chỉ mục của nhóm Thanh toán, xem mục 9); `20261006193419_ThemKhachThamQuanVaLichSu.cs` (hai bảng của khách tham quan, xem mục 13); `20261006205730_ThemLuotMoKhoaQuangCao.cs` (bảng lượt mở khóa quảng cáo, xem mục 14) |
+| Số liệu | **38 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ + `heritage_models` + `attempt_answer_parts` + `guest_devices` + `guest_activities` + `ad_unlocks`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ + 17 cột của `heritage_models` + 11 cột của luồng học tập (9 của `attempt_answer_parts`, 2 của `attempt_answers`) + 14 cột của hai bảng khách tham quan (7 + 7) + 9 cột của `ad_unlocks` = **354 trong database** · 60 khóa ngoại (4 Cascade) · 49 CHECK · 10 UNIQUE có lọc · 17 UNIQUE thường · 22 kiểu enum (33 cột) |
 | Dữ liệu khởi tạo trong migration khởi tạo | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
 
@@ -119,8 +119,8 @@ Khác biệt kỹ thuật, không đổi ý nghĩa lược đồ: tên khóa ch�
 ## 4. Kiểm thử trên SQL Server
 
 Ngoài bộ test trên SQLite trong bộ nhớ, lớp `SqlServerDatabaseTests` chạy trên **database tạm của LocalDB** (tên
-`dsvhvn_tam_a2_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (37 bảng, 345 cột, 58 khóa ngoại,
-bốn Cascade, 45 CHECK, 10 UNIQUE có lọc đúng điều kiện, 18 khóa ngoại được NULL, 31 cột enum `nvarchar(20)`, DEFAULT của cột bit và của ngôn ngữ thiết bị,
+`dsvhvn_tam_a2_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (38 bảng, 354 cột, 60 khóa ngoại,
+bốn Cascade, 49 CHECK, 10 UNIQUE có lọc đúng điều kiện, 18 khóa ngoại được NULL, 33 cột enum `nvarchar(20)`, DEFAULT của cột bit và của ngôn ngữ thiết bị,
 collation), dữ liệu di sản, luồng web quản trị qua HTTP và các ràng buộc của tài khoản học sinh, bài học, thanh toán; xong thì
 xóa database tạm. Máy không có LocalDB thì các test này được bỏ qua (Skip); không có thư mục dữ liệu di sản thì bỏ qua riêng
 test nạp di sản.
@@ -236,7 +236,7 @@ Doanh thu của tổng quan hệ thống đọc thẳng `payments` (SUCCEEDED, `
 ## 13. Phần CSDL v4 của luồng "Khách tham quan trên web và app"
 
 Migration `ThemKhachThamQuanVaLichSu` (06/10/2026) thêm hai bảng của nhóm Khách tham quan và quảng cáo trong `dsvhvn-v4.dbml`; không sửa bảng cũ, nên chạy được trên CSDL có dữ liệu. Bảng `ad_unlocks` của
-nhóm này thuộc luồng Quảng cáo Google có thưởng, chưa thêm.
+nhóm này thêm ở luồng Quảng cáo Google có thưởng (mục 14).
 
 | Bảng mới | Cột | Ràng buộc |
 |---|---|---|
@@ -249,3 +249,18 @@ nhóm này thuộc luồng Quảng cáo Google có thưởng, chưa thêm.
 
 Số liệu sau migration: 37 bảng, 345 cột (thêm 14), 58 khóa ngoại (thêm 2, Restrict), 45 CHECK (thêm 5), 10 UNIQUE có lọc, 16 UNIQUE thường (thêm 1), 31 cột enum (thêm 4), hai DEFAULT mới (`language_code`, `location_allowed`).
 Chi tiết luồng: [khach-tham-quan.md](khach-tham-quan.md).
+
+## 14. Phần CSDL v4 của luồng "Quảng cáo Google có thưởng"
+
+Migration `ThemLuotMoKhoaQuangCao` (06/10/2026) thêm bảng `ad_unlocks` của nhóm Khách tham quan và quảng cáo trong `dsvhvn-v4.dbml`; không sửa bảng cũ, nên chạy được trên CSDL có dữ liệu.
+
+| Bảng mới | Cột | Ràng buộc |
+|---|---|---|
+| `ad_unlocks` | `id`, `guest_device_id`, `heritage_id`, `platform` (`ANDROID`, `IOS`, `WEB`), `ad_network` (`ADMOB`, `AD_MANAGER`), `transaction_id` (255), `ad_unit_id` (100, được NULL), `unlocked_at`, `expires_at` | UNIQUE thường `UX_ad_unlocks_network_transaction` (`ad_network`, `transaction_id`); CHECK `CK_ad_unlocks_platform`, `CK_ad_unlocks_ad_network`, `CK_ad_unlocks_network_platform` (AdMob chỉ Android hoặc iOS, Ad Manager chỉ web), `CK_ad_unlocks_expiry` (`expires_at` > `unlocked_at`); chỉ mục `IX_ad_unlocks_device_heritage` (`guest_device_id`, `heritage_id`, `expires_at`); khóa ngoại `fk_ad_unlocks_guest_device_id`, `fk_ad_unlocks_heritage_id` **Restrict** |
+
+- Không có `deleted_at`: lượt mở khóa **xóa hẳn** khi cũ hơn 12 tháng (tác vụ nền). Không có bảng chiến dịch quảng cáo, không lưu doanh thu, địa chỉ IP, mã quảng cáo của người xem hay nội dung quảng cáo.
+- Nguồn báo không có cột riêng: suy từ `ad_network` (AdMob do máy chủ xác minh với Google, Ad Manager do trình duyệt báo).
+- Mã thao tác mới `AD_REWARD_REJECTED` của `audit_logs.action` (cột không có CHECK): phần thưởng bị từ chối, `target_type` = `ad_unlocks`, `new_value` ghi lý do, mạng quảng cáo, nền tảng; lượt hợp lệ và lần gọi lại trùng mã giao dịch không ghi.
+
+Số liệu sau migration: 38 bảng, 354 cột (thêm 9), 60 khóa ngoại (thêm 2, Restrict), 49 CHECK (thêm 4), 10 UNIQUE có lọc, 17 UNIQUE thường (thêm 1), 33 cột enum (thêm 2), không thêm DEFAULT.
+Chi tiết luồng: [quang-cao-google.md](quang-cao-google.md).
