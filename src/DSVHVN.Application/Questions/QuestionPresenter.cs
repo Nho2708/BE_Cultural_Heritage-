@@ -36,10 +36,11 @@ public static class QuestionAccessRules
             CanDuplicate: !hidden && q.ReviewStatus == ReviewStatus.APPROVED);
     }
 
-    /// <summary>Quản trị hệ thống xem chỉ đọc mọi câu đã duyệt hoặc đã bị ẩn; ẩn được câu đã duyệt.</summary>
+    /// <summary>Quản trị hệ thống xem chỉ đọc mọi câu đã duyệt hoặc đã bị ẩn; ẩn được câu đã duyệt, hiện lại được câu đã bị ẩn.</summary>
     public static QuestionAccessDto ForAdmin(Question q) => new(
         true, null, null, false, false, false, false, false,
-        CanHide: q.ReviewStatus == ReviewStatus.APPROVED);
+        CanHide: q.ReviewStatus == ReviewStatus.APPROVED,
+        CanRestore: q.ReviewStatus == ReviewStatus.REJECTED);
 
     /// <summary>Câu thông báo câu hỏi chỉ đọc kèm hướng dẫn (hai lý do đầu cho nhân bản, câu bị ẩn thì tạo câu mới).</summary>
     public static string ReadOnlyText(QuestionReadOnlyReason reason) => reason switch
