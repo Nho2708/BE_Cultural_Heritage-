@@ -1,3 +1,4 @@
+using DSVHVN.Application.Ads;
 using DSVHVN.Application.Billing;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Discovery;
@@ -7,6 +8,7 @@ using DSVHVN.Application.Questions;
 using DSVHVN.Application.Recommendations;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Translations;
+using DSVHVN.Infrastructure.Ads;
 using DSVHVN.Infrastructure.Ai;
 using DSVHVN.Infrastructure.Background;
 using DSVHVN.Infrastructure.Files;
@@ -18,6 +20,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DSVHVN.Infrastructure;
@@ -50,6 +53,7 @@ public static class DependencyInjection
         services.AddLessonAi(configuration);
         services.AddFileStorage(configuration);
         services.AddBilling(configuration);
+        services.AddAds(configuration);
 
         // Liên kết xem trước bản nháp di sản: mã ký bằng khóa của máy chủ, hạn Preview:CodeMinutes (mặc định 30 phút), không có bảng.
         services.AddOptions<PreviewOptions>().Bind(configuration.GetSection(PreviewOptions.Section)).ValidateOnStart();
@@ -68,6 +72,25 @@ public static class DependencyInjection
         services.AddOptions<StudentSheetOptions>().Bind(configuration.GetSection(StudentSheetOptions.Section));
         services.AddSingleton<IStudentListFile, StudentListFileReader>();
         return services;
+    }
+
+    /// <summary>
+    /// Quảng cáo Google có thưởng: <c>Ads</c> (bật cổng, đơn vị quảng cáo AdMob của Android và iOS, đơn vị Ad Manager của web, địa chỉ danh sách khóa xác minh của Google). Khóa công khai của Google
+    /// tải bằng <see cref="HttpClient"/> dùng chung cho cả tiến trình và đệm trong bộ nhớ; mã giao dịch của web ký bằng khóa suy ra từ khóa JWT; bộ đếm tần suất nằm trong bộ nhớ.
+    /// Mặc định cổng tắt (không đơn vị quảng cáo nào) nên không cấu hình gì thì tóm tắt và nghe thuyết minh mở thẳng.
+    /// </summary>
+    private static void AddAds(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<AdsOptions>().Bind(configuration.GetSection(AdsOptions.Section));
+        services.AddSingleton<IAdMobKeyStore>(sp =>
+        {
+            var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+            var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+            return new GoogleAdMobKeyStore(http, sp.GetRequiredService<IOptions<AdsOptions>>(), sp.GetRequiredService<TimeProvider>(),
+                sp.GetRequiredService<ILogger<GoogleAdMobKeyStore>>());
+        });
+        services.AddSingleton<IAdRewardTokenCodec, HmacAdRewardTokenCodec>();
+        services.AddSingleton<IAdRewardThrottle, InMemoryAdRewardThrottle>();
     }
 
     /// <summary>

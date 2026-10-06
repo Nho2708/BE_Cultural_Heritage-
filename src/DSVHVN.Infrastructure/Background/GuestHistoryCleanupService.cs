@@ -1,3 +1,4 @@
+using DSVHVN.Application.Ads;
 using DSVHVN.Application.Guests;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -7,7 +8,7 @@ using Microsoft.Extensions.Options;
 namespace DSVHVN.Infrastructure.Background;
 
 /// <summary>
-/// Tác vụ nền xóa thật mọi lượt lịch sử của khách tham quan cũ hơn 90 ngày (quy tắc Lịch sử của khách). Chạy một lần lúc khởi động rồi theo chu kỳ của
+/// Tác vụ nền xóa thật mọi lượt lịch sử của khách tham quan cũ hơn 90 ngày (quy tắc Lịch sử của khách) và mọi lượt mở khóa quảng cáo cũ hơn 12 tháng. Chạy một lần lúc khởi động rồi theo chu kỳ của
 /// <see cref="GuestCleanupOptions"/>; lỗi một vòng chỉ ghi log, vòng sau chạy lại. Không ghi mã thiết bị hay nội dung lịch sử vào log, chỉ ghi số lượt đã xóa.
 /// </summary>
 public sealed class GuestHistoryCleanupService(IServiceScopeFactory scopes, IOptions<GuestCleanupOptions> options, ILogger<GuestHistoryCleanupService> logger)
@@ -30,6 +31,10 @@ public sealed class GuestHistoryCleanupService(IServiceScopeFactory scopes, IOpt
                 using var scope = scopes.CreateScope();
                 var deleted = await scope.ServiceProvider.GetRequiredService<GuestService>().PurgeExpiredAsync(stoppingToken);
                 if (deleted > 0) logger.LogInformation("Đã xóa {Deleted} lượt lịch sử khách tham quan quá 90 ngày.", deleted);
+
+                // Cùng chu kỳ: lượt mở khóa bằng quảng cáo giữ 12 tháng rồi xóa thật.
+                var unlocks = await scope.ServiceProvider.GetRequiredService<AdUnlockService>().PurgeExpiredAsync(stoppingToken);
+                if (unlocks > 0) logger.LogInformation("Đã xóa {Deleted} lượt mở khóa quảng cáo quá 12 tháng.", unlocks);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
