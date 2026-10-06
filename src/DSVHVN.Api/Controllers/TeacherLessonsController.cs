@@ -18,7 +18,7 @@ namespace DSVHVN.Api.Controllers;
 [Authorize(Policy = Policies.Teacher)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
-public sealed class TeacherLessonsController(LessonService lessons, LessonAiService ai) : ApiControllerBase
+public sealed class TeacherLessonsController(LessonService lessons, LessonAiService ai, StudentLessonService studentView) : ApiControllerBase
 {
     /// <summary>Danh sách bài học của giáo viên ở mọi lớp: tiêu đề, lớp, di sản, trạng thái, mã bài học, số bài kiểm tra. Lọc theo lớp, trạng thái, loại di sản, từ khóa trong tiêu đề.</summary>
     [HttpGet]
@@ -55,6 +55,18 @@ public sealed class TeacherLessonsController(LessonService lessons, LessonAiServ
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<LessonDetailDto>>> Get(long lessonId, CancellationToken ct)
         => OkEnvelope(await lessons.GetAsync(CurrentActor, lessonId, ct));
+
+    /// <summary>
+    /// Xem như học sinh (nút của Soạn bài học): trả bài đúng khung, luồng và dữ liệu mà học sinh lớp này thấy (cùng cấu trúc <c>StudentLessonDto</c> của API học sinh),
+    /// kể cả bài Nháp chưa có mã. Chỉ giáo viên của bài; bài của người khác 404, quản trị trường và quản trị hệ thống 403. Không ghi gì (không lượt làm bài,
+    /// tiến độ, lịch sử), không gọi Dịch vụ AI, không tính lượt AI; bài kiểm tra chỉ để xem câu hỏi.
+    /// </summary>
+    [HttpGet("{lessonId:long}/preview")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<ApiResponse<LessonPreviewDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<LessonPreviewDto>>> PreviewAsStudent(long lessonId, CancellationToken ct)
+        => OkEnvelope(await studentView.PreviewAsync(CurrentActor, lessonId, ct));
 
     /// <summary>
     /// Lưu bài (Nháp hoặc Đã xuất bản). Trường null thì giữ nguyên, có giá trị thì thay toàn bộ. Loại phần phải thuộc khung của cấp lớp, hình và

@@ -39,6 +39,7 @@ Khuôn phản hồi chung `{ success, data, message, errorCode, traceId, errors 
 | POST | `/teacher/lessons/{lessonId}/publish` | — | 200 `{ lesson, codeCreated, accessCode, message }`; lần đầu sinh mã (`message` là câu "Đã xuất bản bài học. Mã bài học: …"), xuất bản lại giữ mã | 404; 422 `NOT_READY` ("Chưa đủ điều kiện xuất bản bài học. Còn thiếu: …") |
 | POST | `/teacher/lessons/{lessonId}/archive` | — | 200 | 404; 422 `BLOCKED` (bài Nháp; bài còn bài kiểm tra đang mở) |
 | POST | `/teacher/lessons/{lessonId}/duplicate` | `{ targetClassId }` | 201 `{ lesson, skippedHeritages, levelNotice, message }` | 400 (lớp đích trùng lớp nguồn); 404; 422 `PLAN_REQUIRED` |
+| GET | `/teacher/lessons/{lessonId}/preview` | "Xem như học sinh" (mục 4.8) | 200 `{ lesson, status, quizzesViewOnly }`; `lesson` cùng cấu trúc `StudentLessonDto` của API học sinh, `accessCode` rỗng khi bài Nháp | 401; 403 (không phải giáo viên); 404 (bài của người khác) |
 | GET | `/teacher/lessons/{lessonId}/materials` | — | 200 `{ images[], events[] }`: ảnh (kèm ghi công tách tác giả, giấy phép, nguồn) và sự kiện trên dòng thời gian của các di sản đang xuất bản của bài, để chọn hình và mốc thời gian | 404 |
 | POST | `/teacher/lessons/{lessonId}/ai/compose` | `{ length? }` = `SHORT` / `MEDIUM` (mặc định) / `DETAILED` | 200 **bản nháp** `{ generationId, level, length, summary, keyPoints[], sections[], wordCount, warnings[], model, aiQuota, message }` | 400; 404; 422 `PLAN_REQUIRED`, `AI_QUOTA_REACHED`, `BLOCKED`; 503 `AI_UNAVAILABLE` |
 | GET | `/teacher/lessons/ai-quota` | — | 200 `{ hasEffectivePlan, planName, used, max, remaining, periodStart, periodEnd }` | — |
@@ -132,6 +133,16 @@ Không nhập mã lần hai để làm bài kiểm tra. Việc học các bướ
 "Sai" gồm mọi trường hợp bị từ chối ở mục 4.6, kể cả mã **đúng của lớp khác**. Lần sai làm khóa bắt đầu và mọi lần nhập khi đang bị chặn trả **429** `LESSON_CODE_BLOCKED`
 ("Em đã nhập sai mã quá nhiều lần. Em hãy thử lại sau N phút."); khi bị chặn, **mã đúng cũng chưa mở được**. Mở bài thành công không xóa bộ đếm. Học sinh bị chặn vẫn dùng các chức năng khác
 (xem lớp, làm bài kiểm tra đã mở). Địa chỉ mã trong đường dẫn được che khỏi log lỗi (`/api/v1/student/lessons/{code}`).
+
+### 4.8 Xem như học sinh
+
+Nút "Xem như học sinh" của Soạn bài học gọi `GET /teacher/lessons/{lessonId}/preview`: trả bài **đúng khung, luồng và dữ liệu mà học sinh lớp đó thấy** (cùng cách dựng với mục 4.6: phần nội dung đã lọc theo
+khung của cấp, ý chính, thẻ di sản đang xuất bản, bài kiểm tra đã phát hành hoặc đã đóng), kể cả bài **Nháp** chưa có mã và bài Lưu trữ; kèm `status` để hiện dải "Đang xem như học sinh, không lưu kết quả".
+
+- Chỉ **giáo viên của bài** (đúng phạm vi như xem chi tiết bài): bài của giáo viên khác hay trường khác 404; quản trị trường, quản trị hệ thống, học sinh 403; chưa đăng nhập 401. Không mở trang công khai của di sản.
+- **Chỉ đọc**: không tạo lượt làm bài, không ghi tiến độ hay lịch sử, không gọi Dịch vụ AI, không tính lượt AI, không đếm vào giới hạn nhập mã, không ghi nhật ký, không đổi `updated_at`. Phản hồi không lưu đệm.
+- Bài kiểm tra hiện như học sinh **chưa làm** (trạng thái chưa mở, đang mở, đã đóng theo giờ), bài kiểm tra Nháp không hiện; `quizzesViewOnly` luôn `true` để giao diện chỉ cho xem câu hỏi, không nộp bài.
+- Kiểm thử: `Integration/TeacherLessonPreviewApiTests` (bố cục từng cấp 1, 2, 3 cho bài Nháp; trước và sau khi xuất bản khớp từng phần với bài học sinh mở bằng mã; không ghi gì và không tính lượt AI; phân quyền).
 
 ## 5. AI soạn nội dung bài học
 

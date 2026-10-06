@@ -1,6 +1,7 @@
 using DSVHVN.Application.Common;
 using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Enums;
+using DSVHVN.Domain.Lessons;
 using DSVHVN.Domain.Rules;
 using Microsoft.EntityFrameworkCore;
 
@@ -67,7 +68,29 @@ public sealed class StudentLessonService(
             throw AppException.NotFound(Messages.LessonCodeInvalid);
         }
 
-        var level = SchoolClass.SchoolLevelOf(student.Grade);
+        return await BuildAsync(lesson, student.Grade, student.ClassName, student.TeacherName, student.Id, ct);
+    }
+
+    /// <summary>
+    /// Giáo viên phụ trách bài xem thử bài như học sinh của lớp (nút "Xem như học sinh" ở Soạn bài học): đúng khung và luồng của cấp lớp,
+    /// kể cả bài Nháp chưa có mã và bài Lưu trữ. <b>Chỉ đọc, không ghi gì</b>: không tạo lượt làm bài, tiến độ hay lịch sử, không gọi Dịch vụ AI,
+    /// không tính lượt AI, không đếm vào giới hạn nhập mã. Bài kiểm tra hiện như học sinh chưa làm (trạng thái tính theo giờ mở, đóng) và
+    /// có <see cref="LessonPreviewDto.QuizzesViewOnly"/> để giao diện chỉ cho xem câu hỏi, không nộp. Bài của giáo viên khác hoặc trường khác trả 404;
+    /// vai trò khác giáo viên trả 403.
+    /// </summary>
+    public async Task<LessonPreviewDto> PreviewAsync(Actor actor, long lessonId, CancellationToken ct)
+    {
+        if (actor.Role != RoleCode.TEACHER) throw AppException.Forbidden(Messages.Forbidden);
+        var lesson = await db.FindLessonAsync(actor, lessonId, "xem như học sinh", tracking: false, ct);
+        var teacherName = await db.Users.AsNoTracking().Where(u => u.Id == actor.UserId).Select(u => u.FullName).SingleOrDefaultAsync(ct);
+        var view = await BuildAsync(lesson, lesson.Class!.Grade, lesson.Class.Name, teacherName, studentId: null, ct);
+        return new LessonPreviewDto(view, lesson.Status, QuizzesViewOnly: true);
+    }
+
+    private async Task<StudentLessonDto> BuildAsync(
+        Lesson lesson, byte grade, string? className, string? teacherName, long? studentId, CancellationToken ct)
+    {
+        var level = SchoolClass.SchoolLevelOf(grade);
         var frame = LessonFrames.For(level);
 
         var heritages = await db.LessonHeritages.AsNoTracking()
@@ -88,14 +111,14 @@ public sealed class StudentLessonService(
             .Select(s => LessonMapper.ToStudentDto(s, materials)).ToList();
 
         return new StudentLessonDto(
-            lesson.Id, lesson.AccessCode!, lesson.Title, student.ClassName, student.TeacherName, level, SchoolLevels.NameOf(level),
+            lesson.Id, lesson.AccessCode ?? string.Empty, lesson.Title, className, teacherName, level, SchoolLevels.NameOf(level),
             new StudentLayoutDto(frame.Layout, frame.SequentialFlow, frame.Flow),
             lesson.Summary, LessonJson.ParseKeyPoints(lesson.KeyPoints), sections, heritages,
-            await LoadQuizzesAsync(lesson.Id, student.Id, ct));
+            await LoadQuizzesAsync(lesson.Id, studentId, ct));
     }
 
     /// <summary>Bài kiểm tra đã phát hành hoặc đã đóng của bài; DRAFT không hiện. Trạng thái tính riêng cho em từ lượt làm bài của em.</summary>
-    private async Task<List<StudentQuizDto>> LoadQuizzesAsync(long lessonId, long studentId, CancellationToken ct)
+    private async Task<List<StudentQuizDto>> LoadQuizzesAsync(long lessonId, long? studentId, CancellationToken ct)
     {
         var now = clock.GetUtcNow().UtcDateTime;
         var quizzes = await db.Quizzes.AsNoTracking()
@@ -105,7 +128,7 @@ public sealed class StudentLessonService(
             {
                 q.Id, q.Name, q.Description, q.OpenAt, q.CloseAt, q.TimeLimitMinutes, q.Status,
                 Questions = q.Questions.Count,
-                Attempt = db.Attempts.Where(a => a.QuizId == q.Id && a.StudentId == studentId).Select(a => a.Status).FirstOrDefault(),
+                Attempt = studentId == null ? null : db.Attempts.Where(a => a.QuizId == q.Id && a.StudentId == studentId).Select(a => (AttemptStatus?)a.Status).FirstOrDefault(),
             })
             .ToListAsync(ct);
 

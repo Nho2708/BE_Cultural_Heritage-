@@ -140,7 +140,15 @@ public sealed class DiscoveryService(IAppDbContext db)
     public async Task<PublicHeritageDetailDto> GetDetailAsync(string? slug, CancellationToken ct)
     {
         var heritage = await FindPublishedAsync(slug, "xem di sản", withProvince: true, ct);
+        return await BuildDetailAsync(heritage, ct);
+    }
 
+    /// <summary>
+    /// Dựng chi tiết công khai từ một di sản đã nạp kèm tỉnh. Dùng chung cho trang chi tiết (di sản đã xuất bản) và trang xem trước bản nháp của
+    /// quản trị hệ thống, để hai nơi hiện đúng cùng một dữ liệu; việc kiểm trạng thái là của người gọi.
+    /// </summary>
+    public async Task<PublicHeritageDetailDto> BuildDetailAsync(Heritage heritage, CancellationToken ct)
+    {
         var media = HeritageMapper.OrderMedia(
             await db.Media.AsNoTracking().Where(m => m.HeritageId == heritage.Id).ToListAsync(ct)).ToList();
         var references = await db.HeritageReferences.AsNoTracking()
@@ -173,7 +181,12 @@ public sealed class DiscoveryService(IAppDbContext db)
     public async Task<PublicTimelineDto> GetTimelineAsync(string? slug, CancellationToken ct)
     {
         var heritage = await FindPublishedAsync(slug, "xem dòng thời gian", withProvince: true, ct);
+        return await BuildTimelineAsync(heritage, ct);
+    }
 
+    /// <summary>Dựng timeline đầy đủ từ một di sản đã nạp kèm tỉnh (dùng chung với trang xem trước bản nháp); việc kiểm trạng thái là của người gọi.</summary>
+    public async Task<PublicTimelineDto> BuildTimelineAsync(Heritage heritage, CancellationToken ct)
+    {
         var timelines = await db.Timelines.AsNoTracking().Include(t => t.Events)
             .Where(t => t.HeritageId == heritage.Id).ToListAsync(ct);
         var eventMedia = (await db.Media.AsNoTracking()

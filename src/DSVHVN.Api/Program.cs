@@ -76,6 +76,7 @@ if (args.Contains("--chi-khoi-tao-csdl")) return;
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseMiddleware<PreviewNoIndexMiddleware>();
 app.UseMiddleware<ExceptionEnvelopeMiddleware>();
 
 if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))

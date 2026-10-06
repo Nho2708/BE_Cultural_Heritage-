@@ -75,8 +75,8 @@ không dùng khóa API nào). Chọn bản bằng cấu hình `Ai:Mode`: `Simula
 
 ## Kho tệp tải lên (ảnh, mô hình 3D)
 
-Ảnh di sản, ảnh sự kiện và mô hình 3D (`.glb`) tải lên được lưu qua giao diện `IFileStorage`, chọn nhà cung cấp bằng `Storage:Provider`: `Local` (mặc định, lưu trên đĩa máy chủ) hoặc `Cloud`
-(**chỗ để sẵn cho dịch vụ đám mây, chưa có bản cài đặt**; chọn thì Api dừng lúc khởi động và báo rõ). Bản `Local` lưu trong thư mục `Storage:Local:RootPath` (mặc định `storage`, tính từ thư mục chạy
+Ảnh di sản, ảnh sự kiện và mô hình 3D (`.glb`) tải lên được lưu qua giao diện `IFileStorage`, chọn nhà cung cấp bằng `Storage:Provider`: `Local` (mặc định, lưu trên đĩa máy chủ, cho phát triển và kiểm thử) hoặc `Cloudinary`
+(khi triển khai: ảnh và mô hình nằm trên Cloudinary, địa chỉ là URL HTTPS; thiếu khóa thì Api dừng lúc khởi động và báo tên khóa còn thiếu). Bản `Local` lưu trong thư mục `Storage:Local:RootPath` (mặc định `storage`, tính từ thư mục chạy
 của Api, đã nằm trong `.gitignore`) và phục vụ tệp qua đường dẫn `/files/...` không cần đăng nhập, chỉ cho đuôi `jpg`, `png`, `webp`, `glb`. Ngoài máy phát triển nên đặt thư mục **ngoài mã nguồn** và sao lưu nó:
 
 ```bash
@@ -84,7 +84,22 @@ export Storage__Local__RootPath=/var/lib/dsvhvn/tep         # Windows: set Stora
 export Storage__PublicBaseUrl=https://api.dsvhvn.vn         # tùy chọn: web học tập và app ở địa chỉ khác API thì đặt địa chỉ đủ; để trống thì đường dẫn tệp là /files/...
 ```
 
-Quy tắc ảnh, mô hình, endpoint và cách kiểm thử: [docs/tai-tep-len.md](docs/tai-tep-len.md).
+Dùng Cloudinary: tên đám mây, khóa API và bí mật API **chỉ** ở User Secrets hoặc biến môi trường, không vào tệp cấu hình hay mã:
+
+```bash
+dotnet user-secrets set "Storage:Cloudinary:CloudName" "<cloud name>" --project src/DSVHVN.Api
+dotnet user-secrets set "Storage:Cloudinary:ApiKey"    "<api key>"    --project src/DSVHVN.Api
+dotnet user-secrets set "Storage:Cloudinary:ApiSecret" "<api secret>" --project src/DSVHVN.Api
+export Storage__Provider=Cloudinary                          # Windows: set Storage__Provider=Cloudinary (hoặc đặt trong biến môi trường của máy chủ)
+```
+
+Quy tắc ảnh, mô hình, endpoint, cách tạo tài khoản Cloudinary và cách kiểm thử: [docs/tai-tep-len.md](docs/tai-tep-len.md).
+
+## Xem trước bản nháp di sản và xem như học sinh
+
+- **Quản trị hệ thống**: `POST /api/v1/admin/heritages/{id}/preview` cấp liên kết xem trước (hạn `Preview:CodeMinutes`, mặc định 30 phút) cho di sản chưa xuất bản; trang xem trước của web học tập đọc bản nháp qua
+  `GET /api/v1/preview/heritages/{mã}` (kèm token quản trị hệ thống). Di sản đã xuất bản dùng trang công khai bình thường. Chi tiết: [docs/kho-di-san.md](docs/kho-di-san.md) mục 9.
+- **Giáo viên**: `GET /api/v1/teacher/lessons/{lessonId}/preview` ("Xem như học sinh") trả bài đúng bố cục của cấp lớp, kể cả bài Nháp, không ghi gì. Chi tiết: [docs/bai-hoc-theo-cap.md](docs/bai-hoc-theo-cap.md) mục 4.8.
 
 ## Thư đặt mật khẩu
 

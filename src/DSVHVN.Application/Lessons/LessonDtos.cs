@@ -241,3 +241,9 @@ public sealed record StudentLessonDto(
     IReadOnlyList<StudentSectionDto> Sections,
     IReadOnlyList<StudentHeritageCardDto> Heritages,
     IReadOnlyList<StudentQuizDto> Quizzes);
+
+/// <summary>
+/// Xem thử của giáo viên ("Xem như học sinh"): đúng bài học như học sinh lớp đó thấy, kèm trạng thái hiện tại của bài (Nháp, Đã xuất bản, Lưu trữ)
+/// cho dải "Đang xem như học sinh, không lưu kết quả". <see cref="QuizzesViewOnly"/> luôn true: bài kiểm tra chỉ xem câu hỏi, không nộp được.
+/// </summary>
+public sealed record LessonPreviewDto(StudentLessonDto Lesson, ContentStatus? Status, bool QuizzesViewOnly);

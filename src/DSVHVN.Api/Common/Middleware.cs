@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Files;
 
 namespace DSVHVN.Api.Common;
 
@@ -41,6 +42,13 @@ public sealed class ExceptionEnvelopeMiddleware(RequestDelegate next, ILogger<Ex
             context.Response.Clear();
             await ApiJson.WriteFailAsync(context, ex.StatusCode, ex.AppMessage, ex.Errors);
         }
+        catch (FileStorageException ex) when (!context.Response.HasStarted)
+        {
+            // Chỉ ghi loại lỗi và đường dẫn, không ghi nội dung chi tiết có thể do dịch vụ ngoài trả về.
+            logger.LogWarning(ex, "Kho lưu trữ tệp lỗi ở {Path}", LoggablePath(context.Request.Path));
+            context.Response.Clear();
+            await ApiJson.WriteFailAsync(context, StatusCodes.Status503ServiceUnavailable, Messages.StorageUnavailable);
+        }
         catch (BadHttpRequestException ex) when (!context.Response.HasStarted)
         {
             // Tệp tải lên vượt giới hạn của yêu cầu (413) hoặc yêu cầu multipart hỏng: báo như dữ liệu không hợp lệ, không phải lỗi hệ thống.
@@ -68,7 +76,9 @@ public sealed class ExceptionEnvelopeMiddleware(RequestDelegate next, ILogger<Ex
     /// phần mã được che.
     /// </summary>
     public static string LoggablePath(PathString path) =>
-        path.StartsWithSegments("/api/v1/student/lessons") ? "/api/v1/student/lessons/{code}" : path.Value ?? string.Empty;
+        path.StartsWithSegments("/api/v1/student/lessons") ? "/api/v1/student/lessons/{code}"
+        : path.StartsWithSegments(PreviewNoIndexMiddleware.PathPrefix) ? PreviewNoIndexMiddleware.PathPrefix + "/{code}"
+        : path.Value ?? string.Empty;
 }
 
 /// <summary>Header bảo mật cơ bản cho API JSON.</summary>
@@ -80,6 +90,31 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
         headers["X-Content-Type-Options"] = "nosniff";
         headers["X-Frame-Options"] = "DENY";
         headers["Referrer-Policy"] = "no-referrer";
+        return next(context);
+    }
+}
+
+/// <summary>
+/// Trang xem trước bản nháp di sản không được lập chỉ mục và không được lưu đệm: mọi phản hồi dưới <c>/api/v1/preview</c> (kể cả 404) mang
+/// <c>X-Robots-Tag: noindex</c> và <c>Cache-Control: no-store</c>. Đặt ở lúc bắt đầu gửi phản hồi nên không bị bộ lọc khác ghi đè.
+/// </summary>
+public sealed class PreviewNoIndexMiddleware(RequestDelegate next)
+{
+    public const string PathPrefix = "/api/v1/preview";
+
+    public Task InvokeAsync(HttpContext context)
+    {
+        if (context.Request.Path.StartsWithSegments(PathPrefix))
+        {
+            context.Response.OnStarting(() =>
+            {
+                var headers = context.Response.Headers;
+                headers["X-Robots-Tag"] = "noindex, nofollow, noarchive";
+                headers.CacheControl = "no-store";
+                headers.Pragma = "no-cache";
+                return Task.CompletedTask;
+            });
+        }
         return next(context);
     }
 }
