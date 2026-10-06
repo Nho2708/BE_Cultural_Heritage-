@@ -81,6 +81,7 @@ public static class AuditLabels
         AuditAction.SUBSCRIPTION_CHANGED => "Đổi gói của trường",
         AuditAction.BILLING_STATUS_CHANGED => "Hệ thống đổi trạng thái gói, hóa đơn, giao dịch",
         AuditAction.IPN_REJECTED => "Từ chối IPN",
+        AuditAction.AD_REWARD_REJECTED => "Từ chối phần thưởng quảng cáo",
         _ => action.ToString(),
     };
 

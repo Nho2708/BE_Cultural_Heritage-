@@ -484,6 +484,82 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.ToTable("students", (string)null);
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Guests.AdUnlock", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AdNetwork")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("ad_network");
+
+                    b.Property<string>("AdUnitId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("ad_unit_id");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("expires_at");
+
+                    b.Property<long>("GuestDeviceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("guest_device_id");
+
+                    b.Property<long>("HeritageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("heritage_id");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("platform");
+
+                    b.Property<string>("TransactionId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("transaction_id");
+
+                    b.Property<DateTime>("UnlockedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("unlocked_at");
+
+                    b.HasKey("Id")
+                        .HasName("PK_ad_unlocks");
+
+                    b.HasIndex("HeritageId");
+
+                    b.HasIndex("AdNetwork", "TransactionId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ad_unlocks_network_transaction");
+
+                    b.HasIndex("GuestDeviceId", "HeritageId", "ExpiresAt")
+                        .HasDatabaseName("IX_ad_unlocks_device_heritage");
+
+                    b.ToTable("ad_unlocks", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ad_unlocks_ad_network", "[ad_network] IN ('ADMOB', 'AD_MANAGER')");
+
+                            t.HasCheckConstraint("CK_ad_unlocks_expiry", "[expires_at] > [unlocked_at]");
+
+                            t.HasCheckConstraint("CK_ad_unlocks_network_platform", "([ad_network] = 'ADMOB' AND [platform] IN ('ANDROID', 'IOS')) OR ([ad_network] = 'AD_MANAGER' AND [platform] = 'WEB')");
+
+                            t.HasCheckConstraint("CK_ad_unlocks_platform", "[platform] IN ('ANDROID', 'IOS', 'WEB')");
+                        });
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Guests.GuestActivity", b =>
                 {
                     b.Property<long>("Id")
@@ -2536,6 +2612,27 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("Class");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Guests.AdUnlock", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Guests.GuestDevice", "GuestDevice")
+                        .WithMany()
+                        .HasForeignKey("GuestDeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_ad_unlocks_guest_device_id");
+
+                    b.HasOne("DSVHVN.Domain.Heritages.Heritage", "Heritage")
+                        .WithMany()
+                        .HasForeignKey("HeritageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_ad_unlocks_heritage_id");
+
+                    b.Navigation("GuestDevice");
+
+                    b.Navigation("Heritage");
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Guests.GuestActivity", b =>

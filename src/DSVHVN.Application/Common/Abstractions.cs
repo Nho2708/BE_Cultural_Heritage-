@@ -15,7 +15,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 namespace DSVHVN.Application.Common;
 
 /// <summary>
-/// Cổng vào CSDL cho tầng Application: 27 bảng của CSDL v3 và các bảng của CSDL v4 đã thêm theo từng luồng (hiện có lesson_sections, năm bảng đa ngôn ngữ, mô hình 3D và hai bảng của khách tham quan).
+/// Cổng vào CSDL cho tầng Application: 27 bảng của CSDL v3 và các bảng của CSDL v4 đã thêm theo từng luồng (hiện có lesson_sections, năm bảng đa ngôn ngữ, mô hình 3D và ba bảng của khách tham quan và quảng cáo).
 /// Thay đổi lược đồ về sau đi qua migration mới.
 /// </summary>
 public interface IAppDbContext
@@ -45,6 +45,7 @@ public interface IAppDbContext
 
     DbSet<GuestDevice> GuestDevices { get; }
     DbSet<GuestActivity> GuestActivities { get; }
+    DbSet<AdUnlock> AdUnlocks { get; }
 
     DbSet<Lesson> Lessons { get; }
     DbSet<LessonHeritage> LessonHeritages { get; }
