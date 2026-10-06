@@ -1,6 +1,7 @@
 using System.Globalization;
 using DSVHVN.Api.Security;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Guests;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Rules;
 using DSVHVN.Infrastructure.Security;
@@ -44,9 +45,39 @@ public abstract class ApiControllerBase : ControllerBase
     protected LanguageCode PublicLanguage(string? lang)
     {
         Response.Headers.Append("Vary", "Accept-Language");
-        if (User.Identity?.IsAuthenticated == true && User.FindFirst(JwtClaimNames.Role)?.Value == nameof(RoleCode.STUDENT))
-            return LanguageCode.vi;
+        if (IsStudentSession) return LanguageCode.vi;
         return Languages.Resolve(lang, Request.Headers.AcceptLanguage.ToString());
+    }
+
+    /// <summary>Yêu cầu mang phiên đăng nhập của học sinh: học sinh không bị ghi lịch sử khách và không dùng chức năng riêng của khách.</summary>
+    protected bool IsStudentSession =>
+        User.Identity?.IsAuthenticated == true && User.FindFirst(JwtClaimNames.Role)?.Value == nameof(RoleCode.STUDENT);
+
+    /// <summary>
+    /// Mã thiết bị của khách ở tiêu đề <c>X-Device-Key</c>: null khi không gửi; gửi mà sai định dạng (UUID phiên bản 4) thì 400. Mã đã đưa về chữ thường.
+    /// </summary>
+    protected string? OptionalDeviceKey()
+    {
+        var raw = Request.Headers[GuestHeaders.DeviceKey].ToString();
+        return string.IsNullOrWhiteSpace(raw) ? null : GuestService.RequireKey(raw);
+    }
+
+    /// <summary>Mã thiết bị bắt buộc ở tiêu đề <c>X-Device-Key</c> (thiếu hoặc sai định dạng thì 400).</summary>
+    protected string RequiredDeviceKey() => GuestService.RequireKey(Request.Headers[GuestHeaders.DeviceKey].ToString());
+
+    /// <summary>Nền tảng của thiết bị ở tiêu đề <c>X-Client-Platform</c> (ANDROID, IOS, WEB; không phân biệt hoa thường): null khi không gửi, sai giá trị thì 400.</summary>
+    protected ClientPlatform? ClientPlatformHeader()
+    {
+        var raw = Request.Headers[GuestHeaders.ClientPlatform].ToString();
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        if (Enum.TryParse<ClientPlatform>(raw.Trim(), ignoreCase: true, out var platform) && Enum.IsDefined(platform)) return platform;
+        throw AppException.Validation("platform", Messages.Invalid("Nền tảng", "chỉ nhận ANDROID, IOS hoặc WEB"));
+    }
+
+    /// <summary>Chức năng riêng của khách (gợi ý, lịch sử, "Gần bạn", cài đặt thiết bị): học sinh đã đăng nhập bị từ chối (403).</summary>
+    protected void RequireGuest()
+    {
+        if (IsStudentSession) throw AppException.Forbidden(GuestMessages.GuestOnly);
     }
 
     /// <summary>IP của yêu cầu cho nhật ký thao tác; IPv4 ánh xạ trong IPv6 đổi về dạng IPv4.</summary>
