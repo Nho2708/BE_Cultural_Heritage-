@@ -1,6 +1,7 @@
 using DSVHVN.Application.Billing;
 using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Quizzes;
 using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Lessons;
@@ -114,6 +115,13 @@ public sealed class LessonService(
             var keyword = query.Keyword.Trim();
             lessons = lessons.Where(l => l.Title != null && l.Title.Contains(keyword));
         }
+        if (query.Difficulty is { } difficulty)
+        {
+            // Độ khó của bài không lưu: tính từ các câu trong các bài kiểm tra chưa xóa của bài; bài chưa có bài kiểm tra nào có câu thì không khớp mức nào.
+            var allDifficulties = await LessonDifficultyReader.ReadAsync(db, lessons.Select(l => l.Id), ct);
+            var matching = allDifficulties.Where(x => x.Value == difficulty).Select(x => x.Key).ToList();
+            lessons = lessons.Where(l => matching.Contains(l.Id));
+        }
 
         var rows = lessons
             .OrderByDescending(l => l.UpdatedAt ?? l.CreatedAt).ThenByDescending(l => l.Id)
@@ -133,10 +141,16 @@ public sealed class LessonService(
             .Select(lh => new { lh.LessonId, Dto = new LessonHeritageDto(lh.HeritageId, lh.Heritage!.Slug, lh.Heritage.Name, lh.Heritage.ThumbnailUrl, lh.Heritage.Status) })
             .ToListAsync(ct);
         var byLesson = heritageRows.ToLookup(h => h.LessonId, h => h.Dto);
+        var difficulties = await LessonDifficultyReader.ReadAsync(db, ids, ct);
 
-        var items = page.Items.Select(r => new LessonRowDto(
-            r.Lesson.Id, r.Lesson.Title, r.Lesson.ClassId, r.ClassName, r.Grade, SchoolClass.SchoolLevelOf((byte)r.Grade),
-            r.Lesson.Status, r.Lesson.AccessCode, byLesson[r.Lesson.Id].ToList(), r.Quizzes, r.Lesson.CreatedAt, r.Lesson.UpdatedAt)).ToList();
+        var items = page.Items.Select(r =>
+        {
+            var level = difficulties.GetValueOrDefault(r.Lesson.Id);
+            return new LessonRowDto(
+                r.Lesson.Id, r.Lesson.Title, r.Lesson.ClassId, r.ClassName, r.Grade, SchoolClass.SchoolLevelOf((byte)r.Grade),
+                r.Lesson.Status, r.Lesson.AccessCode, byLesson[r.Lesson.Id].ToList(), r.Quizzes, r.Lesson.CreatedAt, r.Lesson.UpdatedAt,
+                level, LessonDifficulty.LabelOf(level));
+        }).ToList();
         return new LessonPageDto(items, page.Page, page.PageSize, page.TotalItems, page.TotalPages);
     }
 
@@ -340,7 +354,9 @@ public sealed class LessonService(
     /// Nhân bản bài (mọi trạng thái) sang MỘT lớp khác do chính giáo viên phụ trách, cần gói hiệu lực, không tốn lượt AI. Tạo bài Nháp mới
     /// chưa có mã ở lớp đích, chép tiêu đề, tóm tắt, ý chính, các phần nội dung và di sản (di sản đã ẩn bị bỏ và báo số lượng; hình và mốc
     /// lấy từ di sản bị bỏ cũng bị gỡ). Lớp đích khác cấp thì vẫn chép nguyên nội dung kèm lời nhắc xem lại hoặc nhờ AI soạn lại.
-    /// Bài kiểm tra của bài chưa được chép ở luồng này (có khi luồng bài kiểm tra làm xong). Bài gốc không đổi.
+    /// Tùy chọn <c>IncludeQuizzes</c> chép kèm các bài kiểm tra chưa xóa của bài thành bài kiểm tra nháp của bài mới: cùng câu, điểm, thứ tự, mô tả, độ khó,
+    /// xáo câu, cho xem đáp án; giờ mở, giờ đóng để trống; câu đã ẩn hoặc xóa và câu có dạng hoặc cấp không dùng được ở cấp của lớp đích bị bỏ (báo số câu);
+    /// thời gian làm chuẩn hóa theo cấp lớp đích. Không chép lượt làm bài. Bài gốc không đổi.
     /// </summary>
     public async Task<DuplicateLessonResultDto> DuplicateAsync(Actor actor, long lessonId, DuplicateLessonRequest request, CancellationToken ct)
     {
@@ -387,17 +403,35 @@ public sealed class LessonService(
                 SortOrder = ++order,
             });
         }
+        var targetLevel = SchoolClass.SchoolLevelOf(target.Grade);
+        var copiedQuizzes = 0;
+        var skippedQuestions = 0;
+        if (request.IncludeQuizzes)
+        {
+            var sourceQuizzes = await db.Quizzes.AsNoTracking()
+                .Include(q => q.Questions).ThenInclude(x => x.Question)
+                .Where(q => q.LessonId == lessonId && q.DeletedAt == null)
+                .OrderBy(q => q.Id).ToListAsync(ct);
+            foreach (var quiz in sourceQuizzes)
+            {
+                var (quizCopy, skippedHere) = QuizCopier.Copy(quiz, actor.UserId, name: null, targetLevel);
+                quizCopy.Lesson = copy;
+                db.Quizzes.Add(quizCopy);
+                copiedQuizzes++;
+                skippedQuestions += skippedHere;
+            }
+        }
         db.Lessons.Add(copy);
         await db.SaveChangesAsync(ct);
 
         var sourceLevel = SchoolClass.SchoolLevelOf(source.Class!.Grade);
-        var targetLevel = SchoolClass.SchoolLevelOf(target.Grade);
         var levelNotice = sourceLevel == targetLevel
             ? null
             : Messages.LessonLevelDiffers(target.Name ?? string.Empty, targetLevel, sourceLevel);
 
         var detail = await GetAsync(actor, copy.Id, ct);
-        return new DuplicateLessonResultDto(detail, skipped, levelNotice, Messages.LessonDuplicated(target.Name ?? string.Empty, skipped).Text);
+        return new DuplicateLessonResultDto(detail, skipped, levelNotice,
+            Messages.LessonDuplicated(target.Name ?? string.Empty, skipped, copiedQuizzes, skippedQuestions).Text, copiedQuizzes, skippedQuestions);
     }
 
     // ---- Nội bộ ----
