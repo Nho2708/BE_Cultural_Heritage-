@@ -92,7 +92,7 @@ Từ luồng Đa ngôn ngữ ([da-ngon-ngu.md](da-ngon-ngu.md)), mọi endpoint 
 | Nơi | Trường mới |
 |---|---|
 | Thẻ ở `/home`, `/heritages` và ghim ở `/heritages/map` | `isFallback`, `isMachineTranslated` (tên và mô tả ngắn theo ngôn ngữ; chưa có bản hiện hành thì lùi về tiếng Việt kèm `isFallback`) |
-| `/heritages/{slug}` | `localization { requestedLanguage, language, isFallback, isMachineTranslated }`, `hasSummary`; tên, mô tả, nội dung, tên giai đoạn rút gọn, chú thích ảnh theo ngôn ngữ |
+| `/heritages/{slug}` | `localization { requestedLanguage, language, isFallback, isMachineTranslated }`, `hasSummary`, `hasModel` (có mô hình 3D đang hiển thị: bật nút "Xem 3D", dữ liệu trình xem ở `/heritages/{slug}/model`, xem [mo-hinh-3d.md](mo-hinh-3d.md)); tên, mô tả, nội dung, tên giai đoạn rút gọn, chú thích ảnh theo ngôn ngữ |
 | `/heritages/{slug}/timeline` | `localization`; tên di sản, tên và mô tả giai đoạn, tên và mô tả sự kiện, chú thích ảnh sự kiện theo ngôn ngữ |
 | `/heritages` và `/heritages/map` | từ khóa khớp cả bản tiếng Việt lẫn bản dịch hiện hành của ngôn ngữ đã chọn |
 | `/heritages/{slug}/summary`, `/languages` | endpoint mới (tóm tắt ngắn và chi tiết; năm ngôn ngữ của bộ chọn) |

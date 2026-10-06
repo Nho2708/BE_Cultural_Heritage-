@@ -8,7 +8,7 @@ Web quản trị và khu học của học sinh chỉ có tiếng Việt; **ph�
 Làm theo từng luồng (vertical slice): bảng của luồng → migration → API → UI → bổ sung cột bằng migration mới.
 Lược đồ nguồn: `doc/database/dsvhvn-v3.dbml` (27 bảng); backend đã có **đủ 27 bảng** trong một migration khởi tạo, tên bảng,
 tên cột giữ đúng DBML (`snake_case`). Phần CSDL v4 (`doc/database/dsvhvn-v4.dbml`) được thêm **dần theo từng luồng bằng migration mới** (hiện có bảng
-`lesson_sections`, các cột mới của `ai_generations` và `questions`, `answers`, năm bảng đa ngôn ngữ, tổng 33 bảng) — xem [docs/co-so-du-lieu.md](docs/co-so-du-lieu.md).
+`lesson_sections`, các cột mới của `ai_generations` và `questions`, `answers`, năm bảng đa ngôn ngữ, bảng `heritage_models` của mô hình 3D, tổng 34 bảng) — xem [docs/co-so-du-lieu.md](docs/co-so-du-lieu.md).
 
 | Luồng | Trạng thái | Tài liệu |
 |---|---|---|
@@ -21,12 +21,13 @@ tên cột giữ đúng DBML (`snake_case`). Phần CSDL v4 (`doc/database/dsvhv
 | Lớp, học sinh và tài khoản học sinh: giáo viên tạo/sửa/xóa lớp (khối 1-12, năm học, cấp học suy từ khối), thêm học sinh từng em hoặc nhập danh sách `.xlsx`/`.csv`/dán văn bản (xem trước, tối đa 60 dòng, lưu một giao dịch), mã học sinh `HS` + 6 ký tự, mật khẩu tạm và phiếu đăng nhập hiện một lần, đặt lại mật khẩu, vô hiệu/mở lại/xóa; học sinh đăng nhập bằng mã, buộc đổi mật khẩu lần đầu, xem lớp của em; quản trị trường chỉ xem số liệu tổng hợp | Xong phần backend | [docs/lop-hoc-sinh.md](docs/lop-hoc-sinh.md) |
 | Bài học cho lớp theo cấp: giáo viên tạo bài cho **một lớp** từ 1-10 di sản đã xuất bản, nội dung theo khung của cấp 1/2/3 (câu chuyện từng bước có hình · bài đọc có mốc thời gian · bài phân tích có trích tư liệu gốc kèm nguồn), **AI soạn bản nháp đúng cấp** (qua giao diện Dịch vụ AI + **bản giả lập**, ghi `ai_generations`, tính hạn mức lượt AI của gói), giáo viên sửa và duyệt, xuất bản sinh **một mã bài học** (`BH` + 6 ký tự), lưu trữ, xóa, nhân bản sang lớp khác; học sinh đã đăng nhập gõ mã, bài phải thuộc lớp của em, nhận bài theo luồng của cấp; sai mã luôn cùng một thông báo, 10 lần sai/10 phút thì bị chặn | Xong phần backend | [docs/bai-hoc-theo-cap.md](docs/bai-hoc-theo-cap.md) |
 | Đa ngôn ngữ, AI dịch và tóm tắt di sản, nghe thuyết minh: quản trị hệ thống bấm **"Dịch và tóm tắt bằng AI"** (qua giao diện Dịch vụ AI + **bản giả lập**, ghi `ai_generations`, **không tính hạn mức lượt AI của trường**): tóm tắt tiếng Việt (bản ngắn để nghe, bản chi tiết để đọc) và dịch mọi phần chữ (tên, mô tả, nội dung, giai đoạn, sự kiện, chú thích ảnh) sang Anh, Hàn, Trung giản thể, Nhật; **tiếng Việt (tóm tắt) và tiếng Anh chờ quản trị hệ thống duyệt** (từ chối ghi lý do vào nhật ký, sửa tại chỗ, dịch lại thay bản cũ), **Hàn, Trung, Nhật hiện ngay kèm nhãn "bản dịch máy"** và không có bước duyệt; sửa chữ tiếng Việt thì các bản đánh dấu "cần dịch lại" (vẫn hiện bản cũ); API công khai nhận `lang` hoặc `Accept-Language` (mã lạ thì tiếng Việt, học sinh đã đăng nhập luôn tiếng Việt), trả chi tiết, dòng thời gian, tìm kiếm (khớp cả bản dịch), bản đồ, tóm tắt theo ngôn ngữ, **thiếu bản dịch thì lùi về tiếng Việt kèm cờ**, không gọi AI khi xem; nghe thuyết minh là giọng đọc của thiết bị, backend chỉ cấp chữ | Xong phần backend | [docs/da-ngon-ngu.md](docs/da-ngon-ngu.md) |
+| Mô hình 3D di sản: quản trị hệ thống khai báo mô hình ở tab Mô hình 3D của Biên tập di sản bằng **tải tệp `.glb`** (glTF 2.0 một tệp, tối đa 15 MB, kiểm theo nội dung, không tham chiếu tệp ngoài; kho tệp Local hoặc Cloudinary loại raw) hoặc **dán đường dẫn của tệp đã nằm trong kho** (trang ngoài kho bị từ chối, dung lượng do máy chủ đo); **ghi công bắt buộc** tác giả · giấy phép mở (CC0, CC BY, CC BY-SA, phạm vi công cộng, mô hình nhóm tự dựng; không nhận CC BY-NC, CC BY-ND) · đường dẫn nguồn; bật hiển thị, ẩn, thay tệp, sửa, gỡ, **mỗi di sản chỉ một mô hình hiển thị** (chỉ mục duy nhất có lọc của CSDL), mọi thay đổi ghi nhật ký thao tác; khách và học sinh thấy cờ `hasModel` ở chi tiết di sản và đọc mô hình qua API công khai **miễn phí, không cần đăng nhập, không qua quảng cáo** khi mô hình hiển thị và di sản đã xuất bản (không thì 404 `MODEL_UNAVAILABLE` để trình xem quay về bộ ảnh); xem trước bản nháp có cả mô hình; danh sách di sản quản trị có `hasModel` và bộ lọc | Xong phần backend (chưa ghi lịch sử xem 3D của khách) | [docs/mo-hinh-3d.md](docs/mo-hinh-3d.md) |
 | Ngân hàng câu hỏi theo dạng, AI sinh câu hỏi: ngân hàng **dùng chung mọi trường** với **8 dạng câu** (một đáp án đúng · Đúng/Sai · chọn hình đúng · ghép cặp · sắp xếp · điền từ · nhiều mệnh đề Đúng/Sai · đọc tư liệu) và **cấp phù hợp** theo bảng dạng câu theo cấp; trình soạn có kiểm hợp lệ theo dạng (lỗi theo trường), xem trước như học sinh của từng cấp, **chấm thử từng phần**; **AI sinh câu đúng dạng và cấp của lớp** từ một bài học (qua giao diện Dịch vụ AI + **bản giả lập**, ghi `ai_generations`, tính hạn mức lượt AI của gói), câu AI vào ngân hàng **chờ duyệt** chỉ người tạo thấy; duyệt, loại, duyệt nhiều câu, sửa, xóa mềm, **nhân bản** (câu đã nằm trong quiz hoặc của người khác chỉ đọc); tìm và lọc theo dạng, cấp, độ khó, di sản, trạng thái, người tạo; quản trị hệ thống **ẩn** câu kém chất lượng (ghi nhật ký thao tác) | Xong phần backend | [docs/ngan-hang-cau-hoi.md](docs/ngan-hang-cau-hoi.md) |
 
 ## Cấu trúc
 
 ```
-src/DSVHVN.Domain          Thực thể 27 bảng của CSDL v3 và sáu bảng của v4 (lesson_sections, năm bảng đa ngôn ngữ), enum, quy tắc nghiệp vụ thuần (tài khoản, di sản, lớp và mã học sinh, khung bài học theo cấp, mã bài học, bảng dạng câu hỏi theo cấp)
+src/DSVHVN.Domain          Thực thể 27 bảng của CSDL v3 và bảy bảng của v4 (lesson_sections, năm bảng đa ngôn ngữ, heritage_models), enum, quy tắc nghiệp vụ thuần (tài khoản, di sản, lớp và mã học sinh, khung bài học theo cấp, mã bài học, bảng dạng câu hỏi theo cấp)
 src/DSVHVN.Application     Dịch vụ nghiệp vụ, kiểm gói và hạn mức, validator, danh mục thông điệp tiếng Việt, nhật ký thao tác
 src/DSVHVN.Infrastructure  EF Core (DbContext, cấu hình theo nhóm bảng, migration, seed, nạp dữ liệu di sản), JWT,
                            băm mật khẩu PBKDF2, gửi thư (ghi log hoặc SMTP qua MailKit), đọc và dựng tệp danh sách học sinh (ClosedXML),
@@ -59,6 +60,7 @@ API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-
 API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-bai-hoc-theo-cap.sh # nên chạy trên database tạm, xem docs/bai-hoc-theo-cap.md mục 8
 API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-ngan-hang-cau-hoi.sh # nên chạy trên database tạm, xem docs/ngan-hang-cau-hoi.md mục 9
 ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-da-ngon-ngu.sh   # nên chạy trên database tạm, cách chạy ở đầu tệp và docs/da-ngon-ngu.md mục 12
+ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-mo-hinh-3d.sh    # nên chạy trên database tạm, cách chạy ở đầu tệp và docs/mo-hinh-3d.md mục 6
 ```
 
 CSDL dev: `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (không dùng các CSDL cũ `dsvhvn_dev`,
@@ -78,7 +80,7 @@ không dùng khóa API nào). Chọn bản bằng cấu hình `Ai:Mode`: `Simula
 
 ## Kho tệp tải lên (ảnh, mô hình 3D)
 
-Ảnh di sản, ảnh sự kiện và mô hình 3D (`.glb`) tải lên được lưu qua giao diện `IFileStorage`, chọn nhà cung cấp bằng `Storage:Provider`: `Local` (mặc định, lưu trên đĩa máy chủ, cho phát triển và kiểm thử) hoặc `Cloudinary`
+Ảnh di sản, ảnh sự kiện và mô hình 3D (`.glb`; khai báo vào di sản ở [docs/mo-hinh-3d.md](docs/mo-hinh-3d.md)) tải lên được lưu qua giao diện `IFileStorage`, chọn nhà cung cấp bằng `Storage:Provider`: `Local` (mặc định, lưu trên đĩa máy chủ, cho phát triển và kiểm thử) hoặc `Cloudinary`
 (khi triển khai: ảnh và mô hình nằm trên Cloudinary, địa chỉ là URL HTTPS; thiếu khóa thì Api dừng lúc khởi động và báo tên khóa còn thiếu). Bản `Local` lưu trong thư mục `Storage:Local:RootPath` (mặc định `storage`, tính từ thư mục chạy
 của Api, đã nằm trong `.gitignore`) và phục vụ tệp qua đường dẫn `/files/...` không cần đăng nhập, chỉ cho đuôi `jpg`, `png`, `webp`, `glb`. Ngoài máy phát triển nên đặt thư mục **ngoài mã nguồn** và sao lưu nó:
 
