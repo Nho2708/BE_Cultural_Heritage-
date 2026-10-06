@@ -464,6 +464,61 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.ToTable("students", (string)null);
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.EventTranslation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("description");
+
+                    b.Property<long>("EventId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("language_code");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("PK_event_translations");
+
+                    b.HasIndex("EventId", "LanguageCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_event_translations_event_language");
+
+                    b.ToTable("event_translations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_event_translations_language", "[language_code] <> 'vi'");
+
+                            t.HasCheckConstraint("CK_event_translations_language_code", "[language_code] IN ('vi', 'en', 'ko', 'zh', 'ja')");
+                        });
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Heritages.Heritage", b =>
                 {
                     b.Property<long>("Id")
@@ -622,6 +677,185 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.ToTable("heritage_references", (string)null);
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageSummary", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AiGenerationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ai_generation_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DetailedText")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("detailed_text");
+
+                    b.Property<long>("HeritageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("heritage_id");
+
+                    b.Property<bool>("IsOutdated")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_outdated")
+                        .HasDefaultValueSql("0");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("language_code");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<long?>("ReviewedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<string>("ShortText")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("short_text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("PK_heritage_summaries");
+
+                    b.HasIndex("AiGenerationId");
+
+                    b.HasIndex("ReviewedBy");
+
+                    b.HasIndex("HeritageId", "LanguageCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_heritage_summaries_heritage_language");
+
+                    b.ToTable("heritage_summaries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_heritage_summaries_language_code", "[language_code] IN ('vi', 'en', 'ko', 'zh', 'ja')");
+
+                            t.HasCheckConstraint("CK_heritage_summaries_status", "([language_code] IN ('vi', 'en') AND [status] IN ('PENDING', 'APPROVED', 'REJECTED')) OR ([language_code] IN ('ko', 'zh', 'ja') AND [status] = 'MACHINE')");
+                        });
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageTranslation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("address");
+
+                    b.Property<long?>("AiGenerationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ai_generation_id");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("HeritageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("heritage_id");
+
+                    b.Property<bool>("IsOutdated")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_outdated")
+                        .HasDefaultValueSql("0");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("language_code");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<long?>("ReviewedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<string>("ShortDescription")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("short_description");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("PK_heritage_translations");
+
+                    b.HasIndex("AiGenerationId");
+
+                    b.HasIndex("ReviewedBy");
+
+                    b.HasIndex("HeritageId", "LanguageCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_heritage_translations_heritage_language");
+
+                    b.ToTable("heritage_translations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_heritage_translations_language_code", "[language_code] IN ('vi', 'en', 'ko', 'zh', 'ja')");
+
+                            t.HasCheckConstraint("CK_heritage_translations_status", "([language_code] = 'en' AND [status] IN ('PENDING', 'APPROVED', 'REJECTED')) OR ([language_code] IN ('ko', 'zh', 'ja') AND [status] = 'MACHINE')");
+                        });
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Heritages.Media", b =>
                 {
                     b.Property<long>("Id")
@@ -673,6 +907,57 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.ToTable("media", null, t =>
                         {
                             t.HasCheckConstraint("CK_media_owner", "(heritage_id IS NOT NULL AND event_id IS NULL) OR (heritage_id IS NULL AND event_id IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.MediaTranslation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Caption")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("caption");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("language_code");
+
+                    b.Property<long>("MediaId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("media_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("PK_media_translations");
+
+                    b.HasIndex("MediaId", "LanguageCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_media_translations_media_language");
+
+                    b.ToTable("media_translations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_media_translations_language", "[language_code] <> 'vi'");
+
+                            t.HasCheckConstraint("CK_media_translations_language_code", "[language_code] IN ('vi', 'en', 'ko', 'zh', 'ja')");
                         });
                 });
 
@@ -808,6 +1093,61 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.HasIndex("TimelineId");
 
                     b.ToTable("events", (string)null);
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.TimelineTranslation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("language_code");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("name");
+
+                    b.Property<long>("TimelineId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("timeline_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("PK_timeline_translations");
+
+                    b.HasIndex("TimelineId", "LanguageCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_timeline_translations_timeline_language");
+
+                    b.ToTable("timeline_translations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_timeline_translations_language", "[language_code] <> 'vi'");
+
+                            t.HasCheckConstraint("CK_timeline_translations_language_code", "[language_code] IN ('vi', 'en', 'ko', 'zh', 'ja')");
+                        });
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Identity.PasswordResetToken", b =>
@@ -1863,6 +2203,18 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.EventTranslation", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Heritages.TimelineEvent", "Event")
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_event_translations_event_id");
+
+                    b.Navigation("Event");
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Heritages.Heritage", b =>
                 {
                     b.HasOne("DSVHVN.Domain.Heritages.Province", "Province")
@@ -1886,6 +2238,62 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("Heritage");
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageSummary", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Lessons.AiGeneration", "AiGeneration")
+                        .WithMany()
+                        .HasForeignKey("AiGenerationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_heritage_summaries_ai_generation_id");
+
+                    b.HasOne("DSVHVN.Domain.Heritages.Heritage", "Heritage")
+                        .WithMany()
+                        .HasForeignKey("HeritageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_heritage_summaries_heritage_id");
+
+                    b.HasOne("DSVHVN.Domain.Identity.User", "Reviewer")
+                        .WithMany()
+                        .HasForeignKey("ReviewedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_heritage_summaries_reviewed_by");
+
+                    b.Navigation("AiGeneration");
+
+                    b.Navigation("Heritage");
+
+                    b.Navigation("Reviewer");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageTranslation", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Lessons.AiGeneration", "AiGeneration")
+                        .WithMany()
+                        .HasForeignKey("AiGenerationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_heritage_translations_ai_generation_id");
+
+                    b.HasOne("DSVHVN.Domain.Heritages.Heritage", "Heritage")
+                        .WithMany()
+                        .HasForeignKey("HeritageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_heritage_translations_heritage_id");
+
+                    b.HasOne("DSVHVN.Domain.Identity.User", "Reviewer")
+                        .WithMany()
+                        .HasForeignKey("ReviewedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_heritage_translations_reviewed_by");
+
+                    b.Navigation("AiGeneration");
+
+                    b.Navigation("Heritage");
+
+                    b.Navigation("Reviewer");
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Heritages.Media", b =>
                 {
                     b.HasOne("DSVHVN.Domain.Heritages.TimelineEvent", "Event")
@@ -1903,6 +2311,18 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("Event");
 
                     b.Navigation("Heritage");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.MediaTranslation", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Heritages.Media", "Media")
+                        .WithMany()
+                        .HasForeignKey("MediaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_media_translations_media_id");
+
+                    b.Navigation("Media");
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Heritages.Timeline", b =>
@@ -1925,6 +2345,18 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_events_timeline_id");
+
+                    b.Navigation("Timeline");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.TimelineTranslation", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Heritages.Timeline", "Timeline")
+                        .WithMany()
+                        .HasForeignKey("TimelineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_timeline_translations_timeline_id");
 
                     b.Navigation("Timeline");
                 });

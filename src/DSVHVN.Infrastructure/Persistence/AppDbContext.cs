@@ -45,6 +45,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
     public DbSet<Media> Media => Set<Media>();
     public DbSet<HeritageReference> HeritageReferences => Set<HeritageReference>();
 
+    // 3b. Đa ngôn ngữ (CSDL v4)
+    public DbSet<HeritageTranslation> HeritageTranslations => Set<HeritageTranslation>();
+    public DbSet<TimelineTranslation> TimelineTranslations => Set<TimelineTranslation>();
+    public DbSet<EventTranslation> EventTranslations => Set<EventTranslation>();
+    public DbSet<MediaTranslation> MediaTranslations => Set<MediaTranslation>();
+    public DbSet<HeritageSummary> HeritageSummaries => Set<HeritageSummary>();
+
     // 4. Bài học + AI (lesson_sections thêm ở CSDL v4)
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<LessonHeritage> LessonHeritages => Set<LessonHeritage>();

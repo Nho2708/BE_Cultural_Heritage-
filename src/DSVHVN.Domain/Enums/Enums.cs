@@ -177,7 +177,34 @@ public enum ActorRole
 }
 
 /// <summary>
-/// <c>audit_logs.action</c>: 22 mã thao tác được ghi nhật ký (21 mã của CSDL v3 và <c>HERITAGE_PREVIEW_ISSUED</c> khi cấp liên kết xem trước bản nháp di sản). Cột không có CHECK, danh sách hợp lệ kiểm ở tầng code.
+/// <c>language_code</c> (CSDL v4): năm ngôn ngữ của phần công khai. Tên thành viên chính là mã lưu trong CSDL (chữ thường, khác các enum còn lại):
+/// <c>vi</c> là bản gốc của mọi bản dịch, <c>en</c> do AI dịch rồi quản trị hệ thống duyệt, <c>ko</c>, <c>zh</c> (tiếng Trung giản thể, giao diện gọi là zh-Hans),
+/// <c>ja</c> do AI dịch tự động và luôn mang nhãn "bản dịch máy".
+/// </summary>
+public enum LanguageCode
+{
+    vi,
+    en,
+    ko,
+    zh,
+    ja,
+}
+
+/// <summary>
+/// <c>translation_status</c> (CSDL v4): trạng thái bản dịch và bản tóm tắt di sản. Tiếng Anh (bản dịch) và tiếng Việt, tiếng Anh (tóm tắt) đi qua
+/// PENDING, APPROVED, REJECTED; tiếng Hàn, Trung, Nhật luôn là MACHINE (CHECK trong CSDL).
+/// </summary>
+public enum TranslationStatus
+{
+    MACHINE,
+    PENDING,
+    APPROVED,
+    REJECTED,
+}
+
+/// <summary>
+/// <c>audit_logs.action</c>: 24 mã thao tác được ghi nhật ký (21 mã của CSDL v3, <c>HERITAGE_PREVIEW_ISSUED</c> khi cấp liên kết xem trước bản nháp di sản, và
+/// <c>TRANSLATION_APPROVED</c>, <c>TRANSLATION_REJECTED</c> khi duyệt, từ chối bản dịch và tóm tắt di sản). Cột không có CHECK, danh sách hợp lệ kiểm ở tầng code.
 /// Nền tảng tài khoản và tổ chức ghi 8 mã đầu; các mã còn lại do chức năng tương ứng ghi qua cùng <c>IAuditLogger</c>.
 /// </summary>
 public enum AuditAction
@@ -193,6 +220,8 @@ public enum AuditAction
     HERITAGE_PUBLISHED,
     HERITAGE_ARCHIVED,
     HERITAGE_PREVIEW_ISSUED,
+    TRANSLATION_APPROVED,
+    TRANSLATION_REJECTED,
     STUDENT_ACCOUNTS_CREATED,
     STUDENT_PASSWORD_RESET,
     STUDENT_DEACTIVATED,
