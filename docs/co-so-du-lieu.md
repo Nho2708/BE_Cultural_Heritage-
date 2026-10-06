@@ -157,3 +157,7 @@ Migration `ThemDangCauHoiVaCapPhuHop` (05/10/2026) đưa vào phần của `dsvh
 
 Số liệu sau migration: 28 bảng, 257 cột, 43 khóa ngoại, 25 CHECK, 11 khóa ngoại được NULL, DEFAULT thêm hai cột `level_min`, `level_max`. Chi tiết luồng và đường nâng cấp câu cũ:
 [ngan-hang-cau-hoi.md](ngan-hang-cau-hoi.md) mục 6.
+
+## 7. Luồng "Bài kiểm tra của bài học": không thêm migration
+
+Luồng này dùng `quizzes`, `quiz_questions` của v3 **nguyên trạng**: `dsvhvn-v4.dbml` không đổi hai bảng này (mọi cột và ràng buộc cần cho soạn, phát hành, đóng đã có: `status` DRAFT/PUBLISHED/CLOSED có CHECK, `total_point decimal(6,2)`, `point decimal(5,2)`, khóa chính kép, độ khó, giờ mở, giờ đóng, thời gian làm, hai cờ xáo câu và hiện đáp án). Độ khó của bài học **không lưu**, tính khi truy vấn. Thời gian làm theo cấp, 1-50 câu, điểm bước 0,25 là quy tắc ở tầng code, không có CHECK trong CSDL (đúng ghi chú DBML). `attempts` và `attempt_answers` chỉ được luồng này cập nhật khi đóng bài (tự nộp lượt đang dở); phần v4 của luồng làm bài vẫn chưa thêm. Chi tiết: [bai-kiem-tra.md](bai-kiem-tra.md).
