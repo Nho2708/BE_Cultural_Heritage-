@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using DSVHVN.Application;
+using DSVHVN.Application.Billing;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
@@ -14,6 +15,7 @@ using DSVHVN.Domain.Organizations;
 using DSVHVN.Infrastructure.Ai;
 using DSVHVN.Infrastructure.Email;
 using DSVHVN.Infrastructure.Files;
+using DSVHVN.Infrastructure.Payments;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Infrastructure.Security;
 using Microsoft.Data.Sqlite;
@@ -115,6 +117,12 @@ public sealed class ServiceHarness : IDisposable
         services.AddScoped<IAccountMailer, AccountMailer>();
         services.AddSingleton<IStudentListFile, StudentListFileReader>();
         services.Configure<StudentSheetOptions>(_ => { });
+        services.Configure<VnPayOptions>(o =>
+        {
+            o.TmnCode = VnPayTestKit.TmnCode;
+            o.HashSecret = VnPayTestKit.HashSecret;
+        });
+        services.AddSingleton<IVnPayGateway, VnPayGateway>();
         _root = services.BuildServiceProvider();
 
         using var scope = _root.CreateScope();

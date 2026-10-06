@@ -12,6 +12,9 @@ public sealed class AppLinkOptions
 
     /// <summary>Route màn hình Đặt mật khẩu, dùng chung cho đặt mật khẩu lần đầu và đặt lại.</summary>
     public string SetPasswordPath { get; set; } = "/dat-mat-khau";
+
+    /// <summary>Route trang Kết quả thanh toán của web quản trị; VNPay đưa trình duyệt về trang trả về của backend, trang đó chuyển tiếp tới đây.</summary>
+    public string PaymentResultPath { get; set; } = "/truong/ket-qua-thanh-toan";
 }
 
 /// <summary>Cách xử lý thư đi.</summary>

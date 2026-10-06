@@ -1,3 +1,4 @@
+using DSVHVN.Application.Billing;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Files;
@@ -8,6 +9,7 @@ using DSVHVN.Application.Translations;
 using DSVHVN.Infrastructure.Ai;
 using DSVHVN.Infrastructure.Files;
 using DSVHVN.Infrastructure.Email;
+using DSVHVN.Infrastructure.Payments;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +47,7 @@ public static class DependencyInjection
         services.AddEmail(configuration);
         services.AddLessonAi(configuration);
         services.AddFileStorage(configuration);
+        services.AddBilling(configuration);
 
         // Liên kết xem trước bản nháp di sản: mã ký bằng khóa của máy chủ, hạn Preview:CodeMinutes (mặc định 30 phút), không có bảng.
         services.AddOptions<PreviewOptions>().Bind(configuration.GetSection(PreviewOptions.Section)).ValidateOnStart();
@@ -55,6 +58,18 @@ public static class DependencyInjection
         services.AddOptions<StudentSheetOptions>().Bind(configuration.GetSection(StudentSheetOptions.Section));
         services.AddSingleton<IStudentListFile, StudentListFileReader>();
         return services;
+    }
+
+    /// <summary>
+    /// Thanh toán VNPay sandbox: <c>VnPay</c> (mã cửa hàng, khóa bí mật, địa chỉ trang thanh toán, địa chỉ trang trả về) và tác vụ nền gói
+    /// (<c>Billing:Maintenance</c>). Thiếu khóa VNPay không làm dừng khởi động: chỉ không tạo được thanh toán và từ chối IPN.
+    /// </summary>
+    private static void AddBilling(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<VnPayOptions>().Bind(configuration.GetSection(VnPayOptions.Section));
+        services.AddSingleton<IVnPayGateway, VnPayGateway>();
+        services.AddOptions<BillingMaintenanceOptions>().Bind(configuration.GetSection(BillingMaintenanceOptions.Section));
+        services.AddHostedService<BillingMaintenanceWorker>();
     }
 
     /// <summary>

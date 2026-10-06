@@ -31,6 +31,12 @@ public static class DependencyInjection
         services.AddScoped<AuditLogService>();
         services.AddScoped<PasswordTokenService>();
         services.AddScoped<PlanGuard>();
+        services.AddScoped<PlanService>();
+        services.AddScoped<BillingQueries>();
+        services.AddScoped<BillingService>();
+        services.AddScoped<SubscriptionActivator>();
+        services.AddScoped<VnPayCallbackService>();
+        services.AddScoped<BillingMaintenanceService>();
         services.AddScoped<AccountProvisioner>();
         services.AddScoped<AccountActions>();
         services.AddScoped<AuthService>();
