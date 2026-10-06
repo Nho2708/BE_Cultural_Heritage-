@@ -7,6 +7,7 @@ using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Translations;
+using DSVHVN.Application.Recommendations;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Tests.Support;
 using Microsoft.AspNetCore.Builder;
@@ -56,6 +57,9 @@ public class ApiFactory : WebApplicationFactory<Program>
     /// <summary>Dịch vụ AI tóm tắt và dịch di sản của kiểm thử, như <see cref="Ai"/>.</summary>
     public ScriptedHeritageAiClient HeritageAi { get; } = new();
 
+    /// <summary>Dịch vụ AI xếp hạng di sản liên quan (gợi ý) của kiểm thử, như <see cref="Ai"/>.</summary>
+    public ScriptedRecommendationAiClient RecommendationAi { get; } = new();
+
     /// <summary>Cấu hình thêm của lớp con (vd đường dẫn tệp dữ liệu di sản).</summary>
     protected virtual IEnumerable<KeyValuePair<string, string?>> ExtraSettings => [];
 
@@ -83,6 +87,7 @@ public class ApiFactory : WebApplicationFactory<Program>
             ["Ai:Mode"] = "Simulated",
             ["Ai:AttemptTimeoutSeconds"] = "1",
             ["Ai:HeritageAttemptTimeoutSeconds"] = "1",
+            ["Quizzes:AutoCloseIntervalSeconds"] = "0",   // tác vụ tự đóng bài kiểm tra chạy nền bị tắt; test gọi thẳng QuizAutoCloser
         }.Concat(ExtraSettings)));
 
         builder.ConfigureTestServices(services =>
@@ -102,6 +107,8 @@ public class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IQuestionAiClient>(QuestionAi);
             services.RemoveAll<IHeritageAiClient>();
             services.AddSingleton<IHeritageAiClient>(HeritageAi);
+            services.RemoveAll<IRecommendationAiClient>();
+            services.AddSingleton<IRecommendationAiClient>(RecommendationAi);
 
             // TestServer không có IP client; gán sẵn để kiểm được IP đi vào audit_logs.
             services.AddSingleton<IStartupFilter, FakeRemoteIpStartupFilter>();

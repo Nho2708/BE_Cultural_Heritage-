@@ -4,9 +4,11 @@ using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Files;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
+using DSVHVN.Application.Recommendations;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Translations;
 using DSVHVN.Infrastructure.Ai;
+using DSVHVN.Infrastructure.Background;
 using DSVHVN.Infrastructure.Files;
 using DSVHVN.Infrastructure.Email;
 using DSVHVN.Infrastructure.Payments;
@@ -53,6 +55,10 @@ public static class DependencyInjection
         services.AddOptions<PreviewOptions>().Bind(configuration.GetSection(PreviewOptions.Section)).ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<PreviewOptions>, PreviewOptionsValidator>());
         services.AddSingleton<IHeritagePreviewCodec, HeritagePreviewCodec>();
+
+        // Tự đóng bài kiểm tra quá giờ đóng, chạy nền theo chu kỳ của mục Quizzes.
+        services.AddOptions<QuizAutoCloseOptions>().Bind(configuration.GetSection(QuizAutoCloseOptions.Section));
+        services.AddHostedService<QuizAutoCloseService>();
 
         // Phiếu đăng nhập của học sinh lấy địa chỉ web học tập và đường dẫn tải app từ mục App.
         services.AddOptions<StudentSheetOptions>().Bind(configuration.GetSection(StudentSheetOptions.Section));
@@ -131,6 +137,17 @@ public static class DependencyInjection
             var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
             var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
             return new HttpHeritageAiClient(http, options);
+        });
+
+        // Xếp hạng di sản liên quan cho gợi ý (cùng mục cấu hình Ai); thời gian chờ 2 giây do RelatedRanker đặt, lỗi thì máy chủ tự tính dự phòng.
+        services.AddSingleton<IRecommendationAiClient>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<AiOptions>>();
+            if (options.Value.Mode != AiMode.Remote) return new SimulatedRecommendationAiClient();
+
+            var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+            var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+            return new HttpRecommendationAiClient(http, options);
         });
     }
 

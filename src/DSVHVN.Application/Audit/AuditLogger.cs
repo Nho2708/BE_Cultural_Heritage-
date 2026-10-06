@@ -76,6 +76,7 @@ public static class AuditLabels
         AuditAction.QUIZ_PUBLISHED => "Phát hành bài kiểm tra",
         AuditAction.QUIZ_CLOSED => "Đóng bài kiểm tra",
         AuditAction.QUESTION_HIDDEN => "Ẩn câu hỏi",
+        AuditAction.QUESTION_RESTORED => "Hiện lại câu hỏi",
         AuditAction.PLAN_UPDATED => "Cập nhật gói dịch vụ",
         AuditAction.SUBSCRIPTION_CHANGED => "Đổi gói của trường",
         AuditAction.BILLING_STATUS_CHANGED => "Hệ thống đổi trạng thái gói, hóa đơn, giao dịch",

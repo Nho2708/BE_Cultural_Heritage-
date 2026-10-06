@@ -5,6 +5,7 @@ using DSVHVN.Application.Billing;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
+using DSVHVN.Application.Recommendations;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Billing;
@@ -398,5 +399,36 @@ public sealed class ScriptedCodeGenerator : ILessonCodeGenerator
     {
         Calls++;
         return _queue.Count > 0 ? _queue.Dequeue() : DSVHVN.Domain.Rules.LessonCodes.NewCode();
+    }
+}
+
+/// <summary>
+/// Dịch vụ AI xếp hạng di sản liên quan của kiểm thử: mặc định chạy bản giả lập thật, nhớ yêu cầu gần nhất và cho ép lỗi hoặc ép kết quả bằng <see cref="Behavior"/>.
+/// Nhớ gọi <see cref="Reset"/> khi dùng chung giữa các test.
+/// </summary>
+public sealed class ScriptedRecommendationAiClient : IRecommendationAiClient
+{
+    private readonly SimulatedRecommendationAiClient _inner = new();
+    private int _calls;
+
+    public int Calls => _calls;
+
+    public RelatedRequest? LastRequest { get; private set; }
+
+    public Func<RelatedRequest, CancellationToken, Task<IReadOnlyList<RelatedHeritage>>>? Behavior { get; set; }
+
+    public void Reset()
+    {
+        Behavior = null;
+        _calls = 0;
+        LastRequest = null;
+    }
+
+    public async Task<IReadOnlyList<RelatedHeritage>> RankRelatedAsync(RelatedRequest request, CancellationToken ct)
+    {
+        Interlocked.Increment(ref _calls);
+        LastRequest = request;
+        if (Behavior is { } behavior) return await behavior(request, ct);
+        return await _inner.RankRelatedAsync(request, ct);
     }
 }

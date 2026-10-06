@@ -33,12 +33,23 @@ public sealed record LessonSectionRequest(
     long? EventId,
     string? SourceCitation);
 
-public sealed record DuplicateLessonRequest(long? TargetClassId);
+/// <summary>
+/// Nhân bản bài học sang một lớp khác. <c>IncludeQuizzes</c> true thì chép kèm các bài kiểm tra chưa xóa của bài thành bài kiểm tra nháp của bài mới
+/// (cùng câu, điểm, thứ tự và thiết lập; giờ mở, giờ đóng để trống).
+/// </summary>
+public sealed record DuplicateLessonRequest(long? TargetClassId, bool IncludeQuizzes = false);
 
 /// <summary>Soạn nội dung bằng AI: độ dài Ngắn / Vừa / Chi tiết, nằm trong khoảng số từ của cấp; để trống thì lấy Vừa.</summary>
 public sealed record ComposeLessonRequest(LessonLength? Length);
 
-public sealed record LessonListQuery(long? ClassId, ContentStatus? Status, HeritageType? HeritageType, string? Keyword, int? Page, int? PageSize);
+public sealed record LessonListQuery(
+    long? ClassId,
+    ContentStatus? Status,
+    HeritageType? HeritageType,
+    string? Keyword,
+    int? Page,
+    int? PageSize,
+    DifficultyLevel? Difficulty = null);
 
 // ---- Dữ liệu ra cho giáo viên ----
 
@@ -57,7 +68,9 @@ public sealed record LessonRowDto(
     IReadOnlyList<LessonHeritageDto> Heritages,
     int QuizCount,
     DateTime? CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    DifficultyLevel? Difficulty = null,
+    string DifficultyLabel = LessonDifficulty.NoQuizLabel);
 
 public sealed record LessonPageDto(IReadOnlyList<LessonRowDto> Items, int Page, int PageSize, int TotalItems, int TotalPages);
 
@@ -126,8 +139,17 @@ public sealed record LessonDetailDto(
 /// <summary>Kết quả xuất bản: bài sau khi xuất bản, mã vừa sinh lần đầu (hoặc mã cũ khi xuất bản lại) và câu thông báo.</summary>
 public sealed record PublishLessonResultDto(LessonDetailDto Lesson, bool CodeCreated, string AccessCode, string Message);
 
-/// <summary>Kết quả nhân bản: bài nháp mới, số di sản đã ẩn bị bỏ và lời nhắc khi lớp đích khác cấp.</summary>
-public sealed record DuplicateLessonResultDto(LessonDetailDto Lesson, int SkippedHeritages, string? LevelNotice, string Message);
+/// <summary>
+/// Kết quả nhân bản: bài nháp mới, số di sản đã ẩn bị bỏ, lời nhắc khi lớp đích khác cấp, số bài kiểm tra đã chép kèm và số câu hỏi bị bỏ
+/// (đã ẩn, đã xóa hoặc không dùng được ở cấp của lớp đích).
+/// </summary>
+public sealed record DuplicateLessonResultDto(
+    LessonDetailDto Lesson,
+    int SkippedHeritages,
+    string? LevelNotice,
+    string Message,
+    int CopiedQuizzes = 0,
+    int SkippedQuestions = 0);
 
 /// <summary>
 /// Bản nháp AI soạn, chưa lưu vào bài: giáo viên xem, sửa rồi lưu. <c>GenerationId</c> truy về dòng nhật ký AI,

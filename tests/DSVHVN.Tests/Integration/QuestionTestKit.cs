@@ -23,9 +23,10 @@ public sealed class QuestionTestKit(ApiFactory factory)
     public HttpClient Http => Lesson.Http;
 
     /// <summary>Di sản đã xuất bản có <paramref name="extraImages"/> ảnh thêm trong thư viện (ngoài ảnh đại diện) và <paramref name="events"/> sự kiện.</summary>
-    public async Task<(HeritageDetailDto Heritage, List<string> Images)> HeritageAsync(string name = "Hoàng thành", int extraImages = 3, int events = 6)
+    public async Task<(HeritageDetailDto Heritage, List<string> Images)> HeritageAsync(
+        string name = "Hoàng thành", int extraImages = 3, int events = 6, string provinceCode = "01")
     {
-        var heritage = await Lesson.HeritageAsync(name, events);
+        var heritage = await Lesson.HeritageAsync(name, events, provinceCode);
         var admin = await Lesson.Discovery.Api.AdminTokenAsync();
         for (var i = 0; i < extraImages; i++)
         {

@@ -48,6 +48,14 @@ public static class MessageCodes
     public const string TranslationRejected = "TRANSLATION_REJECTED";
     public const string TranslationBusy = "TRANSLATION_BUSY";
     public const string ModelUnavailable = "MODEL_UNAVAILABLE";
+    public const string QuizPublished = "QUIZ_PUBLISHED";
+    public const string QuizClosed = "QUIZ_CLOSED";
+    public const string QuizDuplicated = "QUIZ_DUPLICATED";
+    public const string QuestionLevelMismatch = "QUESTION_LEVEL_MISMATCH";
+    public const string QuizNotOpen = "QUIZ_NOT_OPEN";
+    public const string QuizEnded = "QUIZ_ENDED";
+    public const string AttemptFinished = "ATTEMPT_FINISHED";
+    public const string AttemptInProgress = "ATTEMPT_IN_PROGRESS";
 }
 
 /// <summary>
@@ -198,11 +206,18 @@ public static class Messages
     public static AppMessage LessonPublished(string code, string className) => new(MessageCodes.LessonPublished,
         $"Đã xuất bản bài học. Mã bài học: {code}. Hãy đưa mã hoặc đường dẫn cho học sinh lớp {className}.");
 
-    /// <summary>Nhân bản bài học sang lớp khác xong; bài kiểm tra của bài chưa chép ở luồng này nên không nhắc số bài kiểm tra.</summary>
-    public static AppMessage LessonDuplicated(string className, int skippedHeritages) => new(MessageCodes.LessonDuplicated,
-        skippedHeritages == 0
-            ? $"Đã tạo bài học nháp ở lớp {className}."
-            : $"Đã tạo bài học nháp ở lớp {className}. Bỏ qua {skippedHeritages} di sản đã ẩn.");
+    /// <summary>
+    /// Nhân bản bài học sang lớp khác xong. Khi chép kèm bài kiểm tra thì nhắc đã chép mấy bài (thành bản nháp, giờ mở và giờ đóng để trống)
+    /// và bỏ qua mấy câu hỏi đã ẩn hoặc không dùng được ở cấp của lớp đích.
+    /// </summary>
+    public static AppMessage LessonDuplicated(string className, int skippedHeritages, int copiedQuizzes = 0, int skippedQuestions = 0)
+    {
+        var text = $"Đã tạo bài học nháp ở lớp {className}.";
+        if (skippedHeritages > 0) text += $" Bỏ qua {skippedHeritages} di sản đã ẩn.";
+        if (copiedQuizzes > 0) text += $" Đã chép {copiedQuizzes} bài kiểm tra thành bản nháp; hãy đặt lại giờ mở và giờ đóng.";
+        if (skippedQuestions > 0) text += $" Bỏ qua {skippedQuestions} câu hỏi đã ẩn hoặc không dùng được ở cấp của lớp.";
+        return new AppMessage(MessageCodes.LessonDuplicated, text);
+    }
 
     /// <summary>Lớp đích khác cấp với lớp nguồn khi nhân bản bài học: nội dung vẫn được chép nguyên, cảnh báo giáo viên xem lại.</summary>
     public static string LessonLevelDiffers(string className, int targetLevel, int sourceLevel) =>
@@ -239,6 +254,61 @@ public static class Messages
     /// <summary>Mã xem trước sai, hết hạn, di sản không còn hoặc người mở không phải quản trị hệ thống: luôn cùng một câu, không lộ di sản có tồn tại hay không.</summary>
     public static readonly AppMessage PreviewInvalid = new(MessageCodes.PreviewInvalid,
         "Liên kết xem trước đã hết hạn hoặc không hợp lệ. Hãy quay lại màn hình Biên tập di sản và bấm \"Xem trước\" để lấy liên kết mới.");
+
+    // ---- Bài kiểm tra của bài học ----
+
+    /// <summary>
+    /// Xác nhận trước khi phát hành và lời báo sau khi phát hành: danh sách câu và điểm bị khóa, học sinh lớp làm bài qua mã bài học trong khoảng giờ mở và đóng.
+    /// </summary>
+    public static string QuizPublishNotice(string className, string quizName, string? lessonCode, DateTime? openAt, DateTime? closeAt) =>
+        $"Sau khi phát hành, danh sách câu hỏi và điểm sẽ bị khóa. Học sinh lớp {className} làm được bài kiểm tra \"{quizName}\" " +
+        $"qua mã bài học {lessonCode ?? "của bài"} từ {Domain.Rules.QuizRules.FormatVietnamTime(openAt)} đến {Domain.Rules.QuizRules.FormatVietnamTime(closeAt)}.";
+
+    public static AppMessage QuizPublished(string className, string quizName, string? lessonCode, DateTime? openAt, DateTime? closeAt) =>
+        new(MessageCodes.QuizPublished, $"Đã phát hành bài kiểm tra \"{quizName}\". Học sinh lớp {className} làm bài qua mã bài học {lessonCode ?? "của bài"} " +
+            $"từ {Domain.Rules.QuizRules.FormatVietnamTime(openAt)} đến {Domain.Rules.QuizRules.FormatVietnamTime(closeAt)}.");
+
+    public static AppMessage QuizClosed(string quizName, int expiredAttempts) => new(MessageCodes.QuizClosed, expiredAttempts == 0
+        ? $"Đã đóng bài kiểm tra \"{quizName}\"."
+        : $"Đã đóng bài kiểm tra \"{quizName}\". {expiredAttempts} lượt làm bài đang dở đã được tự nộp.");
+
+    public static AppMessage QuizDuplicated(string quizName, int skippedQuestions) => new(MessageCodes.QuizDuplicated, skippedQuestions == 0
+        ? $"Đã tạo bài kiểm tra nháp \"{quizName}\"."
+        : $"Đã tạo bài kiểm tra nháp \"{quizName}\". Bỏ qua {skippedQuestions} câu hỏi đã bị ẩn.");
+
+    /// <summary>Thêm câu vào bài kiểm tra, hoặc phát hành, khi câu có dạng hoặc cấp không dùng được ở cấp của lớp.</summary>
+    public static AppMessage QuestionLevelMismatch(string typeName, int level) =>
+        new(MessageCodes.QuestionLevelMismatch, $"Câu hỏi dạng \"{typeName}\" không dùng được ở lớp cấp {level}.");
+
+    // ---- Làm bài của học sinh (xưng "em") ----
+
+    /// <summary>Em chưa tới giờ làm bài kiểm tra.</summary>
+    public static AppMessage QuizNotOpen(DateTime? openAt) => new(MessageCodes.QuizNotOpen,
+        $"Bài kiểm tra chưa mở. Em quay lại làm bài từ {Domain.Rules.QuizRules.FormatVietnamTime(openAt)} nhé.");
+
+    /// <summary>Bài kiểm tra đã đóng hoặc quá giờ đóng, em chưa có lượt làm bài.</summary>
+    public static readonly AppMessage QuizEnded = new(MessageCodes.QuizEnded,
+        "Bài kiểm tra đã đóng nên em không làm bài được nữa. Em hãy hỏi thầy cô nếu cần.");
+
+    /// <summary>Lượt đã nộp (em nộp rồi hoặc hết giờ nên hệ thống tự nộp): chỉ còn xem kết quả.</summary>
+    public static AppMessage AttemptFinished(bool autoSubmitted) => new(MessageCodes.AttemptFinished, autoSubmitted
+        ? "Đã hết giờ làm bài nên bài của em được nộp tự động. Em hãy xem kết quả."
+        : "Em đã nộp bài này rồi. Em hãy xem kết quả.");
+
+    /// <summary>Xem kết quả khi lượt còn đang làm dở.</summary>
+    public static readonly AppMessage AttemptInProgress = new(MessageCodes.AttemptInProgress,
+        "Em chưa nộp bài này nên chưa xem được kết quả. Em hãy làm tiếp và nộp bài nhé.");
+
+    /// <summary>Lời nhắc trước khi bắt đầu làm bài kiểm tra.</summary>
+    public const string QuizOnlyOnceNotice = "Em chỉ được làm bài kiểm tra này một lần. Em bấm \"Bắt đầu\" khi đã sẵn sàng nhé.";
+
+    // ---- Thống kê và gợi ý ----
+
+    /// <summary>Trang học, tiến độ, gợi ý của em khi em chưa có lượt nào (hoặc lớp chưa có bài nào xuất bản).</summary>
+    public const string StudentNoAttemptsYet = "Em chưa có bài làm nào. Em hãy nhập mã bài học thầy cô đưa để bắt đầu học.";
+
+    /// <summary>Thống kê, tiến độ, gợi ý của lớp khi chưa có lượt nộp.</summary>
+    public const string ClassNoResultsYet = "Chưa có học sinh nào nộp bài. Thống kê và gợi ý sẽ hiện khi có kết quả.";
 
     /// <summary>Lỗi hệ thống ngoài dự kiến.</summary>
     public static readonly AppMessage SystemError =

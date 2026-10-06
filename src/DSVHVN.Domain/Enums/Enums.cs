@@ -209,8 +209,9 @@ public enum TranslationStatus
 }
 
 /// <summary>
-/// <c>audit_logs.action</c>: 24 mã thao tác được ghi nhật ký (21 mã của CSDL v3, <c>HERITAGE_PREVIEW_ISSUED</c> khi cấp liên kết xem trước bản nháp di sản, và
-/// <c>TRANSLATION_APPROVED</c>, <c>TRANSLATION_REJECTED</c> khi duyệt, từ chối bản dịch và tóm tắt di sản). Cột không có CHECK, danh sách hợp lệ kiểm ở tầng code.
+/// <c>audit_logs.action</c>: 26 mã thao tác được ghi nhật ký (21 mã của CSDL v3, <c>HERITAGE_PREVIEW_ISSUED</c> khi cấp liên kết xem trước bản nháp di sản,
+/// <c>TRANSLATION_APPROVED</c>, <c>TRANSLATION_REJECTED</c> khi duyệt, từ chối bản dịch và tóm tắt di sản, <c>HERITAGE_MODEL_CHANGED</c> khi đổi mô hình 3D
+/// và <c>QUESTION_RESTORED</c> khi quản trị hệ thống hiện lại câu đã ẩn). Cột không có CHECK, danh sách hợp lệ kiểm ở tầng code.
 /// Nền tảng tài khoản và tổ chức ghi 8 mã đầu; các mã còn lại do chức năng tương ứng ghi qua cùng <c>IAuditLogger</c>.
 /// </summary>
 public enum AuditAction
@@ -235,9 +236,17 @@ public enum AuditAction
     QUIZ_PUBLISHED,
     QUIZ_CLOSED,
     QUESTION_HIDDEN,
+    QUESTION_RESTORED,
     PLAN_UPDATED,
     SUBSCRIPTION_CHANGED,
     BILLING_STATUS_CHANGED,
     IPN_REJECTED,
     HERITAGE_MODEL_CHANGED,
+}
+
+/// <summary>Cách gom nhóm của biểu đồ tổng quan theo thời gian: theo ngày hoặc theo tháng (giờ Việt Nam).</summary>
+public enum TrendGranularity
+{
+    DAY,
+    MONTH,
 }

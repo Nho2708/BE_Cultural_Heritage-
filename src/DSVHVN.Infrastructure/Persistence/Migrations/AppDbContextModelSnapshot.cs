@@ -2072,6 +2072,16 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .HasColumnName("is_correct")
                         .HasDefaultValueSql("0");
 
+                    b.Property<short>("PartsCorrect")
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)0)
+                        .HasColumnName("parts_correct");
+
+                    b.Property<short>("PartsTotal")
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((short)1)
+                        .HasColumnName("parts_total");
+
                     b.Property<decimal?>("PointEarned")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)")
@@ -2092,7 +2102,77 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_attempt_answers_attempt_question");
 
-                    b.ToTable("attempt_answers", (string)null);
+                    b.ToTable("attempt_answers", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_attempt_answers_parts", "[parts_total] >= 1 AND [parts_correct] BETWEEN 0 AND [parts_total]");
+                        });
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Quizzes.AttemptAnswerPart", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AnswerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("answer_id");
+
+                    b.Property<long>("AttemptAnswerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("attempt_answer_id");
+
+                    b.Property<byte?>("BlankIndex")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("blank_index");
+
+                    b.Property<bool>("IsCorrect")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_correct")
+                        .HasDefaultValueSql("0");
+
+                    b.Property<string>("ResponseText")
+                        .HasMaxLength(255)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("response_text");
+
+                    b.Property<long?>("SelectedAnswerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("selected_answer_id");
+
+                    b.Property<bool?>("SelectedBool")
+                        .HasColumnType("bit")
+                        .HasColumnName("selected_bool");
+
+                    b.Property<byte?>("SelectedPosition")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("selected_position");
+
+                    b.HasKey("Id")
+                        .HasName("PK_attempt_answer_parts");
+
+                    b.HasIndex("AnswerId");
+
+                    b.HasIndex("SelectedAnswerId");
+
+                    b.HasIndex("AttemptAnswerId", "AnswerId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_attempt_answer_parts_answer")
+                        .HasFilter("[answer_id] IS NOT NULL");
+
+                    b.HasIndex("AttemptAnswerId", "BlankIndex")
+                        .IsUnique()
+                        .HasDatabaseName("UX_attempt_answer_parts_blank")
+                        .HasFilter("[blank_index] IS NOT NULL");
+
+                    b.ToTable("attempt_answer_parts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_attempt_answer_parts_target", "([answer_id] IS NOT NULL AND [blank_index] IS NULL) OR ([answer_id] IS NULL AND [blank_index] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Quizzes.Quiz", b =>
@@ -2729,6 +2809,34 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("Question");
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Quizzes.AttemptAnswerPart", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Questions.Answer", "Answer")
+                        .WithMany()
+                        .HasForeignKey("AnswerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_attempt_answer_parts_answer_id");
+
+                    b.HasOne("DSVHVN.Domain.Quizzes.AttemptAnswer", "AttemptAnswer")
+                        .WithMany("Parts")
+                        .HasForeignKey("AttemptAnswerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_attempt_answer_parts_attempt_answer_id");
+
+                    b.HasOne("DSVHVN.Domain.Questions.Answer", "SelectedAnswer")
+                        .WithMany()
+                        .HasForeignKey("SelectedAnswerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_attempt_answer_parts_selected_answer_id");
+
+                    b.Navigation("Answer");
+
+                    b.Navigation("AttemptAnswer");
+
+                    b.Navigation("SelectedAnswer");
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Quizzes.Quiz", b =>
                 {
                     b.HasOne("DSVHVN.Domain.Identity.User", "Creator")
@@ -2805,6 +2913,11 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DSVHVN.Domain.Quizzes.Attempt", b =>
                 {
                     b.Navigation("Answers");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Quizzes.AttemptAnswer", b =>
+                {
+                    b.Navigation("Parts");
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Quizzes.Quiz", b =>
