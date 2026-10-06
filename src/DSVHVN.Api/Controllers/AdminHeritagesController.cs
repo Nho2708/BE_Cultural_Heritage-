@@ -34,7 +34,7 @@ public sealed class AdminHeritagesController(HeritageService heritages, Heritage
     /// <summary>
     /// Danh sách di sản chưa xóa: tìm theo tên (không phân biệt hoa thường và dấu), lọc tỉnh, loại, cấp xếp hạng, trạng thái
     /// (DRAFT | PUBLISHED | ARCHIVED), tình trạng bản dịch (NONE | PENDING | APPROVED | OUTDATED), phân trang; di sản sửa gần nhất đứng trước.
-    /// Mỗi dòng có <c>translationState</c>.
+    /// <c>hasModel</c> true lọc di sản có mô hình 3D đang hiển thị, false lọc di sản chưa có. Mỗi dòng có <c>translationState</c> và <c>hasModel</c>.
     /// </summary>
     [HttpGet]
     [ProducesResponseType<ApiResponse<PagedResult<HeritageSummaryDto>>>(StatusCodes.Status200OK)]
@@ -42,9 +42,10 @@ public sealed class AdminHeritagesController(HeritageService heritages, Heritage
     public async Task<ActionResult<ApiResponse<PagedResult<HeritageSummaryDto>>>> List(
         [FromQuery] string? keyword, [FromQuery] int? provinceId, [FromQuery] HeritageType? heritageType,
         [FromQuery] RecognitionLevel? recognitionLevel, [FromQuery] ContentStatus? status,
-        [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] TranslationState? translationState, CancellationToken ct)
+        [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] TranslationState? translationState,
+        [FromQuery] bool? hasModel, CancellationToken ct)
         => OkEnvelope(await heritages.ListAsync(
-            new HeritageListQuery(keyword, provinceId, heritageType, recognitionLevel, status, page, pageSize, translationState), ct));
+            new HeritageListQuery(keyword, provinceId, heritageType, recognitionLevel, status, page, pageSize, translationState, hasModel), ct));
 
     /// <summary>Đường dẫn gợi ý từ tên di sản (thêm -2, -3... nếu đã có di sản dùng); <c>heritageId</c> để loại chính di sản đang sửa.</summary>
     [HttpGet("suggest-slug")]

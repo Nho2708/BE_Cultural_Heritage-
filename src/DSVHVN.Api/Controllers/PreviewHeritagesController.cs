@@ -2,6 +2,7 @@ using DSVHVN.Api.Common;
 using DSVHVN.Api.Security;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Discovery;
+using DSVHVN.Application.Models;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Infrastructure.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -34,6 +35,12 @@ public sealed class PreviewHeritagesController(HeritagePreviewService previews) 
     [ProducesResponseType<ApiResponse<PublicTimelineDto>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<PublicTimelineDto>>> Timeline(string code, [FromQuery] string? lang, CancellationToken ct)
         => OkEnvelope(await previews.GetTimelineAsync(AdminActorOrNull(), code, PublicLanguage(lang), ct));
+
+    /// <summary>Mô hình 3D đang hiển thị của bản nháp (cùng điều kiện mở như trên), cho nút "Xem 3D" của trang xem trước; không có thì 404 kèm mã MODEL_UNAVAILABLE.</summary>
+    [HttpGet("model")]
+    [ProducesResponseType<ApiResponse<PublicModelDto>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<PublicModelDto>>> Model(string code, CancellationToken ct)
+        => OkEnvelope(await previews.GetModelAsync(AdminActorOrNull(), code, ct));
 
     // Endpoint cho phép ẩn danh nhưng token (nếu có) vẫn được xác thực và đối chiếu CSDL; chỉ vai trò quản trị hệ thống mới được xét mã.
     private Actor? AdminActorOrNull() =>
