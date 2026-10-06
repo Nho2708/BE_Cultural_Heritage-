@@ -40,6 +40,8 @@ public sealed class HeritageService(IAppDbContext db, RequestValidator validator
         if (query.HeritageType is { } type) heritages = heritages.Where(h => h.HeritageType == type);
         if (query.RecognitionLevel is { } level) heritages = heritages.Where(h => h.RecognitionLevel == level);
         if (query.Status is { } status) heritages = heritages.Where(h => h.Status == status);
+        if (query.HasModel is { } hasModel)
+            heritages = heritages.Where(h => db.HeritageModels.Any(m => m.HeritageId == h.Id && m.DeletedAt == null && m.Status == ContentStatus.PUBLISHED) == hasModel);
         if (query.TranslationState is { } state)
         {
             if (!Enum.IsDefined(state))
@@ -73,6 +75,7 @@ public sealed class HeritageService(IAppDbContext db, RequestValidator validator
                 AnyTranslation = db.HeritageTranslations.Any(t => t.HeritageId == h.Id) || db.HeritageSummaries.Any(s => s.HeritageId == h.Id),
                 AnyOutdated = db.HeritageTranslations.Any(t => t.HeritageId == h.Id && t.IsOutdated)
                               || db.HeritageSummaries.Any(s => s.HeritageId == h.Id && s.IsOutdated),
+                HasModel = db.HeritageModels.Any(m => m.HeritageId == h.Id && m.DeletedAt == null && m.Status == ContentStatus.PUBLISHED),
                 AnyPending = db.HeritageTranslations.Any(t => t.HeritageId == h.Id && t.Status == TranslationStatus.PENDING)
                              || db.HeritageSummaries.Any(s => s.HeritageId == h.Id && s.Status == TranslationStatus.PENDING),
             })
@@ -83,7 +86,8 @@ public sealed class HeritageService(IAppDbContext db, RequestValidator validator
             h.Status ?? ContentStatus.DRAFT, h.TimelineCount, h.MediaCount, h.ReferenceCount, h.CreatedAt, h.UpdatedAt,
             h.AnyOutdated ? TranslationState.OUTDATED
             : h.AnyPending ? TranslationState.PENDING
-            : h.AnyTranslation ? TranslationState.APPROVED : TranslationState.NONE)).ToList();
+            : h.AnyTranslation ? TranslationState.APPROVED : TranslationState.NONE,
+            h.HasModel)).ToList();
         return new PagedResult<HeritageSummaryDto>(items, page.Page, page.PageSize, page.TotalItems, page.TotalPages);
     }
 

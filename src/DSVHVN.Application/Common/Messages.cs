@@ -47,6 +47,7 @@ public static class MessageCodes
     public const string TranslationApproved = "TRANSLATION_APPROVED";
     public const string TranslationRejected = "TRANSLATION_REJECTED";
     public const string TranslationBusy = "TRANSLATION_BUSY";
+    public const string ModelUnavailable = "MODEL_UNAVAILABLE";
 }
 
 /// <summary>

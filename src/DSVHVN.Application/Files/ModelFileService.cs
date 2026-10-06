@@ -5,7 +5,7 @@ namespace DSVHVN.Application.Files;
 
 /// <summary>
 /// Tải tệp mô hình 3D <c>.glb</c> lên kho tệp (quản trị hệ thống). Chỉ lưu tệp và trả đường dẫn trong kho; phần gắn mô hình vào di sản
-/// kèm ghi công và bật/tắt hiển thị thuộc luồng Xem 3D (bảng mô hình 3D của CSDL v4) và sẽ dùng đường dẫn này.
+/// kèm ghi công và bật/tắt hiển thị là của <c>HeritageModelService</c>, dùng chính dịch vụ này để tải tệp rồi khai báo.
 /// Kiểm bằng nội dung: glTF 2.0 đóng gói một tệp, tối đa 15 MB, mọi dữ liệu nằm trong tệp.
 /// </summary>
 public sealed class ModelFileService(IFileStorage storage)

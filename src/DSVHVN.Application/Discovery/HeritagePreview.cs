@@ -1,5 +1,6 @@
 using DSVHVN.Application.Audit;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Models;
 using DSVHVN.Domain.Audit;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Heritages;
@@ -35,7 +36,7 @@ public sealed record HeritagePreviewDto(DateTime ExpiresAt, string Status, Publi
 /// kết quả 404 (không cho biết di sản có tồn tại hay không). Không đổi trạng thái di sản, không ghi lượt xem; việc cấp mã được ghi nhật ký thao tác.
 /// </summary>
 public sealed class HeritagePreviewService(
-    IAppDbContext db, IHeritagePreviewCodec codec, DiscoveryService discovery, IAuditLogger audit, TimeProvider clock)
+    IAppDbContext db, IHeritagePreviewCodec codec, DiscoveryService discovery, PublicModelService models, IAuditLogger audit, TimeProvider clock)
 {
     public const string PathPrefix = "/xem-truoc/di-san/";
 
@@ -73,6 +74,13 @@ public sealed class HeritagePreviewService(
     {
         var (_, heritage) = await OpenAsync(actor, code, ct);
         return await discovery.BuildTimelineAsync(heritage, language, ct);
+    }
+
+    /// <summary>Mô hình 3D đang hiển thị của bản nháp, cùng điều kiện mở với <see cref="GetAsync"/>; không có mô hình thì 404 kèm mã MODEL_UNAVAILABLE.</summary>
+    public async Task<PublicModelDto> GetModelAsync(Actor? actor, string? code, CancellationToken ct)
+    {
+        var (_, heritage) = await OpenAsync(actor, code, ct);
+        return await models.VisibleAsync(heritage.Id, ct);
     }
 
     private async Task<(PreviewTicket Ticket, Heritage Heritage)> OpenAsync(Actor? actor, string? code, CancellationToken ct)
