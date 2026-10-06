@@ -22,14 +22,14 @@ public sealed class AppDbContextTests : IDisposable
 
     public static readonly string[] Tables =
     [
-        "ai_generations", "answers", "attempt_answers", "attempts", "audit_logs", "classes", "events", "heritage_references",
+        "ai_generations", "answers", "attempt_answer_parts", "attempt_answers", "attempts", "audit_logs", "classes", "events", "heritage_references",
         "heritages", "invoices", "lesson_heritages", "lesson_sections", "lessons", "media", "organizations", "password_reset_tokens",
         "payment_providers", "payments", "plans", "provinces", "questions", "quiz_questions", "quizzes", "roles", "students",
         "subscriptions", "timelines", "users",
     ];
 
     [Fact]
-    public async Task Model_has_the_28_tables_and_the_column_names_of_the_database_design()
+    public async Task Model_has_the_29_tables_and_the_column_names_of_the_database_design()
     {
         var (tables, userColumns, fkCount, checkCount) = await _h.QueryAsync(db => Task.FromResult((
             db.Model.GetEntityTypes().Select(e => e.GetTableName()).OrderBy(n => n, StringComparer.Ordinal).ToList(),
@@ -38,8 +38,8 @@ public sealed class AppDbContextTests : IDisposable
             db.GetService<IDesignTimeModel>().Model.GetEntityTypes().Sum(e => e.GetCheckConstraints().Count()))));
 
         Assert.Equal(Tables, tables);
-        Assert.Equal(43, fkCount);
-        Assert.Equal(25, checkCount);   // 22 + CK_questions_levels, CK_questions_passage, CK_answers_positions (luồng ngân hàng câu hỏi)
+        Assert.Equal(46, fkCount);   // 43 + 3 khóa ngoại của attempt_answer_parts
+        Assert.Equal(27, checkCount);   // 22 + CK_questions_levels, CK_questions_passage, CK_answers_positions (luồng ngân hàng câu hỏi) + CK_attempt_answers_parts, CK_attempt_answer_parts_target (luồng học tập)
         Assert.Contains("organization_id", userColumns);
         Assert.Contains("must_change_password", userColumns);
         Assert.Contains("last_login_at", userColumns);
