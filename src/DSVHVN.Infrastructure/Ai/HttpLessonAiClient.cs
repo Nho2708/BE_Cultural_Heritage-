@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -84,6 +84,7 @@ public sealed class AiOptionsValidator : IValidateOptions<AiOptions>
     {
         var problems = new List<string>();
         if (options.AttemptTimeoutSeconds <= 0) problems.Add("Ai:AttemptTimeoutSeconds phải lớn hơn 0");
+        if (options.HeritageAttemptTimeoutSeconds <= 0) problems.Add("Ai:HeritageAttemptTimeoutSeconds phải lớn hơn 0");
         if (options.MaxRetries is < 0 or > 5) problems.Add("Ai:MaxRetries phải từ 0 đến 5");
         if (options.Mode == AiMode.Remote)
         {

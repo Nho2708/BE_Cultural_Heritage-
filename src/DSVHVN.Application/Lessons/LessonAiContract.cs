@@ -105,6 +105,11 @@ public sealed class AiOptions
     public int MaxRetries { get; set; } = LessonRules.AiMaxRetries;
 
     public TimeSpan AttemptTimeout => TimeSpan.FromSeconds(Math.Max(0.05, AttemptTimeoutSeconds));
+
+    /// <summary>Thời gian chờ mỗi lần dịch hoặc tóm tắt di sản (giây, được lẻ); mặc định 90 vì nội dung di sản dài.</summary>
+    public double HeritageAttemptTimeoutSeconds { get; set; } = TranslationRules.AiAttemptTimeout.TotalSeconds;
+
+    public TimeSpan HeritageAttemptTimeout => TimeSpan.FromSeconds(Math.Max(0.05, HeritageAttemptTimeoutSeconds));
 }
 
 public enum AiMode

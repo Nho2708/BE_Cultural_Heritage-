@@ -5,6 +5,7 @@ using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Students;
+using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Enums;
@@ -318,6 +319,58 @@ public sealed class ScriptedQuestionAiClient : IQuestionAiClient
         LastCorrelationId = correlationId;
         if (Behavior is { } behavior) return await behavior(call, request, ct);
         return await _inner.GenerateQuestionsAsync(request, correlationId, ct);
+    }
+}
+
+/// <summary>
+/// Dịch vụ AI tóm tắt và dịch di sản của kiểm thử: chạy bản giả lập thật, ép lỗi hoặc ép kết quả bằng <see cref="SummarizeBehavior"/> và <see cref="TranslateBehavior"/>,
+/// ghi lại mọi yêu cầu đã nhận. Nhớ gọi <see cref="Reset"/> khi dùng chung giữa các test.
+/// </summary>
+public sealed class ScriptedHeritageAiClient : IHeritageAiClient
+{
+    private readonly SimulatedHeritageAiClient _inner = new();
+    private int _summaries;
+    private int _translations;
+
+    public string ModelName => _inner.ModelName;
+
+    public int SummarizeCalls => _summaries;
+
+    public int TranslateCalls => _translations;
+
+    /// <summary>Nhận số thứ tự lần gọi (từ 1) và yêu cầu; trả kết quả hoặc ném ngoại lệ tùy kiểm thử.</summary>
+    public Func<int, AiSummarizeRequest, CancellationToken, Task<AiSummarizeResult>>? SummarizeBehavior { get; set; }
+
+    public Func<int, AiTranslateRequest, CancellationToken, Task<AiTranslateResult>>? TranslateBehavior { get; set; }
+
+    public ConcurrentQueue<AiSummarizeRequest> SummarizeRequests { get; } = new();
+
+    public ConcurrentQueue<AiTranslateRequest> TranslateRequests { get; } = new();
+
+    public void Reset()
+    {
+        SummarizeBehavior = null;
+        TranslateBehavior = null;
+        _summaries = 0;
+        _translations = 0;
+        SummarizeRequests.Clear();
+        TranslateRequests.Clear();
+    }
+
+    public async Task<AiSummarizeResult> SummarizeHeritageAsync(AiSummarizeRequest request, string correlationId, CancellationToken ct)
+    {
+        var call = Interlocked.Increment(ref _summaries);
+        SummarizeRequests.Enqueue(request);
+        if (SummarizeBehavior is { } behavior) return await behavior(call, request, ct);
+        return await _inner.SummarizeHeritageAsync(request, correlationId, ct);
+    }
+
+    public async Task<AiTranslateResult> TranslateHeritageAsync(AiTranslateRequest request, string correlationId, CancellationToken ct)
+    {
+        var call = Interlocked.Increment(ref _translations);
+        TranslateRequests.Enqueue(request);
+        if (TranslateBehavior is { } behavior) return await behavior(call, request, ct);
+        return await _inner.TranslateHeritageAsync(request, correlationId, ct);
     }
 }
 
