@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace DSVHVN.Infrastructure.Persistence.Configurations;
 
-// Nhóm Khách tham quan của CSDL v4: guest_devices và guest_activities. Khách không có tài khoản nên không có khóa ngoại tới users.
+// Nhóm Khách tham quan và quảng cáo của CSDL v4: guest_devices, guest_activities và ad_unlocks. Khách không có tài khoản nên không có khóa ngoại tới users.
 
 /// <summary>Bảng <c>guest_devices</c>: mã thiết bị ẩn danh (không trùng), nền tảng, ngôn ngữ dùng gần nhất, cờ "Gần bạn", mốc đầu và cuối thấy.</summary>
 internal sealed class GuestDeviceConfiguration : IEntityTypeConfiguration<GuestDevice>
@@ -51,5 +51,37 @@ internal sealed class GuestActivityConfiguration : IEntityTypeConfiguration<Gues
 
         b.HasOne(x => x.GuestDevice).WithMany().HasForeignKey(x => x.GuestDeviceId).IsRequired().OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Heritage).WithMany().HasForeignKey(x => x.HeritageId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+/// <summary>
+/// Bảng <c>ad_unlocks</c>: lượt mở khóa tóm tắt và nghe thuyết minh của một di sản trên một thiết bị bằng quảng cáo có thưởng của Google. Ba ràng buộc của CSDL:
+/// <c>UX_ad_unlocks_network_transaction</c> (một mã giao dịch chỉ mở khóa một lần trong một mạng), <c>CK_ad_unlocks_network_platform</c> (AdMob chỉ ở Android hoặc iOS,
+/// Ad Manager chỉ ở web) và <c>CK_ad_unlocks_expiry</c> (hạn sau thời điểm mở khóa). Chỉ mục theo thiết bị, di sản và hạn cho việc kiểm còn hạn và đếm lượt trong giờ.
+/// </summary>
+internal sealed class AdUnlockConfiguration : IEntityTypeConfiguration<AdUnlock>
+{
+    public void Configure(EntityTypeBuilder<AdUnlock> b)
+    {
+        b.ToTable("ad_unlocks", t =>
+        {
+            t.HasEnumCheck<AdUnlock, ClientPlatform>("ad_unlocks", "platform");
+            t.HasEnumCheck<AdUnlock, AdNetwork>("ad_unlocks", "ad_network");
+            t.HasCheckConstraint("CK_ad_unlocks_network_platform",
+                "([ad_network] = 'ADMOB' AND [platform] IN ('ANDROID', 'IOS')) OR ([ad_network] = 'AD_MANAGER' AND [platform] = 'WEB')");
+            t.HasCheckConstraint("CK_ad_unlocks_expiry", "[expires_at] > [unlocked_at]");
+        });
+        b.Property(x => x.Platform).AsEnumText();
+        b.Property(x => x.AdNetwork).AsEnumText();
+        b.Property(x => x.TransactionId).HasMaxLength(255).IsRequired();
+        b.Property(x => x.AdUnitId).HasMaxLength(100);
+        b.Property(x => x.UnlockedAt).IsRequired();
+        b.Property(x => x.ExpiresAt).IsRequired();
+
+        b.HasIndex(x => new { x.AdNetwork, x.TransactionId }).IsPlainUnique("UX_ad_unlocks_network_transaction");
+        b.HasIndex(x => new { x.GuestDeviceId, x.HeritageId, x.ExpiresAt }).HasDatabaseName("IX_ad_unlocks_device_heritage");
+
+        b.HasOne(x => x.GuestDevice).WithMany().HasForeignKey(x => x.GuestDeviceId).IsRequired().OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Heritage).WithMany().HasForeignKey(x => x.HeritageId).IsRequired().OnDelete(DeleteBehavior.Restrict);
     }
 }

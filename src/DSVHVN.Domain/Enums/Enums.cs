@@ -209,9 +209,9 @@ public enum TranslationStatus
 }
 
 /// <summary>
-/// <c>audit_logs.action</c>: 26 mã thao tác được ghi nhật ký (21 mã của CSDL v3, <c>HERITAGE_PREVIEW_ISSUED</c> khi cấp liên kết xem trước bản nháp di sản,
+/// <c>audit_logs.action</c>: 27 mã thao tác được ghi nhật ký (21 mã của CSDL v3, <c>HERITAGE_PREVIEW_ISSUED</c> khi cấp liên kết xem trước bản nháp di sản,
 /// <c>TRANSLATION_APPROVED</c>, <c>TRANSLATION_REJECTED</c> khi duyệt, từ chối bản dịch và tóm tắt di sản, <c>HERITAGE_MODEL_CHANGED</c> khi đổi mô hình 3D
-/// và <c>QUESTION_RESTORED</c> khi quản trị hệ thống hiện lại câu đã ẩn). Cột không có CHECK, danh sách hợp lệ kiểm ở tầng code.
+/// <c>QUESTION_RESTORED</c> khi quản trị hệ thống hiện lại câu đã ẩn và <c>AD_REWARD_REJECTED</c> khi phần thưởng quảng cáo bị từ chối). Cột không có CHECK, danh sách hợp lệ kiểm ở tầng code.
 /// Nền tảng tài khoản và tổ chức ghi 8 mã đầu; các mã còn lại do chức năng tương ứng ghi qua cùng <c>IAuditLogger</c>.
 /// </summary>
 public enum AuditAction
@@ -242,6 +242,7 @@ public enum AuditAction
     BILLING_STATUS_CHANGED,
     IPN_REJECTED,
     HERITAGE_MODEL_CHANGED,
+    AD_REWARD_REJECTED,
 }
 
 /// <summary>Cách gom nhóm của biểu đồ tổng quan theo thời gian: theo ngày hoặc theo tháng (giờ Việt Nam).</summary>
@@ -270,4 +271,14 @@ public enum GuestActivityType
     READ_SUMMARY,
     LISTEN,
     VIEW_3D,
+}
+
+/// <summary>
+/// <c>ad_network</c> (CSDL v4): hai mạng quảng cáo có thưởng của Google. <c>ADMOB</c> trong app (phần thưởng được Google xác minh phía máy chủ bằng chữ ký);
+/// <c>AD_MANAGER</c> trên web (trình duyệt báo phần thưởng, kém tin cậy hơn nên có giới hạn tần suất). Không có chiến dịch quảng cáo tự quản lý.
+/// </summary>
+public enum AdNetwork
+{
+    ADMOB,
+    AD_MANAGER,
 }
