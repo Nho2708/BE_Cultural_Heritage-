@@ -40,6 +40,8 @@ public sealed class ExceptionEnvelopeMiddleware(RequestDelegate next, ILogger<Ex
         {
             logger.LogInformation("{Status} {Code} {Path}", ex.StatusCode, ex.AppMessage.Code, LoggablePath(context.Request.Path));
             context.Response.Clear();
+            if (ex.RetryAfter is { } wait)
+                context.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(wait.TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture);
             await ApiJson.WriteFailAsync(context, ex.StatusCode, ex.AppMessage, ex.Errors);
         }
         catch (FileStorageException ex) when (!context.Response.HasStarted)

@@ -1,7 +1,9 @@
 using DSVHVN.Api.Common;
 using DSVHVN.Api.Security;
+using DSVHVN.Application.Ads;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Guests;
+using DSVHVN.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -24,7 +26,7 @@ namespace DSVHVN.Api.Controllers;
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status429TooManyRequests)]
-public sealed class GuestController(GuestService guests, GuestRecommendationService recommendations) : ApiControllerBase
+public sealed class GuestController(GuestService guests, GuestRecommendationService recommendations, AdUnlockService unlocks) : ApiControllerBase
 {
     /// <summary>
     /// Đăng ký thiết bị. Có <c>X-Device-Key</c> thì tạo bản ghi nếu chưa có (201), đã có thì cập nhật cài đặt (200); không có tiêu đề (client không tự sinh được mã an toàn) thì máy chủ cấp một mã mới
@@ -66,6 +68,9 @@ public sealed class GuestController(GuestService guests, GuestRecommendationServ
     /// Ghi một lượt vào lịch sử (dùng cho "nghe thuyết minh" và cho client muốn tự ghi): <c>type</c> là SEARCH (kèm <c>query</c> 2-100 ký tự), VIEW, READ_SUMMARY, LISTEN hoặc VIEW_3D (kèm <c>slug</c> của di sản đã xuất bản,
     /// không có thì 404). Ngôn ngữ của lượt lấy từ <c>lang</c> hoặc <c>Accept-Language</c>. <c>recorded</c> false khi lượt lặp trong 10 phút (<c>DUPLICATE</c>) hoặc yêu cầu của học sinh đã đăng nhập (<c>STUDENT_SESSION</c>,
     /// không ghi và không báo lỗi để app học sinh gọi nhầm cũng không hỏng).
+    /// <para>
+    /// <c>LISTEN</c> là "nghe thuyết minh": cùng cổng quảng cáo với tóm tắt. Khách chưa mở khóa di sản này (khi cổng đang hoạt động) nhận 403 <c>AD_UNLOCK_REQUIRED</c> và lượt không được ghi.
+    /// </para>
     /// </summary>
     [HttpPost("activities")]
     [ProducesResponseType<ApiResponse<GuestActivityResultDto>>(StatusCodes.Status200OK)]
@@ -78,6 +83,7 @@ public sealed class GuestController(GuestService guests, GuestRecommendationServ
         if (request.Type is not { } type) throw AppException.Validation("type", Messages.Required("loại lượt"));
         var language = PublicLanguage(lang);
         if (IsStudentSession) return OkEnvelope(new GuestActivityResultDto(false, "STUDENT_SESSION"));
+        if (type == GuestActivityType.LISTEN) await unlocks.EnsureListenAllowedAsync(Viewer(), request.Slug, ct);
         var recorded = await guests.RecordAsync(key, platform, language, type, request.Slug, request.Query, ct);
         return OkEnvelope(new GuestActivityResultDto(recorded, recorded ? null : "DUPLICATE"));
     }
