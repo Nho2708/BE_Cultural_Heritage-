@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 namespace DSVHVN.Tests.Unit;
 
 /// <summary>
-/// Quy ước CSDL trên model EF Core (SQLite trong bộ nhớ): đủ 27 bảng của v3 và mười bảng của v4 (lesson_sections, năm bảng đa ngôn ngữ, mô hình 3D, hai bảng của khách tham quan) theo tên DBML, 4 vai trò seed, audit_logs chỉ thêm,
+/// Quy ước CSDL trên model EF Core (SQLite trong bộ nhớ): đủ 27 bảng của v3 và mười một bảng của v4 (lesson_sections, năm bảng đa ngôn ngữ, mô hình 3D, hai bảng của khách tham quan, ad_unlocks) theo tên DBML, 4 vai trò seed, audit_logs chỉ thêm,
 /// mốc UTC, unique có lọc, CHECK. Lược đồ SQL Server thật được kiểm ở lớp kiểm thử CSDL tạm trên LocalDB.
 /// </summary>
 public sealed class AppDbContextTests : IDisposable
@@ -22,7 +22,7 @@ public sealed class AppDbContextTests : IDisposable
 
     public static readonly string[] Tables =
     [
-        "ai_generations", "answers", "attempt_answer_parts", "attempt_answers", "attempts", "audit_logs", "classes", "event_translations", "events",
+        "ad_unlocks", "ai_generations", "answers", "attempt_answer_parts", "attempt_answers", "attempts", "audit_logs", "classes", "event_translations", "events",
         "guest_activities", "guest_devices", "heritage_models", "heritage_references", "heritage_summaries", "heritage_translations", "heritages", "invoices", "lesson_heritages", "lesson_sections",
         "lessons", "media", "media_translations", "organizations", "password_reset_tokens", "payment_providers", "payments", "plans",
         "provinces", "questions", "quiz_questions", "quizzes", "roles", "students", "subscriptions", "timeline_translations", "timelines",
@@ -30,7 +30,7 @@ public sealed class AppDbContextTests : IDisposable
     ];
 
     [Fact]
-    public async Task Model_has_the_37_tables_and_the_column_names_of_the_database_design()
+    public async Task Model_has_the_38_tables_and_the_column_names_of_the_database_design()
     {
         var (tables, userColumns, fkCount, checkCount) = await _h.QueryAsync(db => Task.FromResult((
             db.Model.GetEntityTypes().Select(e => e.GetTableName()).OrderBy(n => n, StringComparer.Ordinal).ToList(),
@@ -39,8 +39,8 @@ public sealed class AppDbContextTests : IDisposable
             db.GetService<IDesignTimeModel>().Model.GetEntityTypes().Sum(e => e.GetCheckConstraints().Count()))));
 
         Assert.Equal(Tables, tables);
-        Assert.Equal(58, fkCount);   // 43 + 9 khóa ngoại của năm bảng đa ngôn ngữ + 1 của mô hình 3D + 3 của attempt_answer_parts + 2 của guest_activities
-        Assert.Equal(45, checkCount);   // 25 + 10 CHECK của năm bảng đa ngôn ngữ (mã ngôn ngữ, trạng thái theo ngôn ngữ, không có dòng tiếng Việt ở bảng con) + 3 CHECK của mô hình 3D (định dạng, trạng thái, dung lượng) + CK_attempt_answers_parts, CK_attempt_answer_parts_target (luồng học tập) + 5 CHECK của khách tham quan (nền tảng và ngôn ngữ của thiết bị, loại lượt và ngôn ngữ của lượt, CK_guest_activities_target)
+        Assert.Equal(60, fkCount);   // 43 + 9 khóa ngoại của năm bảng đa ngôn ngữ + 1 của mô hình 3D + 3 của attempt_answer_parts + 2 của guest_activities + 2 của ad_unlocks
+        Assert.Equal(49, checkCount);   // 25 + 10 CHECK của năm bảng đa ngôn ngữ (mã ngôn ngữ, trạng thái theo ngôn ngữ, không có dòng tiếng Việt ở bảng con) + 3 CHECK của mô hình 3D (định dạng, trạng thái, dung lượng) + CK_attempt_answers_parts, CK_attempt_answer_parts_target (luồng học tập) + 5 CHECK của khách tham quan (nền tảng và ngôn ngữ của thiết bị, loại lượt và ngôn ngữ của lượt, CK_guest_activities_target) + 4 CHECK của ad_unlocks (nền tảng, mạng quảng cáo, CK_ad_unlocks_network_platform, CK_ad_unlocks_expiry)
         Assert.Contains("organization_id", userColumns);
         Assert.Contains("must_change_password", userColumns);
         Assert.Contains("last_login_at", userColumns);
