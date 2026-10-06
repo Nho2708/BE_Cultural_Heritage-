@@ -334,7 +334,7 @@ public sealed class HeritageTranslationApiTests(ApiFactory factory) : IClassFixt
 
         var (response, body) = await Http.PostAsync<ReviewResultDto>($"{AdminRoot}/heritages/{id}/translations/vi/approve", new { kind = "SUMMARY" }, admin);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("tóm tắt tiếng việt", body.Message!.ToLowerInvariant());
+        Assert.StartsWith("Đã duyệt tóm tắt tiếng Việt.", body.Message);
         var vi = Summary(body.Data!.Overview, "vi");
         Assert.Equal((TranslationStatus.APPROVED, "Đã duyệt", "Quản trị kiểm thử"), (vi.Status!.Value, vi.Label, vi.ReviewedByName));
         Assert.NotNull(vi.ReviewedAt);
@@ -372,6 +372,7 @@ public sealed class HeritageTranslationApiTests(ApiFactory factory) : IClassFixt
         var (response, body) = await Http.PostAsync<ReviewResultDto>($"{AdminRoot}/heritages/{id}/translations/en/reject",
             new { kind = "TRANSLATION", reason = "Dịch sai tên riêng \"Thăng Long\"." }, admin);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.StartsWith("Đã từ chối bản dịch tiếng Anh.", body.Message);
         Assert.Contains("dịch lại", body.Message);
         var cell = Translation(body.Data!.Overview, "en");
         Assert.Equal((TranslationStatus.REJECTED, "Bị từ chối"), (cell.Status!.Value, cell.Label));
