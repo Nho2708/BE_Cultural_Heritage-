@@ -125,15 +125,22 @@ public sealed class PublicHeritagesController(
     /// Tóm tắt của di sản theo ngôn ngữ (nút "Tóm tắt" và "Nghe"): <c>detailedText</c> để đọc, <c>shortText</c> để nghe bằng giọng đọc của thiết bị hoặc trình duyệt. Lấy từ bản đã lưu, không gọi AI.
     /// Ngôn ngữ chưa có bản hiện hành thì trả tóm tắt tiếng Việt kèm cờ <c>isFallback</c> (nghe bằng giọng tiếng Việt). Di sản chưa có tóm tắt tiếng Việt đã duyệt thì 404 kèm mã
     /// SUMMARY_UNAVAILABLE ("Di sản này chưa có tóm tắt"): không hiện cổng quảng cáo, không tính lượt. Khách gửi kèm <c>X-Device-Key</c> thì lượt đọc tóm tắt được ghi vào lịch sử (chỉ khi có tóm tắt).
+    /// <para>
+    /// <b>Cổng quảng cáo:</b> khi cổng đang hoạt động, khách chưa mở khóa di sản này trên thiết bị của mình (xem quảng cáo có thưởng của Google, hiệu lực 24 giờ) nhận 403 kèm mã
+    /// <c>AD_UNLOCK_REQUIRED</c>; thiếu <c>X-Device-Key</c> cũng coi là chưa mở khóa. Học sinh đã đăng nhập luôn mở thẳng; thiết bị khai báo <c>X-Ads-Unavailable: true</c> mở thẳng khi môi trường cho phép.
+    /// Phản hồi không được lưu đệm vì phụ thuộc thiết bị.
+    /// </para>
     /// </summary>
     [HttpGet("heritages/{slug}/summary")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<ApiResponse<PublicSummaryDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<PublicSummaryDto>>> Summary(string slug, [FromQuery] string? lang, CancellationToken ct)
     {
         var tracking = GuestTracking();
         var language = PublicLanguage(lang);
-        var summary = await summaries.GetAsync(slug, language, ct);
+        var summary = await summaries.GetAsync(slug, language, Viewer(), ct);
         await TrackAsync(tracking, language, GuestActivityType.READ_SUMMARY, summary.Slug, null, ct);
         return OkEnvelope(summary);
     }

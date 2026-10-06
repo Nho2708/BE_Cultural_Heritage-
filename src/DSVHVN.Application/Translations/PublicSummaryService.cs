@@ -1,3 +1,4 @@
+using DSVHVN.Application.Ads;
 using DSVHVN.Application.Common;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Rules;
@@ -13,11 +14,13 @@ namespace DSVHVN.Application.Translations;
 /// <item>Ngôn ngữ yêu cầu có bản hiện hành (tiếng Anh đã duyệt, Hàn, Trung, Nhật bản dịch máy) thì trả bản đó; không có thì trả tóm tắt tiếng Việt đã duyệt kèm cờ lùi
 /// (nghe bản lùi thì đọc bằng giọng tiếng Việt). Bản "cần dịch lại" vẫn hiện bản cũ.</item>
 /// <item>Tên di sản theo ngôn ngữ yêu cầu như trang chi tiết.</item>
+/// <item><b>Cổng quảng cáo:</b> khách chưa mở khóa di sản này trên thiết bị của mình (xem quảng cáo có thưởng của Google, 24 giờ) thì 403 <c>AD_UNLOCK_REQUIRED</c>; học sinh đã đăng nhập,
+/// cổng tắt và thiết bị khai báo không có quảng cáo (khi môi trường cho phép) thì mở thẳng. Cổng kiểm sau khi biết di sản có tóm tắt, nên di sản chưa có tóm tắt không hiện cổng.</item>
 /// </list>
 /// </summary>
-public sealed class PublicSummaryService(IAppDbContext db, HeritageLocalizer localizer)
+public sealed class PublicSummaryService(IAppDbContext db, HeritageLocalizer localizer, AdUnlockService unlocks)
 {
-    public async Task<PublicSummaryDto> GetAsync(string? slug, LanguageCode language, CancellationToken ct)
+    public async Task<PublicSummaryDto> GetAsync(string? slug, LanguageCode language, PublicViewer viewer, CancellationToken ct)
     {
         var key = slug?.Trim().ToLowerInvariant();
         var heritage = HeritageRules.IsValidSlug(key)
@@ -31,6 +34,8 @@ public sealed class PublicSummaryService(IAppDbContext db, HeritageLocalizer loc
             .Where(s => s.HeritageId == heritage.Id && (s.LanguageCode == language || s.LanguageCode == LanguageCode.vi)).ToListAsync(ct);
         var vietnamese = rows.SingleOrDefault(s => s.LanguageCode == LanguageCode.vi && s.Status == TranslationStatus.APPROVED)
                          ?? throw AppException.NotFound(TranslationMessages.NoSummary);
+
+        await unlocks.EnsureUnlockedAsync(viewer, heritage.Id, heritage.Name!, ct);
 
         var chosen = language == LanguageCode.vi
             ? vietnamese

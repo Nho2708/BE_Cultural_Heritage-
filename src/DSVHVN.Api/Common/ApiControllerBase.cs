@@ -1,5 +1,6 @@
 using System.Globalization;
 using DSVHVN.Api.Security;
+using DSVHVN.Application.Ads;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Guests;
 using DSVHVN.Domain.Enums;
@@ -73,6 +74,14 @@ public abstract class ApiControllerBase : ControllerBase
         if (Enum.TryParse<ClientPlatform>(raw.Trim(), ignoreCase: true, out var platform) && Enum.IsDefined(platform)) return platform;
         throw AppException.Validation("platform", Messages.Invalid("Nền tảng", "chỉ nhận ANDROID, IOS hoặc WEB"));
     }
+
+    /// <summary>
+    /// Người xem của yêu cầu công khai cho cổng quảng cáo: học sinh đã đăng nhập (theo phiên đăng nhập), mã thiết bị ở <c>X-Device-Key</c> (sai định dạng thì 400) và khai báo
+    /// "thiết bị không có quảng cáo" ở <c>X-Ads-Unavailable</c> (máy chủ chỉ chấp nhận khi môi trường cho phép).
+    /// </summary>
+    protected PublicViewer Viewer() => new(
+        IsStudentSession, OptionalDeviceKey(),
+        string.Equals(Request.Headers[GuestHeaders.AdsUnavailable].ToString().Trim(), "true", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Chức năng riêng của khách (gợi ý, lịch sử, "Gần bạn", cài đặt thiết bị): học sinh đã đăng nhập bị từ chối (403).</summary>
     protected void RequireGuest()
