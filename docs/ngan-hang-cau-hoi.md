@@ -3,7 +3,7 @@
 Phần backend của khu **Ngân hàng câu hỏi** của giáo viên (web quản trị) và việc **ẩn câu kém chất lượng** của quản trị hệ thống. Ngân hàng **dùng chung mọi trường**,
 có **8 dạng câu** (mỗi dạng dùng được ở những cấp 1/2/3 nhất định); giáo viên tạo câu bằng trình soạn theo dạng hoặc nhờ **AI sinh câu** từ một bài học (đúng dạng và cấp của lớp),
 duyệt câu AI trước khi dùng, nhân bản câu của người khác để sửa. Backend cũng có phép **chấm từng phần** theo dạng, dùng để chấm thử khi soạn và để kiểm câu hợp lệ;
-luồng làm bài sẽ dùng lại đúng phép chấm này.
+luồng học tập của học sinh dùng lại đúng phép chấm này ([hoc-tap-theo-cap.md](hoc-tap-theo-cap.md)).
 
 | Mục | Giá trị |
 |---|---|
@@ -198,7 +198,7 @@ Dùng chung hạn mức với soạn nội dung bài học (`PlanGuard`): kỳ c
 | `question_type` | `CK_questions_question_type` nhận đủ 8 giá trị; enum `QuestionType` thêm `IMAGE_CHOICE`, `MATCHING`, `ORDERING`, `FILL_BLANK`, `MULTI_TRUE_FALSE`, `SOURCE_READING` |
 | CHECK mới | `CK_questions_levels` (cấp 1-3 và `level_min` ≤ `level_max`) · `CK_questions_passage` (dạng đọc tư liệu bắt buộc có `passage`) · `CK_answers_positions` (`correct_position`, `blank_index` NULL hoặc 1..20) |
 | Câu cũ lên v4 | Gán cấp phù hợp mặc định theo bảng dạng câu theo cấp: `SINGLE_CHOICE` → cấp 2-3; `TRUE_FALSE` → cấp 2 (câu Đúng/Sai cũ chưa có hình nên chưa dùng được ở cấp 1 cho tới khi người tạo thêm hình) |
-| **Chưa thêm** | `attempt_answers.parts_total`, `parts_correct` và bảng `attempt_answer_parts` của v4: thuộc luồng làm bài, sẽ có migration riêng cùng luồng đó (cũng như `lesson_sections` thuộc luồng bài học) |
+| **Thêm sau, ở luồng học tập** | `attempt_answers.parts_total`, `parts_correct` và bảng `attempt_answer_parts` của v4: migration `ThemCauTraLoiTungPhan` (xem [hoc-tap-theo-cap.md](hoc-tap-theo-cap.md)), dùng lại đúng phép chấm của luồng này |
 | Dạng nào dùng ở cấp nào | Kiểm ở tầng code (bảng `QuestionTypes`), không có CHECK trong CSDL, đúng ghi chú của DBML |
 
 Số liệu sau migration (kiểm bằng `SqlServerDatabaseTests` và `QuestionSqlServerTests`): 28 bảng, **257 cột**, 43 khóa ngoại, **25 CHECK**, 4 UNIQUE có lọc.
@@ -253,4 +253,4 @@ tìm và lọc, xem trước, chấm thử, kiểm không lưu, AI sinh theo c�
 | Câu nằm trong quiz đã xóa mềm | Không tính: chỉ quiz nháp xóa mềm được (chưa có kết quả) nên câu được mở khóa lại (đổi ở luồng Bài kiểm tra) | — |
 | Độ khó khi AI sinh | Không chọn thì mặc định `MEDIUM`; số câu mặc định 5 | — |
 | Ghi nhật ký thao tác | Chỉ ẩn câu (`QUESTION_HIDDEN`) theo danh sách hành động của đặc tả | Quyết định của nhóm |
-| `attempt_answers.parts_*`, `attempt_answer_parts` | Chưa thêm, thuộc luồng làm bài | Migration riêng ở luồng đó |
+| `attempt_answers.parts_*`, `attempt_answer_parts` | Đã thêm ở luồng học tập | Migration `ThemCauTraLoiTungPhan` |
