@@ -71,6 +71,7 @@ public class ApiFactory : WebApplicationFactory<Program>
             ["Seed:Admins:0:FullName"] = "Quản trị kiểm thử",
             ["Ai:Mode"] = "Simulated",
             ["Ai:AttemptTimeoutSeconds"] = "1",
+            ["Quizzes:AutoCloseIntervalSeconds"] = "0",   // tác vụ tự đóng bài kiểm tra chạy nền bị tắt; test gọi thẳng QuizAutoCloser
         }.Concat(ExtraSettings)));
 
         builder.ConfigureTestServices(services =>
