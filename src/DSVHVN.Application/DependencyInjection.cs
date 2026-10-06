@@ -14,6 +14,7 @@ using DSVHVN.Application.Questions;
 using DSVHVN.Application.StudentAuth;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Teachers;
+using DSVHVN.Application.Translations;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,6 +42,8 @@ public static class DependencyInjection
         services.AddScoped<HeritageMediaService>();
         services.AddScoped<ModelFileService>();
         services.AddScoped<HeritageReferenceService>();
+        services.AddScoped<HeritageLocalizer>();
+        services.AddScoped<PublicSummaryService>();
         services.AddScoped<DiscoveryService>();
         services.AddScoped<HeritagePreviewService>();
         services.AddSingleton<IStudentCredentialGenerator, RandomStudentCredentialGenerator>();

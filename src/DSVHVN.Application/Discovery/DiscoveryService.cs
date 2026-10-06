@@ -1,6 +1,7 @@
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Heritages;
+using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Heritages;
 using DSVHVN.Domain.Rules;
@@ -11,7 +12,8 @@ namespace DSVHVN.Application.Discovery;
 /// <summary>
 /// Khám phá di sản công khai của web học tập (khách và học sinh, không cần đăng nhập): trang chủ, tìm kiếm và lọc, bản đồ,
 /// chi tiết, timeline. Mọi truy vấn chỉ thấy di sản PUBLISHED chưa xóa mềm; di sản nháp, đã ẩn hay đã xóa đều như không tồn tại (404).
-/// Chỉ đọc, không ghi CSDL.
+/// Chỉ đọc, không ghi CSDL. Mọi truy vấn nhận ngôn ngữ của khách (<see cref="LanguageCode"/>): tên, mô tả, nội dung, giai đoạn, sự kiện, chú thích ảnh lấy bản dịch hiện hành
+/// của ngôn ngữ đó (tiếng Anh đã duyệt, tiếng Hàn, Trung, Nhật là bản dịch máy kèm nhãn); phần chưa có bản hiện hành lùi về tiếng Việt kèm cờ lùi.
 /// <para>
 /// Tìm từ khóa không dấu lẫn có dấu: cả từ khóa và cột <c>heritages.search_text</c> cùng được gấp bằng <see cref="SearchText.Fold"/>
 /// (bỏ dấu, đ thành d, chữ thường) rồi so bằng LIKE, vì collation Vietnamese_CI_AI không coi ă, â, ê, ô, ơ, ư, đ là chữ có dấu.
@@ -19,7 +21,7 @@ namespace DSVHVN.Application.Discovery;
 /// không cần đứng liền nhau); kết quả khớp nguyên cụm trong tên đứng trước.
 /// </para>
 /// </summary>
-public sealed class DiscoveryService(IAppDbContext db)
+public sealed class DiscoveryService(IAppDbContext db, HeritageLocalizer localizer)
 {
     /// <summary>Trang chủ hiện tối đa 8 di sản nổi bật.</summary>
     public const int FeaturedLimit = 8;
@@ -40,7 +42,7 @@ public sealed class DiscoveryService(IAppDbContext db)
         h.ProvinceId,
         h.Province == null ? null : h.Province.Name,
         h.Province == null ? null : h.Province.Region,
-        h.HeritageType, h.RecognitionLevel, h.RecognizedYear);
+        h.HeritageType, h.RecognitionLevel, h.RecognizedYear, false, false);
 
     private IQueryable<Heritage> Published() =>
         db.Heritages.AsNoTracking().Where(h => h.DeletedAt == null && h.Status == ContentStatus.PUBLISHED);
@@ -65,7 +67,7 @@ public sealed class DiscoveryService(IAppDbContext db)
     /// Di sản nổi bật theo quy tắc cố định trong mã (không cấu hình được): tối đa 8 di sản cấp UNESCO hoặc quốc gia đặc biệt,
     /// mới cập nhật trước. Kèm tổng số di sản và số theo loại, theo vùng cho khối "khám phá theo loại và vùng".
     /// </summary>
-    public async Task<HomeDto> GetHomeAsync(CancellationToken ct)
+    public async Task<HomeDto> GetHomeAsync(LanguageCode language, CancellationToken ct)
     {
         var featured = await Published()
             .Where(h => h.RecognitionLevel == RecognitionLevel.UNESCO || h.RecognitionLevel == RecognitionLevel.NATIONAL_SPECIAL)
@@ -73,6 +75,7 @@ public sealed class DiscoveryService(IAppDbContext db)
             .Take(FeaturedLimit)
             .Select(ToCard)
             .ToListAsync(ct);
+        featured = (await LocalizeCardsAsync(featured, language, ct)).ToList();
 
         var total = await Published().CountAsync(ct);
         var byType = await Published().Where(h => h.HeritageType != null)
@@ -97,27 +100,28 @@ public sealed class DiscoveryService(IAppDbContext db)
     /// Tìm và lọc di sản đã xuất bản, phân trang (mặc định 20, tối đa 100). Kết quả xếp: khớp nguyên cụm từ khóa trong tên trước,
     /// rồi cấp xếp hạng cao trước, rồi theo tên.
     /// </summary>
-    public async Task<PagedResult<HeritageCardDto>> SearchAsync(HeritageFilter filter, int? page, int? pageSize, CancellationToken ct)
+    public async Task<PagedResult<HeritageCardDto>> SearchAsync(HeritageFilter filter, LanguageCode language, int? page, int? pageSize, CancellationToken ct)
     {
         var prepared = Prepare(filter);
         Paging.Normalize(page, pageSize);
-        return await Ordered(Filtered(Published(), filter, prepared), prepared.Phrase)
+        var result = await Ordered(Filtered(Published(), filter, prepared, language), prepared, language)
             .Select(ToCard)
             .ToPagedAsync(page, pageSize, ct);
+        return result with { Items = await LocalizeCardsAsync(result.Items, language, ct) };
     }
 
     // ---- Bản đồ ----
 
     /// <summary>Ghim bản đồ theo cùng bộ lọc với tìm kiếm; chỉ di sản có tọa độ được ghim, tối đa <see cref="MaxMapPins"/>.</summary>
-    public async Task<HeritageMapDto> GetMapAsync(HeritageFilter filter, CancellationToken ct)
+    public async Task<HeritageMapDto> GetMapAsync(HeritageFilter filter, LanguageCode language, CancellationToken ct)
     {
         var prepared = Prepare(filter);
-        var matched = Filtered(Published(), filter, prepared);
+        var matched = Filtered(Published(), filter, prepared, language);
         var located = matched.Where(h => h.Latitude != null && h.Longitude != null);
 
         var totalMatched = await matched.CountAsync(ct);
         var locatedCount = await located.CountAsync(ct);
-        var rows = await Ordered(located, prepared.Phrase)
+        var rows = await Ordered(located, prepared, language)
             .Take(MaxMapPins)
             .Select(h => new
             {
@@ -131,24 +135,32 @@ public sealed class DiscoveryService(IAppDbContext db)
         var pins = rows.Select(r => new HeritagePinDto(
             r.Id, r.Slug!, r.Name!, r.Latitude!.Value, r.Longitude!.Value, r.ShortDescription, r.ThumbnailUrl,
             r.ProvinceId, r.ProvinceName, r.HeritageType, r.RecognitionLevel, r.HasTimeline)).ToList();
+        if (language != LanguageCode.vi && pins.Count > 0)
+        {
+            var translated = await localizer.LoadVisibleAsync(pins.Select(p => p.Id).ToList(), language, ct);
+            pins = pins.Select(p => translated.TryGetValue(p.Id, out var row)
+                ? p with { Name = row.Name, ShortDescription = row.ShortDescription ?? p.ShortDescription, IsMachineTranslated = row.Status == TranslationStatus.MACHINE }
+                : p with { IsFallback = true }).ToList();
+        }
         return new HeritageMapDto(pins, totalMatched, totalMatched - locatedCount, locatedCount > pins.Count);
     }
 
     // ---- Chi tiết ----
 
     /// <summary>Chi tiết theo đường dẫn (<c>slug</c>); di sản không có, chưa xuất bản, đã ẩn hoặc đã xóa đều 404.</summary>
-    public async Task<PublicHeritageDetailDto> GetDetailAsync(string? slug, CancellationToken ct)
+    public async Task<PublicHeritageDetailDto> GetDetailAsync(string? slug, LanguageCode language, CancellationToken ct)
     {
         var heritage = await FindPublishedAsync(slug, "xem di sản", withProvince: true, ct);
-        return await BuildDetailAsync(heritage, ct);
+        return await BuildDetailAsync(heritage, language, ct);
     }
 
     /// <summary>
     /// Dựng chi tiết công khai từ một di sản đã nạp kèm tỉnh. Dùng chung cho trang chi tiết (di sản đã xuất bản) và trang xem trước bản nháp của
     /// quản trị hệ thống, để hai nơi hiện đúng cùng một dữ liệu; việc kiểm trạng thái là của người gọi.
     /// </summary>
-    public async Task<PublicHeritageDetailDto> BuildDetailAsync(Heritage heritage, CancellationToken ct)
+    public async Task<PublicHeritageDetailDto> BuildDetailAsync(Heritage heritage, LanguageCode language, CancellationToken ct)
     {
+        var parts = await localizer.LoadPartsAsync(heritage.Id, language, ct);
         var media = HeritageMapper.OrderMedia(
             await db.Media.AsNoTracking().Where(m => m.HeritageId == heritage.Id).ToListAsync(ct)).ToList();
         var references = await db.HeritageReferences.AsNoTracking()
@@ -160,16 +172,18 @@ public sealed class DiscoveryService(IAppDbContext db)
             .ToDictionaryAsync(x => x.TimelineId, x => x.Count, ct);
 
         return new PublicHeritageDetailDto(
-            heritage.Id, heritage.Slug!, heritage.Name!, heritage.ShortDescription, heritage.Content,
+            heritage.Id, heritage.Slug!, parts.Name(heritage.Name), parts.ShortDescription(heritage.ShortDescription), parts.Content(heritage.Content),
             heritage.HeritageType, heritage.RecognitionLevel, heritage.RecognizedYear,
             heritage.Province is null ? null : HeritageMapper.ToDto(heritage.Province),
             heritage.Address, heritage.Latitude, heritage.Longitude, heritage.ThumbnailUrl,
             timelines.Count > 0,
-            media.Select(m => ToPublic(m, heritage.ThumbnailUrl)).ToList(),
+            media.Select(m => ToPublic(m, heritage.ThumbnailUrl, parts)).ToList(),
             references.Select(HeritageMapper.ToDto).ToList(),
             timelines.Select(t => new TimelinePhaseSummaryDto(
-                t.Id, t.Name, t.StartYear, t.EndYear, HeritageTimeText.PhaseRange(t.StartYear, t.EndYear),
-                eventCounts.GetValueOrDefault(t.Id))).ToList());
+                t.Id, parts.TimelineName(t.Id, t.Name), t.StartYear, t.EndYear, HeritageTimeText.PhaseRange(t.StartYear, t.EndYear),
+                eventCounts.GetValueOrDefault(t.Id))).ToList(),
+            HeritageLocalizer.Describe(language, parts.Row),
+            await localizer.HasSummaryAsync(heritage.Id, ct));
     }
 
     // ---- Timeline ----
@@ -178,15 +192,16 @@ public sealed class DiscoveryService(IAppDbContext db)
     /// Timeline đầy đủ của một di sản: giai đoạn theo thứ tự hiển thị, sự kiện trong từng giai đoạn xếp theo năm-tháng-ngày rồi thứ tự,
     /// kèm ảnh của sự kiện. Không có trục thời gian chung nhiều di sản.
     /// </summary>
-    public async Task<PublicTimelineDto> GetTimelineAsync(string? slug, CancellationToken ct)
+    public async Task<PublicTimelineDto> GetTimelineAsync(string? slug, LanguageCode language, CancellationToken ct)
     {
         var heritage = await FindPublishedAsync(slug, "xem dòng thời gian", withProvince: true, ct);
-        return await BuildTimelineAsync(heritage, ct);
+        return await BuildTimelineAsync(heritage, language, ct);
     }
 
     /// <summary>Dựng timeline đầy đủ từ một di sản đã nạp kèm tỉnh (dùng chung với trang xem trước bản nháp); việc kiểm trạng thái là của người gọi.</summary>
-    public async Task<PublicTimelineDto> BuildTimelineAsync(Heritage heritage, CancellationToken ct)
+    public async Task<PublicTimelineDto> BuildTimelineAsync(Heritage heritage, LanguageCode language, CancellationToken ct)
     {
+        var parts = await localizer.LoadPartsAsync(heritage.Id, language, ct);
         var timelines = await db.Timelines.AsNoTracking().Include(t => t.Events)
             .Where(t => t.HeritageId == heritage.Id).ToListAsync(ct);
         var eventMedia = (await db.Media.AsNoTracking()
@@ -194,13 +209,15 @@ public sealed class DiscoveryService(IAppDbContext db)
             .ToLookup(m => m.EventId!.Value);
 
         var phases = HeritageMapper.OrderTimelines(timelines).Select(t => new PublicPhaseDto(
-            t.Id, t.Name, t.Description, t.StartYear, t.EndYear, HeritageTimeText.PhaseRange(t.StartYear, t.EndYear),
+            t.Id, parts.TimelineName(t.Id, t.Name), parts.TimelineDescription(t.Id, t.Description), t.StartYear, t.EndYear,
+            HeritageTimeText.PhaseRange(t.StartYear, t.EndYear),
             HeritageMapper.OrderEvents(t.Events).Select(e => new PublicEventDto(
-                e.Id, e.Name, e.Description, e.StartYear, e.StartMonth, e.StartDay, e.EndYear, e.EndMonth, e.EndDay,
+                e.Id, parts.EventName(e.Id, e.Name), parts.EventDescription(e.Id, e.Description), e.StartYear, e.StartMonth, e.StartDay, e.EndYear, e.EndMonth, e.EndDay,
                 HeritageTimeText.EventRange(e.StartYear, e.StartMonth, e.StartDay, e.EndYear, e.EndMonth, e.EndDay),
-                HeritageMapper.OrderMedia(eventMedia[e.Id]).Select(m => ToPublic(m, null)).ToList())).ToList())).ToList();
+                HeritageMapper.OrderMedia(eventMedia[e.Id]).Select(m => ToPublic(m, null, parts)).ToList())).ToList())).ToList();
 
-        return new PublicTimelineDto(heritage.Id, heritage.Slug!, heritage.Name!, heritage.ThumbnailUrl, heritage.Province?.Name, phases);
+        return new PublicTimelineDto(heritage.Id, heritage.Slug!, parts.Name(heritage.Name), heritage.ThumbnailUrl, heritage.Province?.Name, phases,
+            HeritageLocalizer.Describe(language, parts.Row));
     }
 
     // ---- Dụng cụ ----
@@ -214,20 +231,34 @@ public sealed class DiscoveryService(IAppDbContext db)
         return heritage ?? throw AppException.NotFound(Messages.NotFound(action, "di sản"));
     }
 
-    private static PublicMediaDto ToPublic(Media m, string? thumbnailUrl)
+    private async Task<IReadOnlyList<HeritageCardDto>> LocalizeCardsAsync(IReadOnlyList<HeritageCardDto> cards, LanguageCode language, CancellationToken ct)
+    {
+        if (language == LanguageCode.vi || cards.Count == 0) return cards;
+        var translated = await localizer.LoadVisibleAsync(cards.Select(c => c.Id).ToList(), language, ct);
+        return cards.Select(c => translated.TryGetValue(c.Id, out var row)
+            ? c with { Name = row.Name, ShortDescription = row.ShortDescription ?? c.ShortDescription, IsMachineTranslated = row.Status == TranslationStatus.MACHINE }
+            : c with { IsFallback = true }).ToList();
+    }
+
+    private static PublicMediaDto ToPublic(Media m, string? thumbnailUrl, LocalizedParts localized)
     {
         var parts = HeritageRules.ParseCredit(m.Credit);
-        return new PublicMediaDto(m.Id, m.MediaType, m.Url, m.Caption, m.Credit, parts?.Author, parts?.License, parts?.Source,
+        return new PublicMediaDto(m.Id, m.MediaType, m.Url, localized.Caption(m.Id, m.Caption), m.Credit, parts?.Author, parts?.License, parts?.Source,
             HeritageMapper.IsThumbnail(m, thumbnailUrl), StoredFileRules.ThumbnailUrlOf(m.Url));
     }
 
-    /// <summary>Bộ lọc đã kiểm tra: các từ của từ khóa (đã gấp), cụm từ khóa gấp để xếp hạng theo tên, vùng đã đưa về giá trị CSDL.</summary>
-    private sealed record Prepared(IReadOnlyList<string> Tokens, string? Phrase, string? Region);
+    /// <summary>
+    /// Bộ lọc đã kiểm tra: các từ của từ khóa (đã gấp), cụm từ khóa gấp để xếp hạng theo tên, vùng đã đưa về giá trị CSDL; <c>Words</c> và <c>RawPhrase</c> là từ khóa
+    /// nguyên dạng (tách theo dấu cách) để so với bản dịch (chữ Hàn, Trung, Nhật không gấp được như tiếng Việt).
+    /// </summary>
+    private sealed record Prepared(IReadOnlyList<string> Tokens, string? Phrase, string? Region, IReadOnlyList<string> Words, string? RawPhrase);
 
     private static Prepared Prepare(HeritageFilter filter)
     {
         var tokens = (IReadOnlyList<string>)[];
+        IReadOnlyList<string> words = [];
         string? phrase = null;
+        string? rawPhrase = null;
         var keyword = filter.Keyword?.Trim();
         if (!string.IsNullOrEmpty(keyword))
         {
@@ -238,6 +269,9 @@ public sealed class DiscoveryService(IAppDbContext db)
             if (tokens.Count == 0)
                 throw AppException.Validation("keyword", Messages.Invalid("Từ khóa", "phải có ít nhất một chữ cái hoặc chữ số"));
             phrase = SearchText.Fold(keyword);
+            rawPhrase = keyword;
+            words = keyword.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(SearchText.MaxKeywordTokens).ToList();
         }
 
         string? region = null;
@@ -257,15 +291,42 @@ public sealed class DiscoveryService(IAppDbContext db)
             throw AppException.Validation("period",
                 Messages.Invalid("Thời kỳ", "chỉ nhận PREHISTORIC, NORTHERN_RULE, INDEPENDENT_FEUDAL, MODERN hoặc CONTEMPORARY"));
 
-        return new Prepared(tokens, phrase, region);
+        return new Prepared(tokens, phrase, region, words, rawPhrase);
     }
 
-    private static IQueryable<Heritage> Filtered(IQueryable<Heritage> heritages, HeritageFilter filter, Prepared prepared)
+    private IQueryable<Heritage> Filtered(IQueryable<Heritage> heritages, HeritageFilter filter, Prepared prepared, LanguageCode language)
     {
-        foreach (var token in prepared.Tokens)
+        if (prepared.Tokens.Count > 0)
         {
-            var pattern = SearchText.WordPrefixPattern(token);
-            heritages = heritages.Where(h => EF.Functions.Like(h.SearchText!, pattern));
+            // Từ khóa khớp bản tiếng Việt (không dấu) và, khi khách chọn ngôn ngữ khác, cả bản dịch hiện hành của ngôn ngữ đó.
+            if (language == LanguageCode.vi)
+            {
+                foreach (var token in prepared.Tokens)
+                {
+                    var pattern = SearchText.WordPrefixPattern(token);
+                    heritages = heritages.Where(h => EF.Functions.Like(h.SearchText!, pattern));
+                }
+            }
+            else
+            {
+                var translated = VisibleTranslations(language);
+                foreach (var word in prepared.Words)
+                {
+                    var like = LikeContains(word);
+                    translated = translated.Where(t => EF.Functions.Like(t.Name, like, LikeEscape)
+                                                       || EF.Functions.Like(t.ShortDescription!, like, LikeEscape)
+                                                       || EF.Functions.Like(t.Content!, like, LikeEscape));
+                }
+                var vietnamese = db.Heritages.AsNoTracking();
+                foreach (var token in prepared.Tokens)
+                {
+                    var pattern = SearchText.WordPrefixPattern(token);
+                    vietnamese = vietnamese.Where(h => EF.Functions.Like(h.SearchText!, pattern));
+                }
+                var vietnameseIds = vietnamese.Select(h => h.Id);
+                var translatedIds = translated.Select(t => t.HeritageId);
+                heritages = heritages.Where(h => vietnameseIds.Contains(h.Id) || translatedIds.Contains(h.Id));
+            }
         }
         if (filter.ProvinceId is { } provinceId) heritages = heritages.Where(h => h.ProvinceId == provinceId);
         if (prepared.Region is { } region) heritages = heritages.Where(h => h.Province != null && h.Province.Region == region);
@@ -290,11 +351,28 @@ public sealed class DiscoveryService(IAppDbContext db)
             || t.Events.Any(e => e.StartYear <= to && (e.EndYear ?? e.StartYear) >= from)));
     }
 
-    private static IOrderedQueryable<Heritage> Ordered(IQueryable<Heritage> heritages, string? phrase)
+    private IOrderedQueryable<Heritage> Ordered(IQueryable<Heritage> heritages, Prepared prepared, LanguageCode language)
     {
-        if (phrase is null) return heritages.OrderBy(LevelRank).ThenBy(h => h.Name).ThenBy(h => h.Id);
-        var namePattern = SearchText.WordPrefixPattern(phrase);
-        return heritages.OrderByDescending(h => EF.Functions.Like(h.SearchName!, namePattern))
+        if (prepared.Phrase is null) return heritages.OrderBy(LevelRank).ThenBy(h => h.Name).ThenBy(h => h.Id);
+        var namePattern = SearchText.WordPrefixPattern(prepared.Phrase);
+        if (language == LanguageCode.vi)
+            return heritages.OrderByDescending(h => EF.Functions.Like(h.SearchName!, namePattern))
+                .ThenBy(LevelRank).ThenBy(h => h.Name).ThenBy(h => h.Id);
+
+        var phraseLike = LikeContains(prepared.RawPhrase!);
+        var translatedNameIds = VisibleTranslations(language).Where(t => EF.Functions.Like(t.Name, phraseLike, LikeEscape)).Select(t => t.HeritageId);
+        return heritages.OrderByDescending(h => EF.Functions.Like(h.SearchName!, namePattern) || translatedNameIds.Contains(h.Id))
             .ThenBy(LevelRank).ThenBy(h => h.Name).ThenBy(h => h.Id);
     }
+
+    private const string LikeEscape = "\\";
+
+    /// <summary>Bản dịch hiện hành của một ngôn ngữ: tiếng Anh đã duyệt, tiếng Hàn, Trung, Nhật là bản dịch máy.</summary>
+    private IQueryable<HeritageTranslation> VisibleTranslations(LanguageCode language) =>
+        db.HeritageTranslations.AsNoTracking().Where(t => t.LanguageCode == language
+            && (t.Status == TranslationStatus.APPROVED || t.Status == TranslationStatus.MACHINE));
+
+    /// <summary>Mẫu LIKE khớp bất cứ chỗ nào trong chữ, đã escape ký tự đại diện của người dùng (dấu phần trăm, gạch dưới, ngoặc vuông, gạch chéo ngược).</summary>
+    private static string LikeContains(string text) =>
+        "%" + text.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_").Replace("[", "\\[") + "%";
 }

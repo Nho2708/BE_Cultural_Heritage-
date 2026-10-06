@@ -62,17 +62,17 @@ public sealed class HeritagePreviewService(
     }
 
     /// <summary><paramref name="actor"/> là null khi người mở chưa đăng nhập; mọi trường hợp không đủ điều kiện đều ném cùng một 404.</summary>
-    public async Task<HeritagePreviewDto> GetAsync(Actor? actor, string? code, CancellationToken ct)
+    public async Task<HeritagePreviewDto> GetAsync(Actor? actor, string? code, LanguageCode language, CancellationToken ct)
     {
         var (ticket, heritage) = await OpenAsync(actor, code, ct);
-        return new HeritagePreviewDto(ticket.ExpiresAt, heritage.Status?.ToString() ?? string.Empty, await discovery.BuildDetailAsync(heritage, ct));
+        return new HeritagePreviewDto(ticket.ExpiresAt, heritage.Status?.ToString() ?? string.Empty, await discovery.BuildDetailAsync(heritage, language, ct));
     }
 
     /// <summary>Timeline đầy đủ của bản nháp, cùng điều kiện với <see cref="GetAsync"/>; trang chi tiết xem trước dùng khi mở dòng thời gian.</summary>
-    public async Task<PublicTimelineDto> GetTimelineAsync(Actor? actor, string? code, CancellationToken ct)
+    public async Task<PublicTimelineDto> GetTimelineAsync(Actor? actor, string? code, LanguageCode language, CancellationToken ct)
     {
         var (_, heritage) = await OpenAsync(actor, code, ct);
-        return await discovery.BuildTimelineAsync(heritage, ct);
+        return await discovery.BuildTimelineAsync(heritage, language, ct);
     }
 
     private async Task<(PreviewTicket Ticket, Heritage Heritage)> OpenAsync(Actor? actor, string? code, CancellationToken ct)

@@ -42,6 +42,11 @@ public static class MessageCodes
     public const string AiDraftReady = "AI_DRAFT_READY";
     public const string StorageUnavailable = "STORAGE_UNAVAILABLE";
     public const string PreviewInvalid = "PREVIEW_INVALID";
+    public const string SummaryUnavailable = "SUMMARY_UNAVAILABLE";
+    public const string TranslationGenerated = "TRANSLATION_GENERATED";
+    public const string TranslationApproved = "TRANSLATION_APPROVED";
+    public const string TranslationRejected = "TRANSLATION_REJECTED";
+    public const string TranslationBusy = "TRANSLATION_BUSY";
 }
 
 /// <summary>

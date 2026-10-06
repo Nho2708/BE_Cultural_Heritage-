@@ -26,14 +26,14 @@ public sealed class PreviewHeritagesController(HeritagePreviewService previews) 
     /// <summary>Bản nháp đang lưu của di sản, cùng dữ liệu với trang chi tiết công khai, kèm hạn của liên kết và trạng thái hiện tại của di sản.</summary>
     [HttpGet]
     [ProducesResponseType<ApiResponse<HeritagePreviewDto>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ApiResponse<HeritagePreviewDto>>> Get(string code, CancellationToken ct)
-        => OkEnvelope(await previews.GetAsync(AdminActorOrNull(), code, ct));
+    public async Task<ActionResult<ApiResponse<HeritagePreviewDto>>> Get(string code, [FromQuery] string? lang, CancellationToken ct)
+        => OkEnvelope(await previews.GetAsync(AdminActorOrNull(), code, PublicLanguage(lang), ct));
 
     /// <summary>Timeline đầy đủ của bản nháp (cùng điều kiện mở như trên).</summary>
     [HttpGet("timeline")]
     [ProducesResponseType<ApiResponse<PublicTimelineDto>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ApiResponse<PublicTimelineDto>>> Timeline(string code, CancellationToken ct)
-        => OkEnvelope(await previews.GetTimelineAsync(AdminActorOrNull(), code, ct));
+    public async Task<ActionResult<ApiResponse<PublicTimelineDto>>> Timeline(string code, [FromQuery] string? lang, CancellationToken ct)
+        => OkEnvelope(await previews.GetTimelineAsync(AdminActorOrNull(), code, PublicLanguage(lang), ct));
 
     // Endpoint cho phép ẩn danh nhưng token (nếu có) vẫn được xác thực và đối chiếu CSDL; chỉ vai trò quản trị hệ thống mới được xét mã.
     private Actor? AdminActorOrNull() =>

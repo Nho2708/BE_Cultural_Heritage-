@@ -2,6 +2,7 @@ using System.Globalization;
 using DSVHVN.Api.Security;
 using DSVHVN.Application.Common;
 using DSVHVN.Domain.Enums;
+using DSVHVN.Domain.Rules;
 using DSVHVN.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
 
@@ -33,6 +34,19 @@ public abstract class ApiControllerBase : ControllerBase
                 CultureInfo.InvariantCulture, out var orgId) ? orgId : null;
             return new Actor(id, role, org, ClientIp);
         }
+    }
+
+    /// <summary>
+    /// Ngôn ngữ nội dung của một yêu cầu công khai (quy tắc Ngôn ngữ mặc định và ghi nhớ lựa chọn): tham số <c>lang</c> nếu thuộc năm ngôn ngữ (vi, en, ko, zh-Hans hoặc zh, ja),
+    /// không thì tiêu đề <c>Accept-Language</c>, không thì tiếng Việt; mã không thuộc năm ngôn ngữ bị bỏ qua và trả tiếng Việt. Học sinh đã đăng nhập luôn nhận tiếng Việt
+    /// (khu học và các trang công khai trong khu học chỉ có tiếng Việt). Phản hồi khai báo <c>Vary: Accept-Language</c> vì nội dung đổi theo ngôn ngữ.
+    /// </summary>
+    protected LanguageCode PublicLanguage(string? lang)
+    {
+        Response.Headers.Append("Vary", "Accept-Language");
+        if (User.Identity?.IsAuthenticated == true && User.FindFirst(JwtClaimNames.Role)?.Value == nameof(RoleCode.STUDENT))
+            return LanguageCode.vi;
+        return Languages.Resolve(lang, Request.Headers.AcceptLanguage.ToString());
     }
 
     /// <summary>IP của yêu cầu cho nhật ký thao tác; IPv4 ánh xạ trong IPv6 đổi về dạng IPv4.</summary>
