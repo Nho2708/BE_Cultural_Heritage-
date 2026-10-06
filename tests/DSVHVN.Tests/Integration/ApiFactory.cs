@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
+using DSVHVN.Application.Recommendations;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Tests.Support;
 using Microsoft.AspNetCore.Builder;
@@ -49,6 +50,9 @@ public class ApiFactory : WebApplicationFactory<Program>
     /// <summary>Dịch vụ AI sinh câu hỏi của kiểm thử, như <see cref="Ai"/>.</summary>
     public ScriptedQuestionAiClient QuestionAi { get; } = new();
 
+    /// <summary>Dịch vụ AI xếp hạng di sản liên quan (gợi ý) của kiểm thử, như <see cref="Ai"/>.</summary>
+    public ScriptedRecommendationAiClient RecommendationAi { get; } = new();
+
     /// <summary>Cấu hình thêm của lớp con (vd đường dẫn tệp dữ liệu di sản).</summary>
     protected virtual IEnumerable<KeyValuePair<string, string?>> ExtraSettings => [];
 
@@ -89,6 +93,8 @@ public class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<ILessonAiClient>(Ai);
             services.RemoveAll<IQuestionAiClient>();
             services.AddSingleton<IQuestionAiClient>(QuestionAi);
+            services.RemoveAll<IRecommendationAiClient>();
+            services.AddSingleton<IRecommendationAiClient>(RecommendationAi);
 
             // TestServer không có IP client; gán sẵn để kiểm được IP đi vào audit_logs.
             services.AddSingleton<IStartupFilter, FakeRemoteIpStartupFilter>();

@@ -1,6 +1,7 @@
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
+using DSVHVN.Application.Recommendations;
 using DSVHVN.Application.Students;
 using DSVHVN.Infrastructure.Ai;
 using DSVHVN.Infrastructure.Background;
@@ -82,6 +83,17 @@ public static class DependencyInjection
             var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
             var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
             return new HttpQuestionAiClient(http, options);
+        });
+
+        // Xếp hạng di sản liên quan cho gợi ý (cùng mục cấu hình Ai); thời gian chờ 2 giây do RelatedRanker đặt, lỗi thì máy chủ tự tính dự phòng.
+        services.AddSingleton<IRecommendationAiClient>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<AiOptions>>();
+            if (options.Value.Mode != AiMode.Remote) return new SimulatedRecommendationAiClient();
+
+            var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+            var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+            return new HttpRecommendationAiClient(http, options);
         });
     }
 
