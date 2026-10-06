@@ -1,4 +1,5 @@
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Heritages;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,6 +31,7 @@ public sealed class TimelineService(IAppDbContext db, RequestValidator validator
         db.Timelines.Add(timeline);
         heritage.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
+        await TranslationOutdated.MarkAsync(db, heritageId, ct);
         return HeritageMapper.ToDto(timeline, [], Array.Empty<Media>().ToLookup(m => m.Id));
     }
 
@@ -37,6 +39,7 @@ public sealed class TimelineService(IAppDbContext db, RequestValidator validator
     {
         await validator.EnsureValidAsync(request, ct);
         var timeline = await db.FindTimelineAsync(timelineId, "sửa giai đoạn", ct);
+        var textBefore = (timeline.Name, timeline.Description);
         timeline.Name = request.Name!.Trim();
         timeline.Description = ValidationRules.TrimToNull(request.Description);
         timeline.StartYear = request.StartYear;
@@ -44,6 +47,7 @@ public sealed class TimelineService(IAppDbContext db, RequestValidator validator
         if (request.SortOrder is not null) timeline.SortOrder = request.SortOrder;
         timeline.Heritage!.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
+        if (textBefore != (timeline.Name, timeline.Description)) await TranslationOutdated.MarkAsync(db, timeline.HeritageId, ct);
         return await LoadTimelineAsync(timelineId, ct);
     }
 
@@ -94,6 +98,7 @@ public sealed class TimelineService(IAppDbContext db, RequestValidator validator
         db.Events.Add(item);
         timeline.Heritage!.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
+        await TranslationOutdated.MarkAsync(db, timeline.HeritageId, ct);
         return HeritageMapper.ToDto(item, []);
     }
 
@@ -101,10 +106,12 @@ public sealed class TimelineService(IAppDbContext db, RequestValidator validator
     {
         await validator.EnsureValidAsync(request, ct);
         var item = await db.FindEventAsync(eventId, "sửa sự kiện", ct);
+        var textBefore = (item.Name, item.Description);
         ApplyEvent(item, request);
         if (request.SortOrder is not null) item.SortOrder = request.SortOrder;
         item.Timeline!.Heritage!.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
+        if (textBefore != (item.Name, item.Description)) await TranslationOutdated.MarkAsync(db, item.Timeline.HeritageId, ct);
         var media = await db.Media.AsNoTracking().Where(m => m.EventId == eventId).ToListAsync(ct);
         return HeritageMapper.ToDto(item, media);
     }

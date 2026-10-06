@@ -1,4 +1,5 @@
 using DSVHVN.Domain.Enums;
+using DSVHVN.Application.Translations;
 
 namespace DSVHVN.Application.Heritages;
 
@@ -16,9 +17,10 @@ public sealed record HeritageListQuery(
     RecognitionLevel? RecognitionLevel,
     ContentStatus? Status,
     int? Page,
-    int? PageSize);
+    int? PageSize,
+    TranslationState? TranslationState = null);
 
-/// <summary>Dòng của màn hình Quản lý di sản: ảnh, tên, tỉnh, loại, cấp xếp hạng, trạng thái, số giai đoạn, số nguồn.</summary>
+/// <summary>Dòng của màn hình Quản lý di sản: ảnh, tên, tỉnh, loại, cấp xếp hạng, trạng thái, số giai đoạn, số nguồn, tình trạng bản dịch.</summary>
 public sealed record HeritageSummaryDto(
     long Id,
     string? Name,
@@ -33,7 +35,8 @@ public sealed record HeritageSummaryDto(
     int MediaCount,
     int ReferenceCount,
     DateTime? CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    TranslationState TranslationState = TranslationState.NONE);
 
 /// <summary>
 /// Thông tin chung của di sản (tab Thông tin chung). <c>Slug</c> bỏ trống khi tạo thì sinh từ tên, khi sửa thì giữ đường dẫn hiện tại.
@@ -89,7 +92,8 @@ public sealed record HeritageDetailDto(
     PublishReadinessDto Readiness,
     IReadOnlyList<TimelineDto> Timelines,
     IReadOnlyList<MediaDto> Media,
-    IReadOnlyList<ReferenceDto> References);
+    IReadOnlyList<ReferenceDto> References,
+    TranslationState TranslationState = TranslationState.NONE);
 
 /// <summary>Giai đoạn của di sản kèm sự kiện đã xếp theo năm-tháng-ngày rồi thứ tự. Năm âm là trước Công nguyên.</summary>
 public sealed record TimelineDto(
