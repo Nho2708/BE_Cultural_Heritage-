@@ -116,6 +116,21 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
             $"SELECT id FROM classes WITH (UPDLOCK, HOLDLOCK) WHERE id = {classId}", cancellationToken);
     }
 
+    /// <summary>
+    /// Khóa ứng dụng "dsvhvn_invoice_number" (<c>sp_getapplock</c>, chủ sở hữu là giao dịch, tự nhả khi giao dịch kết thúc), chờ tối đa 15 giây.
+    /// SQLite (kiểm thử) chỉ cho một giao dịch ghi tại một thời điểm nên bỏ qua.
+    /// </summary>
+    public async Task LockInvoiceNumberingAsync(CancellationToken cancellationToken)
+    {
+        if (Database.CurrentTransaction is null)
+            throw new InvalidOperationException("LockInvoiceNumberingAsync phải được gọi bên trong giao dịch.");
+        if (!Database.IsSqlServer()) return;
+        await Database.ExecuteSqlRawAsync(
+            "DECLARE @r int; EXEC @r = sp_getapplock @Resource = N'dsvhvn_invoice_number', @LockMode = N'Exclusive', " +
+            "@LockOwner = N'Transaction', @LockTimeout = 15000; " +
+            "IF @r < 0 THROW 50001, N'Không lấy được khóa đánh số hóa đơn.', 1;", cancellationToken);
+    }
+
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         StampAndGuard();

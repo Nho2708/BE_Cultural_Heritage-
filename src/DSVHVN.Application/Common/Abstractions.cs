@@ -9,7 +9,6 @@ using DSVHVN.Domain.Organizations;
 using DSVHVN.Domain.Questions;
 using DSVHVN.Domain.Quizzes;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace DSVHVN.Application.Common;
@@ -62,9 +61,6 @@ public interface IAppDbContext
     DbSet<PaymentProvider> PaymentProviders { get; }
     DbSet<Payment> Payments { get; }
 
-    /// <summary>Bộ theo dõi thay đổi; dùng để bỏ các thay đổi chưa lưu khi thử lại một giao dịch bị tranh chấp (đánh số hóa đơn).</summary>
-    ChangeTracker ChangeTracker { get; }
-
     /// <summary>Mở giao dịch cho thao tác nhiều bước (tạo trường, tạo giáo viên trong hạn mức).</summary>
     DatabaseFacade Database { get; }
 
@@ -79,6 +75,12 @@ public interface IAppDbContext
     /// (sĩ số tối đa 60 học sinh đang hoạt động) chạy tuần tự. Phải gọi bên trong giao dịch.
     /// </summary>
     Task LockClassAsync(long classId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Khóa việc đánh số hóa đơn tới hết giao dịch hiện tại (khóa ứng dụng của SQL Server, có hiệu lực giữa mọi tiến trình dùng chung CSDL) để hai trường mua cùng lúc
+    /// không xin trùng số hóa đơn của ngày. Phải gọi bên trong giao dịch, sau khi đã khóa dòng trường.
+    /// </summary>
+    Task LockInvoiceNumberingAsync(CancellationToken cancellationToken);
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
