@@ -286,6 +286,14 @@ public static class Messages
     /// <summary>Lời nhắc trước khi bắt đầu làm bài kiểm tra.</summary>
     public const string QuizOnlyOnceNotice = "Em chỉ được làm bài kiểm tra này một lần. Em bấm \"Bắt đầu\" khi đã sẵn sàng nhé.";
 
+    // ---- Thống kê và gợi ý ----
+
+    /// <summary>Trang học, tiến độ, gợi ý của em khi em chưa có lượt nào (hoặc lớp chưa có bài nào xuất bản).</summary>
+    public const string StudentNoAttemptsYet = "Em chưa có bài làm nào. Em hãy nhập mã bài học thầy cô đưa để bắt đầu học.";
+
+    /// <summary>Thống kê, tiến độ, gợi ý của lớp khi chưa có lượt nộp.</summary>
+    public const string ClassNoResultsYet = "Chưa có học sinh nào nộp bài. Thống kê và gợi ý sẽ hiện khi có kết quả.";
+
     /// <summary>Lỗi hệ thống ngoài dự kiến.</summary>
     public static readonly AppMessage SystemError =
         new(MessageCodes.SystemError, "Đã có lỗi xảy ra. Vui lòng thử lại hoặc liên hệ quản trị viên.");

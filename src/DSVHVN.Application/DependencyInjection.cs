@@ -12,6 +12,7 @@ using DSVHVN.Application.Organizations;
 using DSVHVN.Application.Profile;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Quizzes;
+using DSVHVN.Application.Recommendations;
 using DSVHVN.Application.StudentAuth;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Teachers;
@@ -68,6 +69,8 @@ public static class DependencyInjection
         services.AddScoped<AttemptResultService>();
         services.AddScoped<AttemptService>();
         services.AddScoped<StudentLearningService>();
+        services.AddScoped<RelatedRanker>();
+        services.AddScoped<StudentRecommendationService>();
         return services;
     }
 }
