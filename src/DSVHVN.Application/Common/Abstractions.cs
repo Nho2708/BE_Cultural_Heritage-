@@ -40,6 +40,7 @@ public interface IAppDbContext
     DbSet<EventTranslation> EventTranslations { get; }
     DbSet<MediaTranslation> MediaTranslations { get; }
     DbSet<HeritageSummary> HeritageSummaries { get; }
+    DbSet<HeritageModel> HeritageModels { get; }
 
     DbSet<Lesson> Lessons { get; }
     DbSet<LessonHeritage> LessonHeritages { get; }

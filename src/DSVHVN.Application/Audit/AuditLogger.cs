@@ -68,6 +68,7 @@ public static class AuditLabels
         AuditAction.HERITAGE_PREVIEW_ISSUED => "Cấp liên kết xem trước bản nháp di sản",
         AuditAction.TRANSLATION_APPROVED => "Duyệt bản dịch hoặc tóm tắt di sản",
         AuditAction.TRANSLATION_REJECTED => "Từ chối bản dịch hoặc tóm tắt di sản",
+        AuditAction.HERITAGE_MODEL_CHANGED => "Thêm, thay, gỡ, ẩn hoặc hiện mô hình 3D của di sản",
         AuditAction.STUDENT_ACCOUNTS_CREATED =>"Thêm học sinh và tạo tài khoản",
         AuditAction.STUDENT_PASSWORD_RESET => "Đặt lại mật khẩu học sinh",
         AuditAction.STUDENT_DEACTIVATED => "Vô hiệu hoặc xóa học sinh",
