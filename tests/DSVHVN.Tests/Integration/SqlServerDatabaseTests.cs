@@ -54,7 +54,10 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         [
             "UX_heritage_models_visible ([status]='PUBLISHED' AND [deleted_at] IS NULL)",
             "UX_lessons_access_code ([access_code] IS NOT NULL)",
+            "UX_payments_one_pending_per_invoice ([status]='PENDING')",
             "UX_payments_provider_txn ([provider_transaction_id] IS NOT NULL)",
+            "UX_plans_name ([name] IS NOT NULL)",
+            "UX_subscriptions_one_pending ([status]='PENDING')",
             "UX_users_email ([email] IS NOT NULL AND [deleted_at] IS NULL)",
             "UX_users_username ([deleted_at] IS NULL)",
         ], filtered);
@@ -207,7 +210,7 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
     }
 
     [LocalDbFact]
-    public async Task Pending_payments_without_gateway_id_are_allowed_but_a_gateway_id_is_recorded_once()
+    public async Task Payments_without_gateway_id_are_allowed_but_a_gateway_id_is_recorded_once()
     {
         var (org, _) = await _api.OrgWithAdminAsync();
         var txn = "VNP" + PlatformClient.Unique();
@@ -225,7 +228,8 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
             db.Invoices.Add(invoice);
             db.Payments.AddRange(
                 new Payment { Invoice = invoice, Provider = provider, Status = PaymentStatus.PENDING },
-                new Payment { Invoice = invoice, Provider = provider, Status = PaymentStatus.PENDING },
+                new Payment { Invoice = invoice, Provider = provider, Status = PaymentStatus.FAILED },
+                new Payment { Invoice = invoice, Provider = provider, Status = PaymentStatus.FAILED },
                 new Payment { Invoice = invoice, Provider = provider, Status = PaymentStatus.SUCCEEDED, ProviderTransactionId = txn });
             return await db.SaveChangesAsync();
         });

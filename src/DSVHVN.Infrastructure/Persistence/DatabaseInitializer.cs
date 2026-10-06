@@ -46,6 +46,8 @@ public static class DatabaseInitializer
         }
 
         await SeedFreePlanAsync(db, config, logger, ct);
+        await SeedSamplePlansAsync(db, config, logger, ct);
+        await SeedPaymentProvidersAsync(db, logger, ct);
         await SeedAdminsAsync(db, config, sp.GetRequiredService<IPasswordHasher>(), logger, ct);
         await SeedHeritageDataAsync(db, config, sp.GetService<IHostEnvironment>()?.ContentRootPath, logger, ct);
         await BackfillHeritageSearchTextAsync(db, logger, ct);
@@ -130,6 +132,67 @@ public static class DatabaseInitializer
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Seed gói {Plan}: {Days} ngày, {Teachers} giáo viên, {Ai} lượt AI",
             plan.Name, plan.DurationDays, plan.MaxTeachers, plan.MaxAiRequests);
+    }
+
+    /// <summary>
+    /// <c>Seed:Plans</c>: danh sách gói trả phí mẫu { Name, Price, DurationDays, MaxTeachers, MaxAiRequests } cho môi trường phát triển và trình diễn
+    /// (appsettings.json không khai báo nên UAT và Release 1.0 do quản trị hệ thống tự tạo trên màn hình Gói dịch vụ). Chỉ nạp khi chưa có gói trả phí nào;
+    /// đã có thì không ghi đè, không thêm lại gói đã bị đổi tên.
+    /// </summary>
+    private static async Task SeedSamplePlansAsync(AppDbContext db, IConfiguration config, ILogger logger, CancellationToken ct)
+    {
+        var entries = config.GetSection("Seed:Plans").GetChildren().ToList();
+        if (entries.Count == 0) return;
+        var existing = await db.Plans.AsNoTracking().ToListAsync(ct);
+        if (existing.Any(p => p.Price > 0m)) return;
+
+        foreach (var entry in entries)
+        {
+            var name = entry["Name"]?.Trim();
+            var price = entry.GetValue<decimal?>("Price");
+            if (string.IsNullOrEmpty(name) || price is not > 0m || !BillingRules.IsValidPrice(price.Value))
+            {
+                logger.LogWarning("Seed:Plans: bỏ qua gói không hợp lệ (cần tên và giá nguyên đồng lớn hơn 0): {Name}", name);
+                continue;
+            }
+            if (existing.Any(p => SearchText.Fold(p.Name) == SearchText.Fold(name))) continue;
+            db.Plans.Add(new Plan
+            {
+                Name = name,
+                Price = price,
+                DurationDays = entry.GetValue("DurationDays", 365),
+                MaxTeachers = entry.GetValue("MaxTeachers", 5),
+                MaxAiRequests = entry.GetValue("MaxAiRequests", 100),
+                IsActive = true,
+            });
+            logger.LogInformation("Seed gói mẫu {Plan}: {Price} đồng", name, price);
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Danh mục cổng thanh toán: chỉ VNPay (sandbox) đang bật, các cổng còn lại có sẵn nhưng tắt. Chỉ thêm cổng còn thiếu theo mã, không đổi cổng đã có.
+    /// </summary>
+    private static async Task SeedPaymentProvidersAsync(AppDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var existing = (await db.PaymentProviders.AsNoTracking().Select(p => p.Code).ToListAsync(ct)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var wanted = new (string Code, string Name, bool Active)[]
+        {
+            (BillingRules.VnPayProviderCode, "VNPay", true),
+            ("MOMO", "MoMo", false),
+            ("ZALOPAY", "ZaloPay", false),
+            ("BANK_TRANSFER", "Chuyển khoản ngân hàng", false),
+        };
+        var added = 0;
+        foreach (var (code, name, active) in wanted)
+        {
+            if (existing.Contains(code)) continue;
+            db.PaymentProviders.Add(new PaymentProvider { Code = code, Name = name, IsActive = active });
+            added++;
+        }
+        if (added == 0) return;
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Seed {Count} cổng thanh toán (chỉ VNPay đang bật)", added);
     }
 
     /// <summary>
