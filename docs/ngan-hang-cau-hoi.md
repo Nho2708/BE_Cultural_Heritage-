@@ -207,7 +207,7 @@ Số liệu sau migration (kiểm bằng `SqlServerDatabaseTests` và `QuestionS
 ## 7. Nhật ký
 
 - **Lượt gọi AI** ghi ở `ai_generations` (`QUIZ_GENERATION`: đầu vào, tham số, mô hình, kết quả thô, trạng thái, lỗi). Câu sinh ra truy được về lần gọi qua `questions.ai_generation_id`.
-- **Ẩn câu** ghi `audit_logs` mã `QUESTION_HIDDEN` (có sẵn trong danh sách 21 mã của đặc tả). Tạo, sửa, duyệt, loại, xóa, nhân bản câu **không** vào `audit_logs` vì đặc tả không liệt kê; dấu vết duyệt nằm ở `reviewed_by`, `reviewed_at`.
+- **Ẩn câu** ghi `audit_logs` mã `QUESTION_HIDDEN` (có sẵn trong danh sách 21 mã của đặc tả). Hiện lại câu đã ẩn, danh sách kiểm duyệt kèm chất lượng và tổng quan nằm ở [quan-tri-tong-quan.md](quan-tri-tong-quan.md) (mã `QUESTION_RESTORED` là bổ sung ngoài 21 mã của đặc tả). Tạo, sửa, duyệt, loại, xóa, nhân bản câu **không** vào `audit_logs` vì đặc tả không liệt kê; dấu vết duyệt nằm ở `reviewed_by`, `reviewed_at`.
 
 ## 8. Mã lỗi
 

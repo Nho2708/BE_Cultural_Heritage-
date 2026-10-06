@@ -20,7 +20,7 @@ gợi ý riêng, không có bảng thống kê, không có migration mới**. G�
 |---|---|
 | Học sinh đã đăng nhập và đã đổi mật khẩu (`STUDENT`) | Hai endpoint gợi ý ở mục 2.1, **chỉ của chính em**; lượt của em khác (kể cả cùng lớp) như không tồn tại (404) |
 | Giáo viên (`TEACHER`) | Mọi endpoint ở mục 2.2, **chỉ với lớp và bài kiểm tra của chính mình**; lớp, bài kiểm tra, lượt của giáo viên khác (kể cả cùng trường) hoặc trường khác trả **404**; bài kiểm tra hoặc lớp đã xóa mềm trả 404 |
-| Quản trị trường, quản trị hệ thống | **403** ở mọi endpoint (quản trị trường chỉ xem số tổng hợp của trường, thuộc luồng khác) |
+| Quản trị trường, quản trị hệ thống | **403** ở mọi endpoint (quản trị trường chỉ xem số tổng hợp của trường, xem [quan-tri-tong-quan.md](quan-tri-tong-quan.md)) |
 | Chưa đăng nhập | 401 |
 
 Không có số liệu của học sinh nào đi ra ngoài lớp của giáo viên phụ trách; học sinh không thấy gì của học sinh khác. Giáo viên **luôn thấy điểm** ở mọi cấp (lớp cấp 1 kèm số sao), còn học sinh cấp 1 chỉ thấy sao.
@@ -135,4 +135,4 @@ hồ sơ một học sinh 169 ms, gợi ý cho em 9 ms; giới hạn của yêu 
 - **"Bài mới tạo trước"** (khi em chưa có kết quả) được hiểu là bài **mới tạo gần đây nhất** trước, theo `lessons.created_at` (CSDL không lưu thời điểm xuất bản bài học).
 - **Đã nộp = đã chốt:** lượt hết giờ tự nộp cũng tính vào thống kê, như quy tắc Kiên trì của luồng làm bài.
 - **Tab "Gợi ý" của kết quả bài** dùng cùng bộ tính với tab của lớp nhưng lọc theo bài; tạo bài ôn tập đi qua API tạo bài học đã có, không có endpoint riêng.
-- **Chưa làm ở luồng này:** màn hình web quản trị và khu học (luồng giao diện), tổng quan trường cho quản trị trường (luồng sau), gợi ý cho khách tham quan (luồng khách), dịch vụ Python phía Dịch vụ AI cho `POST /v1/rank-related`.
+- **Chưa làm ở luồng này:** màn hình web quản trị và khu học (luồng giao diện), tổng quan trường cho quản trị trường (đã làm ở [quan-tri-tong-quan.md](quan-tri-tong-quan.md)), gợi ý cho khách tham quan (luồng khách), dịch vụ Python phía Dịch vụ AI cho `POST /v1/rank-related`.
