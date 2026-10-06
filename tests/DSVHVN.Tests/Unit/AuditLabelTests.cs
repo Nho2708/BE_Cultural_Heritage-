@@ -4,14 +4,14 @@ using DSVHVN.Domain.Identity;
 
 namespace DSVHVN.Tests.Unit;
 
-/// <summary>Danh mục nhật ký thao tác: đủ 22 mã, mỗi mã và mỗi vai trò có nhãn tiếng Việt riêng.</summary>
+/// <summary>Danh mục nhật ký thao tác: đủ 24 mã, mỗi mã và mỗi vai trò có nhãn tiếng Việt riêng.</summary>
 public sealed class AuditLabelTests
 {
     [Fact]
-    public void There_are_22_action_codes_each_with_its_own_vietnamese_label()
+    public void There_are_24_action_codes_each_with_its_own_vietnamese_label()
     {
         var actions = Enum.GetValues<AuditAction>();
-        Assert.Equal(22, actions.Length);
+        Assert.Equal(24, actions.Length);
         var labels = actions.Select(AuditLabels.Of).ToList();
         Assert.All(actions, a => Assert.NotEqual(a.ToString(), AuditLabels.Of(a)));
         Assert.Equal(labels.Count, labels.Distinct().Count());

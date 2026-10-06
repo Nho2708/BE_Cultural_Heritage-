@@ -14,7 +14,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 namespace DSVHVN.Application.Common;
 
 /// <summary>
-/// Cổng vào CSDL cho tầng Application: 27 bảng của CSDL v3 và các bảng của CSDL v4 đã thêm theo từng luồng (hiện có lesson_sections).
+/// Cổng vào CSDL cho tầng Application: 27 bảng của CSDL v3 và các bảng của CSDL v4 đã thêm theo từng luồng (hiện có lesson_sections và năm bảng đa ngôn ngữ).
 /// Thay đổi lược đồ về sau đi qua migration mới.
 /// </summary>
 public interface IAppDbContext
@@ -34,6 +34,12 @@ public interface IAppDbContext
     DbSet<TimelineEvent> Events { get; }
     DbSet<Media> Media { get; }
     DbSet<HeritageReference> HeritageReferences { get; }
+
+    DbSet<HeritageTranslation> HeritageTranslations { get; }
+    DbSet<TimelineTranslation> TimelineTranslations { get; }
+    DbSet<EventTranslation> EventTranslations { get; }
+    DbSet<MediaTranslation> MediaTranslations { get; }
+    DbSet<HeritageSummary> HeritageSummaries { get; }
 
     DbSet<Lesson> Lessons { get; }
     DbSet<LessonHeritage> LessonHeritages { get; }

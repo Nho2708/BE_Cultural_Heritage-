@@ -52,4 +52,6 @@ public static class AuditTargets
     public const string Subscriptions = "subscriptions";
     public const string Invoices = "invoices";
     public const string Payments = "payments";
+    public const string HeritageTranslations = "heritage_translations";
+    public const string HeritageSummaries = "heritage_summaries";
 }
