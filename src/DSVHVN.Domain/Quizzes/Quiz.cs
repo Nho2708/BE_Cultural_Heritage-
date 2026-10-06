@@ -104,7 +104,8 @@ public class Attempt
 
 /// <summary>
 /// Bảng <c>attempt_answers</c>: câu trả lời trong một lượt, chấm cố định lúc nộp. (<c>attempt_id</c>, <c>question_id</c>)
-/// không trùng: mỗi câu một dòng. <see cref="AnswerId"/> NULL là bỏ trống.
+/// không trùng: mỗi câu một dòng. <see cref="AnswerId"/> chỉ dùng cho dạng chọn một phương án (NULL là bỏ trống); bốn dạng nhiều phần
+/// lưu từng phần ở <see cref="Parts"/>.
 /// </summary>
 public class AttemptAnswer
 {
@@ -119,10 +120,55 @@ public class AttemptAnswer
     public long? AnswerId { get; set; }
     public Answer? Answer { get; set; }
 
-    /// <summary>bit NOT NULL DEFAULT 0.</summary>
+    /// <summary>bit NOT NULL DEFAULT 0. Đúng hoàn toàn: mọi phần đều đúng.</summary>
     public bool IsCorrect { get; set; }
 
+    /// <summary>Số phần được chấm của câu (smallint NOT NULL DEFAULT 1): 1 với dạng chọn một phương án.</summary>
+    public short PartsTotal { get; set; } = 1;
+
+    /// <summary>Số phần học sinh làm đúng (smallint NOT NULL DEFAULT 0); bỏ trống là 0.</summary>
+    public short PartsCorrect { get; set; }
+
+    /// <summary>Điểm câu = điểm của câu trong quiz × <see cref="PartsCorrect"/> ÷ <see cref="PartsTotal"/>, làm tròn 2 chữ số.</summary>
     public decimal? PointEarned { get; set; }
 
     public DateTime? AnsweredAt { get; set; }
+
+    public List<AttemptAnswerPart> Parts { get; set; } = [];
+}
+
+/// <summary>
+/// Bảng <c>attempt_answer_parts</c> (CSDL v4): câu trả lời từng phần của bốn dạng nhiều phần (ghép cặp, sắp xếp, điền từ, nhiều mệnh đề
+/// Đúng/Sai). Mỗi dòng trỏ tới đúng một trong hai: một dòng <c>answers</c> (<see cref="AnswerId"/>) hoặc một chỗ trống
+/// (<see cref="BlankIndex"/>). Chỉ các cột của dạng tương ứng có giá trị.
+/// </summary>
+public class AttemptAnswerPart
+{
+    public long Id { get; set; }
+
+    public long AttemptAnswerId { get; set; }
+    public AttemptAnswer? AttemptAnswer { get; set; }
+
+    /// <summary>Phần được trả lời: vế trái của cặp, bước, mệnh đề. NULL với chỗ trống của điền từ.</summary>
+    public long? AnswerId { get; set; }
+    public Answer? Answer { get; set; }
+
+    /// <summary>Chỗ trống được trả lời (điền từ, 1..n). NULL với dạng khác.</summary>
+    public byte? BlankIndex { get; set; }
+
+    /// <summary>Ghép cặp: dòng <c>answers</c> có vế phải học sinh ghép vào; điền từ bằng kho từ: dòng học sinh chọn. NULL nếu bỏ trống.</summary>
+    public long? SelectedAnswerId { get; set; }
+    public Answer? SelectedAnswer { get; set; }
+
+    /// <summary>Sắp xếp: vị trí (1..n) học sinh đặt bước này. NULL nếu bỏ trống.</summary>
+    public byte? SelectedPosition { get; set; }
+
+    /// <summary>Nhiều mệnh đề: học sinh chọn Đúng (true) hay Sai (false); NULL nếu chưa chọn.</summary>
+    public bool? SelectedBool { get; set; }
+
+    /// <summary>Điền từ: chữ học sinh gõ hoặc chọn (tối đa 255 ký tự). NULL nếu bỏ trống.</summary>
+    public string? ResponseText { get; set; }
+
+    /// <summary>Phần này đúng, chấm và lưu cố định.</summary>
+    public bool IsCorrect { get; set; }
 }

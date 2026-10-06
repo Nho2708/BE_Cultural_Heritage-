@@ -62,6 +62,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
     // 7. Làm bài / Kết quả
     public DbSet<Attempt> Attempts => Set<Attempt>();
     public DbSet<AttemptAnswer> AttemptAnswers => Set<AttemptAnswer>();
+    public DbSet<AttemptAnswerPart> AttemptAnswerParts => Set<AttemptAnswerPart>();
 
     // 8. Thanh toán
     public DbSet<Plan> Plans => Set<Plan>();
@@ -106,6 +107,19 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
         if (!Database.IsSqlServer()) return;
         await Database.ExecuteSqlInterpolatedAsync(
             $"SELECT id FROM classes WITH (UPDLOCK, HOLDLOCK) WHERE id = {classId}", cancellationToken);
+    }
+
+    /// <summary>
+    /// Khóa dòng lượt làm bài tới hết giao dịch (UPDLOCK, HOLDLOCK) để nộp bài, tự nộp khi hết giờ và lưu câu trả lời của cùng một lượt chạy tuần tự.
+    /// SQLite (kiểm thử) bỏ qua như <see cref="LockClassAsync"/>.
+    /// </summary>
+    public async Task LockAttemptAsync(long attemptId, CancellationToken cancellationToken)
+    {
+        if (Database.CurrentTransaction is null)
+            throw new InvalidOperationException("LockAttemptAsync phải được gọi bên trong giao dịch.");
+        if (!Database.IsSqlServer()) return;
+        await Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT id FROM attempts WITH (UPDLOCK, HOLDLOCK) WHERE id = {attemptId}", cancellationToken);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
