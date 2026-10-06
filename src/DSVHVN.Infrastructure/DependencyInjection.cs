@@ -3,6 +3,7 @@ using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Students;
 using DSVHVN.Infrastructure.Ai;
+using DSVHVN.Infrastructure.Background;
 using DSVHVN.Infrastructure.Files;
 using DSVHVN.Infrastructure.Email;
 using DSVHVN.Infrastructure.Persistence;
@@ -41,6 +42,10 @@ public static class DependencyInjection
         services.AddSingleton<ILessonCodeThrottle, InMemoryLessonCodeThrottle>();
         services.AddEmail(configuration);
         services.AddLessonAi(configuration);
+
+        // Tự đóng bài kiểm tra quá giờ đóng, chạy nền theo chu kỳ của mục Quizzes.
+        services.AddOptions<QuizAutoCloseOptions>().Bind(configuration.GetSection(QuizAutoCloseOptions.Section));
+        services.AddHostedService<QuizAutoCloseService>();
 
         // Phiếu đăng nhập của học sinh lấy địa chỉ web học tập và đường dẫn tải app từ mục App.
         services.AddOptions<StudentSheetOptions>().Bind(configuration.GetSection(StudentSheetOptions.Section));
