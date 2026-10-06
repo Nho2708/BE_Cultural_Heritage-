@@ -3,13 +3,13 @@
 Backend hiện thực **đủ 27 bảng** của CSDL v3 (`doc/database/dsvhvn-v3.dbml` của nhóm, 8 nhóm bảng) bằng EF Core 9 trên
 SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `KhoiTaoCsdl`; mọi thay đổi về sau đi qua migration mới. Từ luồng
 "Bài học cho lớp theo cấp" backend thêm dần phần **CSDL v4** (`doc/database/dsvhvn-v4.dbml`) đúng phần luồng cần, mỗi luồng một migration
-(mục 5 và 6): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học) và các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi), tổng **28 bảng**.
+(mục 5, 6 và 7): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học), các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi) và năm bảng đa ngôn ngữ (luồng đa ngôn ngữ), tổng **33 bảng**.
 
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
-| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6) |
-| Số liệu | **28 bảng** (27 của v3 + `lesson_sections`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) = **257 trong database** · 43 khóa ngoại · 25 CHECK · 4 UNIQUE có lọc · 10 UNIQUE thường · 16 kiểu enum (18 cột) |
+| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7) |
+| Số liệu | **33 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ = **303 trong database** · 52 khóa ngoại (4 Cascade) · 35 CHECK · 4 UNIQUE có lọc · 15 UNIQUE thường · 18 kiểu enum (25 cột) |
 | Dữ liệu khởi tạo trong migration khởi tạo | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
 
@@ -119,8 +119,8 @@ Khác biệt kỹ thuật, không đổi ý nghĩa lược đồ: tên khóa ch�
 ## 4. Kiểm thử trên SQL Server
 
 Ngoài bộ test trên SQLite trong bộ nhớ, lớp `SqlServerDatabaseTests` chạy trên **database tạm của LocalDB** (tên
-`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (28 bảng, 257 cột, 43 khóa ngoại,
-một Cascade, 25 CHECK, 4 UNIQUE có lọc đúng điều kiện, 11 khóa ngoại được NULL, 18 cột enum `nvarchar(20)`, DEFAULT của cột bit,
+`dsvhvn_kiem_thu_…`): Api khởi động áp migration khởi tạo và nạp dữ liệu, test kiểm lược đồ (33 bảng, 303 cột, 52 khóa ngoại,
+bốn Cascade, 35 CHECK, 4 UNIQUE có lọc đúng điều kiện, 15 khóa ngoại được NULL, 25 cột enum `nvarchar(20)`, DEFAULT của cột bit,
 collation), dữ liệu di sản, luồng web quản trị qua HTTP và các ràng buộc của tài khoản học sinh, bài học, thanh toán; xong thì
 xóa database tạm. Máy không có LocalDB thì các test này được bỏ qua (Skip); không có thư mục dữ liệu di sản thì bỏ qua riêng
 test nạp di sản.
@@ -157,3 +157,25 @@ Migration `ThemDangCauHoiVaCapPhuHop` (05/10/2026) đưa vào phần của `dsvh
 
 Số liệu sau migration: 28 bảng, 257 cột, 43 khóa ngoại, 25 CHECK, 11 khóa ngoại được NULL, DEFAULT thêm hai cột `level_min`, `level_max`. Chi tiết luồng và đường nâng cấp câu cũ:
 [ngan-hang-cau-hoi.md](ngan-hang-cau-hoi.md) mục 6.
+
+## 7. Phần CSDL v4 của luồng "Đa ngôn ngữ, AI dịch và tóm tắt di sản"
+
+Migration `ThemBanDichVaTomTatDiSan` (06/10/2026) thêm năm bảng của nhóm Đa ngôn ngữ trong `dsvhvn-v4.dbml`; không sửa bảng cũ. `ai_generations` đã có `heritage_id`, hai loại tác vụ di sản và CHECK `CK_ai_generations_subject`
+từ migration của luồng bài học nên không đổi.
+
+| Bảng mới | Cột | Ràng buộc |
+|---|---|---|
+| `heritage_translations` | `id`, `heritage_id`, `language_code`, `name`, `short_description`, `content`, `address`, `status`, `is_outdated` (DEFAULT 0), `ai_generation_id`, `reviewed_by`, `reviewed_at`, `created_at`, `updated_at` | UNIQUE `UX_heritage_translations_heritage_language`; CHECK `CK_heritage_translations_language_code` (5 mã), `CK_heritage_translations_status` (`en`: `PENDING`, `APPROVED`, `REJECTED`; `ko`, `zh`, `ja`: `MACHINE`; không có `vi`) |
+| `timeline_translations` | `id`, `timeline_id`, `language_code`, `name`, `description`, `created_at`, `updated_at` | UNIQUE (`timeline_id`, `language_code`); CHECK `language_code <> 'vi'`; khóa ngoại **Cascade** |
+| `event_translations` | như trên, `event_id`, `name`, `description` | như trên, Cascade theo `events` |
+| `media_translations` | `id`, `media_id`, `language_code`, `caption`, `created_at`, `updated_at` | UNIQUE (`media_id`, `language_code`); CHECK `language_code <> 'vi'`; Cascade theo `media` |
+| `heritage_summaries` | `id`, `heritage_id`, `language_code`, `short_text` (2000), `detailed_text`, `status`, `is_outdated` (DEFAULT 0), `ai_generation_id`, `reviewed_by`, `reviewed_at`, `created_at`, `updated_at` | UNIQUE `UX_heritage_summaries_heritage_language`; CHECK `CK_heritage_summaries_status` (`vi`, `en`: `PENDING`, `APPROVED`, `REJECTED`; `ko`, `zh`, `ja`: `MACHINE`) |
+
+- `language_code` lưu chữ thường (`vi`, `en`, `ko`, `zh`, `ja`; tên thành viên của enum `LanguageCode` cũng viết thường, khác các enum còn lại), `status` lưu `MACHINE`, `PENDING`, `APPROVED`, `REJECTED`; cả hai là `nvarchar(20)`.
+  CHECK trạng thái theo ngôn ngữ đã bao luôn danh sách giá trị của enum trạng thái nên không thêm CHECK riêng cho `status`.
+- Khóa ngoại tên `fk_{bảng}_{cột}` như DBML; `ai_generation_id`, `reviewed_by` được NULL (bản nhập tay, chưa duyệt, bản dịch máy). Chỉ ba bảng con Cascade; mọi khóa ngoại khác Restrict.
+- Nhật ký thao tác thêm hai mã `TRANSLATION_APPROVED`, `TRANSLATION_REJECTED` (cột `audit_logs.action` không có CHECK nên không cần migration) và hai tên đối tượng `heritage_translations`, `heritage_summaries`.
+
+Số liệu sau migration: 33 bảng, 303 cột (thêm 46), 52 khóa ngoại (thêm 9, trong đó 3 Cascade), 35 CHECK (thêm 10), 15 UNIQUE thường (thêm 5), 15 khóa ngoại được NULL (thêm 4), 25 cột enum (thêm 7), hai DEFAULT bit.
+Chi tiết luồng: [da-ngon-ngu.md](da-ngon-ngu.md).
+

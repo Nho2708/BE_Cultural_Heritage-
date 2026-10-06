@@ -15,7 +15,7 @@ timeline **không cần đăng nhập**. Chỉ đọc; dùng lại dịch vụ v
 ## 1. Phạm vi hiển thị
 
 - Mọi endpoint ở `/api/v1/public` là công khai (`[AllowAnonymous]`). Có gửi kèm access token hỏng hay hết hạn cũng vẫn được xem như khách
-  (không trả 401). Học sinh đã đăng nhập gọi giống hệt khách; giao diện theo cấp học là việc của web, API không đổi.
+  (không trả 401). Học sinh đã đăng nhập gọi giống hệt khách, **trừ ngôn ngữ**: học sinh đã đăng nhập luôn nhận nội dung tiếng Việt dù gửi `lang` nào (xem mục 6); giao diện theo cấp học là việc của web, API không đổi.
 - Chỉ thấy di sản **PUBLISHED chưa xóa mềm**. Nháp, đã ẩn (ARCHIVED), đã xóa đều như không tồn tại: chi tiết và timeline trả 404
   (`errorCode` `BLOCKED`, "Không thể xem di sản. Không tìm thấy di sản."), tìm kiếm và bản đồ không có. Ẩn hay hiện lại có hiệu lực ngay.
 - Không trả trạng thái, điều kiện xuất bản, mốc tạo/sửa, mã tham chiếu ngoài hay hai cột tìm kiếm.
@@ -84,7 +84,24 @@ chữ hoặc số thành một dấu cách. Nội dung đã gấp lưu sẵn ở
 - **Bộ nhớ đệm**: chỉ hai danh mục cố định `/public/provinces` và `/public/filters` có `Cache-Control: public, max-age=3600` (trình duyệt và CDN). Trang chủ, tìm kiếm, bản đồ, chi tiết,
   timeline **không** lưu đệm để ẩn hoặc xuất bản di sản có hiệu lực ngay; nếu cần thì thêm sau khi đo tải.
 
-## 5. Kiểm thử
+## 5. Ngôn ngữ của nội dung (luồng Đa ngôn ngữ)
+
+Từ luồng Đa ngôn ngữ ([da-ngon-ngu.md](da-ngon-ngu.md)), mọi endpoint về di sản nhận thêm `lang` (hoặc tiêu đề `Accept-Language`) và trả nội dung theo năm ngôn ngữ: `vi`, `en`, `ko`, `zh-Hans`, `ja`. Không có `lang` thì
+**tiếng Việt như trước**, nên giao diện cũ không đổi. Thêm vào phản hồi:
+
+| Nơi | Trường mới |
+|---|---|
+| Thẻ ở `/home`, `/heritages` và ghim ở `/heritages/map` | `isFallback`, `isMachineTranslated` (tên và mô tả ngắn theo ngôn ngữ; chưa có bản hiện hành thì lùi về tiếng Việt kèm `isFallback`) |
+| `/heritages/{slug}` | `localization { requestedLanguage, language, isFallback, isMachineTranslated }`, `hasSummary`; tên, mô tả, nội dung, tên giai đoạn rút gọn, chú thích ảnh theo ngôn ngữ |
+| `/heritages/{slug}/timeline` | `localization`; tên di sản, tên và mô tả giai đoạn, tên và mô tả sự kiện, chú thích ảnh sự kiện theo ngôn ngữ |
+| `/heritages` và `/heritages/map` | từ khóa khớp cả bản tiếng Việt lẫn bản dịch hiện hành của ngôn ngữ đã chọn |
+| `/heritages/{slug}/summary`, `/languages` | endpoint mới (tóm tắt ngắn và chi tiết; năm ngôn ngữ của bộ chọn) |
+
+## 6. Học sinh đã đăng nhập
+
+Khu học của học sinh chỉ có tiếng Việt: yêu cầu công khai kèm access token **học sinh** luôn nhận tiếng Việt (`localization.language = "vi"`, không cờ lùi), kể cả khi gửi `lang=ko`. Giáo viên, quản trị và khách chọn ngôn ngữ như nhau.
+
+## 7. Kiểm thử
 
 - Đơn vị: `DiscoveryRulesTests` (gấp chữ, thời kỳ, chữ hiển thị mốc thời gian, vùng).
 - Tích hợp trên SQLite (`DiscoveryApiTests`, `DiscoveryHomeTests`, `PublicRateLimitTests`): công khai không cần token và token hỏng vẫn xem được; chỉ di sản đã xuất bản (nháp, ẩn, xóa, hiện lại);
