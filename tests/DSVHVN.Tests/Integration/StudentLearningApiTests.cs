@@ -85,7 +85,7 @@ public sealed class StudentLearningApiTests(ApiFactory factory) : IClassFixture<
         var result = await _k.AnswerAllAndSubmitAsync(q, AttemptTestKit.Correct);
         var home = await _k.HomeAsync(q.StudentToken);
         Assert.Equal((1, "STEP_BY_STEP", (int?)3), (home.Level, home.Layout, home.TotalStars));
-        Assert.Equal(result.AttemptId, Assert.Single(home.RecentBadges.Where(b => b.Code == BadgeCode.PERFECT_SCORE)).AttemptId);
+        Assert.Equal(result.AttemptId, Assert.Single(home.RecentBadges, b => b.Code == BadgeCode.PERFECT_SCORE).AttemptId);
 
         var next = await _k.OpenQuizAsync(1, setup: q.Setup);
         var again = await _k.HomeAsync(q.StudentToken);
