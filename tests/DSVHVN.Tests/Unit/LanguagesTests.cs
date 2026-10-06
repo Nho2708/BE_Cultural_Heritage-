@@ -112,6 +112,13 @@ public sealed class LanguagesTests
     }
 
     [Fact]
+    public void Labels_for_the_admin_screens_read_naturally_in_a_sentence()
+    {
+        Assert.Equal(["Tiếng Việt", "Tiếng Anh", "Tiếng Hàn", "Tiếng Trung giản thể", "Tiếng Nhật"], Languages.All.Select(l => Languages.ViLabel(l.Code)));
+        Assert.Equal(["tiếng Việt", "tiếng Anh", "tiếng Hàn", "tiếng Trung giản thể", "tiếng Nhật"], Languages.All.Select(l => Languages.InlineLabel(l.Code)));
+    }
+
+    [Fact]
     public void Only_approved_and_machine_versions_are_shown_to_visitors()
     {
         Assert.True(Languages.IsVisible(TranslationStatus.APPROVED));

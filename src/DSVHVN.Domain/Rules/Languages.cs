@@ -44,6 +44,13 @@ public static class Languages
         _ => code.ToString(),
     };
 
+    /// <summary>Nhãn tiếng Việt để chen vào câu: "tiếng Việt", "tiếng Anh", "tiếng Hàn", "tiếng Trung giản thể", "tiếng Nhật" (chữ cái đầu viết thường, tên ngôn ngữ giữ chữ hoa).</summary>
+    public static string InlineLabel(LanguageCode code)
+    {
+        var label = ViLabel(code);
+        return char.ToLowerInvariant(label[0]) + label[1..];
+    }
+
     /// <summary>
     /// Đọc một mã ngôn ngữ: <c>vi</c>, <c>en</c>, <c>ko</c>, <c>ja</c> và mọi mã bắt đầu bằng đó (<c>en-GB</c>); tiếng Trung chỉ nhận <c>zh</c>,
     /// <c>zh-CN</c>, <c>zh-SG</c> và <c>zh-Hans*</c>, còn phồn thể (<c>zh-TW</c>, <c>zh-HK</c>, <c>zh-Hant</c>) không thuộc năm ngôn ngữ. Không nhận ra thì null.

@@ -400,7 +400,7 @@ public sealed class HeritageTranslationService(
         var lang = ParseTarget(language, "xem bản dịch");
         var source = await loader.LoadAsync(heritageId, "xem bản dịch", ct);
         var rows = await loader.LoadRowsAsync(heritageId, lang, ct)
-                   ?? throw AppException.NotFound(Messages.NotFound("xem bản dịch", $"bản dịch {Languages.ViLabel(lang).ToLowerInvariant()}"));
+                   ?? throw AppException.NotFound(Messages.NotFound("xem bản dịch", $"bản dịch {Languages.InlineLabel(lang)}"));
         var reviewer = await ReviewerNameAsync(rows.Heritage.ReviewedBy, ct);
         return new TranslationDetailDto(
             heritageId, source.Heritage.Name ?? string.Empty, source.Heritage.Slug ?? string.Empty, Languages.Tag(lang), Languages.ViLabel(lang),
@@ -415,7 +415,7 @@ public sealed class HeritageTranslationService(
         var summaries = await db.HeritageSummaries.AsNoTracking()
             .Where(s => s.HeritageId == heritageId && (s.LanguageCode == lang || s.LanguageCode == LanguageCode.vi)).ToListAsync(ct);
         var row = summaries.SingleOrDefault(s => s.LanguageCode == lang)
-                  ?? throw AppException.NotFound(Messages.NotFound("xem tóm tắt", $"bản tóm tắt {Languages.ViLabel(lang).ToLowerInvariant()}"));
+                  ?? throw AppException.NotFound(Messages.NotFound("xem tóm tắt", $"bản tóm tắt {Languages.InlineLabel(lang)}"));
         var vi = lang == LanguageCode.vi ? null : summaries.SingleOrDefault(s => s.LanguageCode == LanguageCode.vi);
         var reviewer = await ReviewerNameAsync(row.ReviewedBy, ct);
         return new SummaryDetailDto(
@@ -531,7 +531,7 @@ public sealed class HeritageTranslationService(
             throw AppException.BusinessRule(Messages.Blocked(action, "Bản tiếng Hàn, Trung, Nhật là bản dịch máy, không sửa tay; hãy dịch lại bằng AI."));
         await loader.LoadAsync(heritageId, action, ct);
         var row = await db.HeritageSummaries.SingleOrDefaultAsync(s => s.HeritageId == heritageId && s.LanguageCode == lang, ct)
-                  ?? throw AppException.NotFound(Messages.NotFound(action, $"bản tóm tắt {Languages.ViLabel(lang).ToLowerInvariant()}"));
+                  ?? throw AppException.NotFound(Messages.NotFound(action, $"bản tóm tắt {Languages.InlineLabel(lang)}"));
 
         if (request.ShortText is not null)
         {
@@ -640,9 +640,9 @@ public sealed class HeritageTranslationService(
         if (!both)
         {
             if (wantsTranslation && translation is null)
-                throw AppException.NotFound(Messages.NotFound(action, $"bản dịch {Languages.ViLabel(lang).ToLowerInvariant()}"));
+                throw AppException.NotFound(Messages.NotFound(action, $"bản dịch {Languages.InlineLabel(lang)}"));
             if (wantsSummary && !wantsTranslation && summary is null)
-                throw AppException.NotFound(Messages.NotFound(action, $"bản tóm tắt {Languages.ViLabel(lang).ToLowerInvariant()}"));
+                throw AppException.NotFound(Messages.NotFound(action, $"bản tóm tắt {Languages.InlineLabel(lang)}"));
         }
         if (translation is not null && !Reviewable(translation.Status, approve))
         {
@@ -694,7 +694,7 @@ public sealed class HeritageTranslationService(
         ReviewScope.TRANSLATION => "bản dịch",
         ReviewScope.SUMMARY => "tóm tắt",
         _ => "bản dịch và tóm tắt",
-    }) + " " + Languages.ViLabel(language).ToLowerInvariant();
+    }) + " " + Languages.InlineLabel(language);
 
     /// <summary>Duyệt chỉ áp cho bản đang chờ duyệt; từ chối áp cho bản chờ duyệt và cả bản đã duyệt (gỡ một bản đã hiện mà còn sai khỏi trang công khai).</summary>
     private static bool Reviewable(TranslationStatus status, bool approve) =>
