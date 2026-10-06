@@ -66,6 +66,31 @@ public sealed class StatsTestKit(ApiFactory factory)
     public Task<AttemptTestKit.Quiz> QuizAsync(QuizTestKit.Setup s, string studentName, IReadOnlyList<QuestionType>? types = null, bool showAnswers = true) =>
         Attempts.OpenQuizAsync(s.Level, types, showAnswers, setup: s, studentName: studentName);
 
+    /// <summary>
+    /// Bài kiểm tra đang mở gồm các câu <paramref name="picks"/> (dạng câu và bộ dựng cho di sản của câu) và một học sinh mới; dùng khi cần một bài có câu của nhiều di sản.
+    /// </summary>
+    public async Task<AttemptTestKit.Quiz> MixedQuizAsync(QuizTestKit.Setup s, string studentName, params (QuizTestKit.Setup From, QuestionType Type)[] picks)
+    {
+        var quiz = await Quizzes.CreateAsync(s, "Hỗn hợp " + Guid.NewGuid().ToString("N")[..6], new
+        {
+            difficultyLevel = DifficultyLevel.MEDIUM,
+            timeLimitMinutes = s.Level == 1 ? null : s.Level == 3 ? 30 : (int?)null,
+            openAt = QuizTestKit.OpenSoon,
+            closeAt = QuizTestKit.CloseLater,
+            shuffleQuestions = false,
+            showAnswersAfterSubmit = true,
+        });
+        var questions = new List<DSVHVN.Application.Questions.QuestionDetailDto>();
+        foreach (var (from, type) in picks) questions.Add(await Quizzes.QuestionAsync(from, type));
+        await Quizzes.AddQuestionsAsync(s.Token, quiz.Id, questions.Select(q => q.Id), 2m);
+        var published = (await Quizzes.PublishAsync(s.Token, quiz.Id)).Quiz;
+        await Quizzes.SetQuizTimesAsync(published.Id, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddHours(3));
+        var token = await StudentTokenAsync(s, studentName);
+        var code = await Factory.WithDbAsync(db => db.Students.Where(x => x.ClassId == s.ClassId && x.FullName == studentName)
+            .OrderByDescending(x => x.Id).Select(x => x.StudentCode!).FirstAsync());
+        return new AttemptTestKit.Quiz(s, published, questions, token, code);
+    }
+
     public Task<string> StudentTokenAsync(QuizTestKit.Setup s, string name) =>
         Quizzes.Questions.Lesson.StudentTokenAsync(s.Token, s.ClassId, name);
 
