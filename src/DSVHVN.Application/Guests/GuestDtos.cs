@@ -71,7 +71,13 @@ public sealed record GuestRecommendationsDto(
     string? Message);
 
 /// <summary>Tọa độ khách gửi lên chỉ để tính khoảng cách (vĩ độ, kinh độ); máy chủ làm tròn 3 chữ số thập phân và không lưu.</summary>
-public sealed record NearbyRequest(double? Latitude, double? Longitude);
+public sealed record NearbyRequest(double? Latitude, double? Longitude)
+{
+    /// <summary>
+    /// Che tọa độ khi ai đó (nhật ký mô hình hóa của khung web ở mức Trace, trình gỡ lỗi, thông báo lỗi) đổi đối tượng này thành chữ: vị trí của khách không được lọt vào nhật ký.
+    /// </summary>
+    public override string ToString() => "NearbyRequest { Latitude = ***, Longitude = *** }";
+}
 
 /// <summary>Một di sản gần khách: thẻ di sản theo ngôn ngữ yêu cầu, khoảng cách tính bằng mét và chữ khoảng cách đã định dạng ("350 m", "1,2 km").</summary>
 public sealed record NearbyHeritageDto(HeritageCardDto Heritage, int DistanceMeters, string DistanceText);

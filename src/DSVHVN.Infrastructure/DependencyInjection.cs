@@ -60,6 +60,10 @@ public static class DependencyInjection
         services.AddOptions<QuizAutoCloseOptions>().Bind(configuration.GetSection(QuizAutoCloseOptions.Section));
         services.AddHostedService<QuizAutoCloseService>();
 
+        // Dọn lịch sử khách tham quan quá 90 ngày, chạy nền hằng ngày theo mục Guests.
+        services.AddOptions<GuestCleanupOptions>().Bind(configuration.GetSection(GuestCleanupOptions.Section));
+        services.AddHostedService<GuestHistoryCleanupService>();
+
         // Phiếu đăng nhập của học sinh lấy địa chỉ web học tập và đường dẫn tải app từ mục App.
         services.AddOptions<StudentSheetOptions>().Bind(configuration.GetSection(StudentSheetOptions.Section));
         services.AddSingleton<IStudentListFile, StudentListFileReader>();
