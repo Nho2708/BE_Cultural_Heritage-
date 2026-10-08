@@ -10,6 +10,8 @@
 #
 # -AdminPassword là mật khẩu chung đặt cho 4 quản trị hệ thống khi CSDL còn mới (8-64 ký tự, có chữ hoa, chữ thường và chữ số). Không truyền
 # thì script hỏi. Mật khẩu chỉ đi vào backend bằng biến môi trường của tiến trình con, không ghi ra tệp hay log.
+# `pwsh -File` không truyền được SecureString; muốn truyền sẵn thì gọi trong một phiên pwsh:
+#   $p = Read-Host 'Mật khẩu quản trị' -AsSecureString; ./scripts/tao-csdl-demo.ps1 -AdminPassword $p
 # CSDL đã có quản trị rồi thì mật khẩu phải khớp với mật khẩu quản trị đang dùng (nếu không script dừng ở bước đăng nhập).
 # CSDL đã có dữ liệu demo (trường demo đã tồn tại) thì script báo và thoát, không nạp trùng.
 [CmdletBinding()]
