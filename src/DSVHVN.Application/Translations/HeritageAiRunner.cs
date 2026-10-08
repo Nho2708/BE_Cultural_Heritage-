@@ -64,12 +64,17 @@ public sealed class HeritageAiRunner(IHeritageAiClient client, IOptions<AiOption
 
     // ---- Kiểm kết quả ----
 
-    /// <summary>Tóm tắt phải có cả bản ngắn lẫn bản chi tiết; bản ngắn cắt về 2000 ký tự (độ rộng cột).</summary>
+    /// <summary>
+    /// Tóm tắt phải có cả bản ngắn lẫn bản chi tiết; cả hai là văn bản thuần (ký hiệu Markdown nếu có bị bỏ, vì tóm tắt được hiện như chữ thường và đọc thành tiếng);
+    /// bản ngắn cắt về 2000 ký tự (độ rộng cột).
+    /// </summary>
     internal static AiSummarizeResult NormalizeSummary(AiSummarizeResult raw)
     {
-        if (string.IsNullOrWhiteSpace(raw.ShortText) || string.IsNullOrWhiteSpace(raw.DetailedText))
+        var shortText = ShortPlain(raw.ShortText);
+        var detailed = PlainText.FromMarkdown(raw.DetailedText);
+        if (shortText.Length == 0 || detailed.Length == 0)
             throw new AiServiceException("Dịch vụ AI trả bản tóm tắt thiếu bản ngắn hoặc bản chi tiết.", retryable: true);
-        return raw with { ShortText = Cut(raw.ShortText.Trim(), TranslationRules.SummaryShortMaxLength), DetailedText = raw.DetailedText.Trim() };
+        return raw with { ShortText = Cut(shortText, TranslationRules.SummaryShortMaxLength), DetailedText = detailed };
     }
 
     /// <summary>
@@ -100,13 +105,18 @@ public sealed class HeritageAiRunner(IHeritageAiClient client, IOptions<AiOption
         AiSummaryText? summary = null;
         if (request.Summary is not null)
         {
-            if (raw.Summary is null || string.IsNullOrWhiteSpace(raw.Summary.ShortText) || string.IsNullOrWhiteSpace(raw.Summary.DetailedText))
+            var translatedShort = ShortPlain(raw.Summary?.ShortText);
+            var translatedDetailed = PlainText.FromMarkdown(raw.Summary?.DetailedText);
+            if (translatedShort.Length == 0 || translatedDetailed.Length == 0)
                 throw new AiServiceException("Dịch vụ AI không trả bản tóm tắt đã dịch.", retryable: true);
-            summary = new AiSummaryText(Cut(raw.Summary.ShortText.Trim(), TranslationRules.SummaryShortMaxLength), raw.Summary.DetailedText.Trim());
+            summary = new AiSummaryText(Cut(translatedShort, TranslationRules.SummaryShortMaxLength), translatedDetailed);
         }
 
         return raw with { Content = normalized, Summary = summary };
     }
+
+    /// <summary>Bản ngắn để nghe là một đoạn liền: văn bản thuần, các dòng nối bằng dấu cách.</summary>
+    private static string ShortPlain(string? text) => PlainText.FromMarkdown(text).Replace("\n\n", " ").Replace('\n', ' ');
 
     private static string? Blank(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 

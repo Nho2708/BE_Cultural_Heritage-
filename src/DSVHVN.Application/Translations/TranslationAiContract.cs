@@ -26,7 +26,7 @@ public sealed record AiHeritageText(
     IReadOnlyList<AiEventText> Events,
     IReadOnlyList<AiMediaText> Media);
 
-/// <summary>Bản tóm tắt: bản ngắn để nghe (khoảng 80-120 từ tiếng Việt) và bản chi tiết để đọc (khoảng 250-400 từ).</summary>
+/// <summary>Bản tóm tắt: bản ngắn để nghe (khoảng 80-120 từ tiếng Việt) và bản chi tiết để đọc (khoảng 250-400 từ). Cả hai là VĂN BẢN THUẦN, không có ký hiệu Markdown (tiêu đề, chữ đậm, gạch đầu dòng, liên kết): hiện như chữ thường và đọc thành tiếng. Bộ chạy vẫn bỏ ký hiệu nếu dịch vụ AI lỡ trả.</summary>
 public sealed record AiSummaryText(string ShortText, string DetailedText);
 
 /// <summary>Yêu cầu tóm tắt bằng tiếng Việt từ chính nội dung đã có của di sản (không thêm dữ kiện mới, không chép nguyên bài).</summary>

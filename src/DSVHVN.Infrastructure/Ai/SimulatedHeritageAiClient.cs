@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Rules;
@@ -15,7 +16,7 @@ namespace DSVHVN.Infrastructure.Ai;
 /// Tất định: cùng đầu vào cho cùng đầu ra. Chất lượng chữ chỉ ở mức mẫu để thử luồng; bản thật dùng mô hình ngôn ngữ và quản trị hệ thống vẫn duyệt bản tiếng Việt, tiếng Anh.
 /// </para>
 /// </summary>
-public sealed class SimulatedHeritageAiClient : IHeritageAiClient
+public sealed partial class SimulatedHeritageAiClient : IHeritageAiClient
 {
     public const string Name = "simulated-heritage-translator";
 
@@ -28,15 +29,18 @@ public sealed class SimulatedHeritageAiClient : IHeritageAiClient
     {
         ct.ThrowIfCancellationRequested();
         var source = request.Source;
-        var body = string.Join(' ', new[] { source.ShortDescription, source.Content }.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t!.Trim()));
+        // Nội dung di sản viết bằng Markdown (tiêu đề "## ...", gạch đầu dòng, chữ đậm); tóm tắt là văn bản thuần nên bỏ ký hiệu trước khi ghép.
+        var shortDescription = PlainText.FromMarkdown(source.ShortDescription);
+        var content = PlainText.FromMarkdown(source.Content);
+        var body = string.Join(' ', new[] { shortDescription, content }.Where(t => t.Length > 0));
         if (string.IsNullOrWhiteSpace(source.Name) || body.Length == 0)
             throw new AiServiceException("Di sản chưa có nội dung tiếng Việt để tóm tắt.", retryable: false);
 
         var shortText = TakeWords($"{source.Name.Trim()}. {body}", ShortWords);
         var paragraphs = new List<string>();
-        if (!string.IsNullOrWhiteSpace(source.ShortDescription)) paragraphs.Add($"{source.Name.Trim()}. {source.ShortDescription.Trim()}");
+        if (shortDescription.Length > 0) paragraphs.Add($"{source.Name.Trim()}. {shortDescription}");
         else paragraphs.Add(source.Name.Trim() + ".");
-        if (!string.IsNullOrWhiteSpace(source.Content)) paragraphs.Add(source.Content.Trim());
+        if (content.Length > 0) paragraphs.Add(content);
         if (source.Timelines.Count > 0)
             paragraphs.Add("Các giai đoạn lịch sử: " + string.Join("; ", source.Timelines.Take(6).Select(t => t.Name.Trim())) + ".");
         var detailed = TakeWords(string.Join("\n\n", paragraphs), DetailedWords);
@@ -51,7 +55,7 @@ public sealed class SimulatedHeritageAiClient : IHeritageAiClient
         if (string.IsNullOrWhiteSpace(request.TargetLanguage) || Languages.TryParse(request.TargetLanguage) is null)
             throw new AiServiceException("Ngôn ngữ đích không hợp lệ.", retryable: false);
         var tag = request.TargetLanguage.Trim();
-        string? Tr(string? text) => string.IsNullOrWhiteSpace(text) ? null : $"[{tag}] {text.Trim()}";
+        string? Tr(string? text) => string.IsNullOrWhiteSpace(text) ? null : TagText(tag, text);
 
         var c = request.Content;
         var content = new AiHeritageText(
@@ -68,6 +72,20 @@ public sealed class SimulatedHeritageAiClient : IHeritageAiClient
         var input = WordCount(c.Content) + WordCount(c.ShortDescription) + WordCount(request.Summary?.DetailedText);
         return Task.FromResult(new AiTranslateResult(content, summary, Name, new AiUsage(input, input)));
     }
+
+    /// <summary>
+    /// Gắn mã ngôn ngữ vào đầu chữ. Chữ Markdown giữ ký hiệu đầu dòng ở đầu (<c>## [en] Giới thiệu</c>, không phải <c>[en] ## Giới thiệu</c>) để tiêu đề vẫn là tiêu đề
+    /// khi hiển thị; bản tóm tắt là văn bản thuần nên chỉ có tiền tố.
+    /// </summary>
+    public static string TagText(string tag, string text)
+    {
+        var trimmed = text.Trim();
+        var marker = MarkdownLineStart().Match(trimmed);
+        return $"{trimmed[..marker.Length]}[{tag}] {trimmed[marker.Length..]}";
+    }
+
+    [GeneratedRegex(@"^(?:#{1,6}\s+|[-*+]\s+)?")]
+    private static partial Regex MarkdownLineStart();
 
     /// <summary>Lấy tối đa <paramref name="maxWords"/> từ đầu, ưu tiên dừng ở cuối câu nếu đã đủ khoảng ba phần tư số từ; cắt giữa câu thì thêm dấu chấm.</summary>
     internal static string TakeWords(string text, int maxWords)
