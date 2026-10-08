@@ -199,7 +199,7 @@ public sealed class AdsTestKit(AdsApiFactory factory)
         if (!leaveOutTransaction) parts.Add("transaction_id=" + (transactionId ?? Guid.NewGuid().ToString("N")));
         if (!leaveOutUserId) parts.Add("user_id=" + (userId ?? deviceKey));
         var content = string.Join('&', parts);
-        var signature = AdMobSignature.Sign(content, factory.Keys.Signer);
+        var signature = AdMobSignature.Sign(content, Factory.Keys.Signer);
         var query = $"{content}&signature={signature}&key_id={keyId}";
         return $"{SsvRoot}?{(mutate is null ? query : mutate(query))}";
     }
