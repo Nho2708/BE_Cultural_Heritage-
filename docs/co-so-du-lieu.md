@@ -7,7 +7,7 @@ SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `Kh
 
 | Mục | Giá trị |
 |---|---|
-| CSDL phát triển | `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
+| CSDL phát triển | `sep490_dsvhvn` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
 | Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7); `20261006150550_ThemCauTraLoiTungPhan.cs` (phần v4 của luồng học tập, xem mục 11); `20261006162139_ThemMoHinh3DCuaDiSan.cs` (bảng mô hình 3D, xem mục 8); `20261006172743_ThemRangBuocGoiVaThanhToan.cs` (chỉ mục của nhóm Thanh toán, xem mục 9); `20261006193419_ThemKhachThamQuanVaLichSu.cs` (hai bảng của khách tham quan, xem mục 13); `20261006205730_ThemLuotMoKhoaQuangCao.cs` (bảng lượt mở khóa quảng cáo, xem mục 14) |
 | Số liệu | **38 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ + `heritage_models` + `attempt_answer_parts` + `guest_devices` + `guest_activities` + `ad_unlocks`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ + 17 cột của `heritage_models` + 11 cột của luồng học tập (9 của `attempt_answer_parts`, 2 của `attempt_answers`) + 14 cột của hai bảng khách tham quan (7 + 7) + 9 cột của `ad_unlocks` = **354 trong database** · 60 khóa ngoại (4 Cascade) · 49 CHECK · 10 UNIQUE có lọc · 17 UNIQUE thường · 22 kiểu enum (33 cột) |
 | Dữ liệu khởi tạo trong migration khởi tạo | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
@@ -52,13 +52,13 @@ dotnet run --project src/DSVHVN.Api --launch-profile http
 
 `--chi-khoi-tao-csdl`: áp migration, nạp dữ liệu khởi tạo rồi thoát, không mở cổng HTTP. Mọi bước nạp đều chạy lại được
 (không nhân đôi, không ghi đè). `dotnet-ef` lấy chuỗi kết nối từ biến môi trường `ConnectionStrings__Default`, không có thì
-dùng `sep490_dsvhvn_v3_dev` trên LocalDB.
+dùng `sep490_dsvhvn` trên LocalDB.
 
 ### Dữ liệu tỉnh/thành và di sản
 
 Khóa cấu hình `Seed:HeritageData:ProvincesFile` và `Seed:HeritageData:HeritagesFile` (đường dẫn tương đối theo thư mục
-`src/DSVHVN.Api`). `appsettings.Development.json` trỏ tới `../../../doc/du-lieu-di-san/provinces.json` và
-`../../../doc/du-lieu-di-san/seed-dot-1.json` (thư mục dữ liệu của nhóm nằm cạnh repo). Máy không có thư mục này thì đặt lại
+`src/DSVHVN.Api`). `appsettings.Development.json` trỏ tới `../../seed-data/provinces.json` và `../../seed-data/seed-dot-1.json`
+(hai tệp nằm trong repo, thư mục `seed-data/`, bản sao từ dữ liệu của nhóm, đã bỏ phần ghi chú làm việc). Muốn dùng tệp khác thì đặt lại
 đường dẫn bằng User Secrets hoặc biến môi trường `Seed__HeritageData__ProvincesFile`; không thấy tệp thì bỏ qua và ghi cảnh báo.
 
 Từ luồng Kho di sản, lần nạp **luôn ghi di sản ở DRAFT** (bỏ qua `status` trong tệp) và quy đổi loại nguồn `GOV_WEBSITE`, `UNESCO` về `WEBSITE`

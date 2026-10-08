@@ -1,0 +1,172 @@
+[
+  {
+    "code": "01",
+    "name": "Thành phố Hà Nội",
+    "region": "Bắc"
+  },
+  {
+    "code": "04",
+    "name": "Tỉnh Cao Bằng",
+    "region": "Bắc"
+  },
+  {
+    "code": "08",
+    "name": "Tỉnh Tuyên Quang",
+    "region": "Bắc"
+  },
+  {
+    "code": "11",
+    "name": "Tỉnh Điện Biên",
+    "region": "Bắc"
+  },
+  {
+    "code": "12",
+    "name": "Tỉnh Lai Châu",
+    "region": "Bắc"
+  },
+  {
+    "code": "14",
+    "name": "Tỉnh Sơn La",
+    "region": "Bắc"
+  },
+  {
+    "code": "15",
+    "name": "Tỉnh Lào Cai",
+    "region": "Bắc"
+  },
+  {
+    "code": "19",
+    "name": "Tỉnh Thái Nguyên",
+    "region": "Bắc"
+  },
+  {
+    "code": "20",
+    "name": "Tỉnh Lạng Sơn",
+    "region": "Bắc"
+  },
+  {
+    "code": "22",
+    "name": "Tỉnh Quảng Ninh",
+    "region": "Bắc"
+  },
+  {
+    "code": "24",
+    "name": "Tỉnh Bắc Ninh",
+    "region": "Bắc"
+  },
+  {
+    "code": "25",
+    "name": "Tỉnh Phú Thọ",
+    "region": "Bắc"
+  },
+  {
+    "code": "31",
+    "name": "Thành phố Hải Phòng",
+    "region": "Bắc"
+  },
+  {
+    "code": "33",
+    "name": "Tỉnh Hưng Yên",
+    "region": "Bắc"
+  },
+  {
+    "code": "37",
+    "name": "Tỉnh Ninh Bình",
+    "region": "Bắc"
+  },
+  {
+    "code": "38",
+    "name": "Tỉnh Thanh Hóa",
+    "region": "Trung"
+  },
+  {
+    "code": "40",
+    "name": "Tỉnh Nghệ An",
+    "region": "Trung"
+  },
+  {
+    "code": "42",
+    "name": "Tỉnh Hà Tĩnh",
+    "region": "Trung"
+  },
+  {
+    "code": "44",
+    "name": "Tỉnh Quảng Trị",
+    "region": "Trung"
+  },
+  {
+    "code": "46",
+    "name": "Thành phố Huế",
+    "region": "Trung"
+  },
+  {
+    "code": "48",
+    "name": "Thành phố Đà Nẵng",
+    "region": "Trung"
+  },
+  {
+    "code": "51",
+    "name": "Tỉnh Quảng Ngãi",
+    "region": "Trung"
+  },
+  {
+    "code": "52",
+    "name": "Tỉnh Gia Lai",
+    "region": "Trung"
+  },
+  {
+    "code": "56",
+    "name": "Tỉnh Khánh Hòa",
+    "region": "Trung"
+  },
+  {
+    "code": "66",
+    "name": "Tỉnh Đắk Lắk",
+    "region": "Trung"
+  },
+  {
+    "code": "68",
+    "name": "Tỉnh Lâm Đồng",
+    "region": "Trung"
+  },
+  {
+    "code": "75",
+    "name": "Tỉnh Đồng Nai",
+    "region": "Nam"
+  },
+  {
+    "code": "79",
+    "name": "Thành phố Hồ Chí Minh",
+    "region": "Nam"
+  },
+  {
+    "code": "80",
+    "name": "Tỉnh Tây Ninh",
+    "region": "Nam"
+  },
+  {
+    "code": "82",
+    "name": "Tỉnh Đồng Tháp",
+    "region": "Nam"
+  },
+  {
+    "code": "86",
+    "name": "Tỉnh Vĩnh Long",
+    "region": "Nam"
+  },
+  {
+    "code": "91",
+    "name": "Tỉnh An Giang",
+    "region": "Nam"
+  },
+  {
+    "code": "92",
+    "name": "Thành phố Cần Thơ",
+    "region": "Nam"
+  },
+  {
+    "code": "96",
+    "name": "Tỉnh Cà Mau",
+    "region": "Nam"
+  }
+]
