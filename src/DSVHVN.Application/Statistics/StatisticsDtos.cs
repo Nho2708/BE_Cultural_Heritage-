@@ -288,7 +288,7 @@ public sealed record CompletedLessonDto(long LessonId, string? Title, int Quizze
 /// Hồ sơ học tập của một học sinh cho giáo viên: lịch sử làm bài, biểu đồ điểm, bài học đã hoàn thành, mức thành thạo theo di sản, tỉnh và loại di sản,
 /// huy hiệu theo từng lượt và tổng hợp.
 /// </summary>
-public sealed record StudentProfileDto(
+public sealed record StudentLearningProfileDto(
     long StudentId,
     string? StudentCode,
     string? FullName,

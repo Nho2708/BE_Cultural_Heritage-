@@ -237,8 +237,8 @@ public sealed class StatsTestKit(ApiFactory factory)
     public Task<ClassRecommendationsDto> ClassRecommendationsAsync(string token, long classId, string query = "") =>
         TeacherAsync<ClassRecommendationsDto>(token, $"/classes/{classId}/recommendations{query}");
 
-    public Task<StudentProfileDto> ProfileAsync(string token, long classId, long studentId) =>
-        TeacherAsync<StudentProfileDto>(token, $"/classes/{classId}/students/{studentId}/profile");
+    public Task<StudentLearningProfileDto> ProfileAsync(string token, long classId, long studentId) =>
+        TeacherAsync<StudentLearningProfileDto>(token, $"/classes/{classId}/students/{studentId}/profile");
 
     /// <summary>Gọi một đường dẫn của giáo viên và trả mã HTTP (kiểm quyền).</summary>
     public async Task<HttpStatusCode> StatusOfAsync(string path, string? token) => (await Http.GetAsync<object>(path, token)).Response.StatusCode;
