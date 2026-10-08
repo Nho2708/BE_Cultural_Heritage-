@@ -56,7 +56,7 @@ dotnet tool restore                                   # dotnet-ef 9.0.20 ghim tr
 # Mật khẩu 4 tài khoản ADMIN seed (admin.nho, admin.lam, admin.trieu, admin.huy): chỉ đặt trong User Secrets, không commit
 dotnet user-secrets set "Seed:AdminPassword" "<mật khẩu 8-64 ký tự, có chữ hoa, chữ thường, chữ số>" --project src/DSVHVN.Api
 
-# Tạo CSDL sep490_dsvhvn_v3_dev rồi nạp dữ liệu khởi tạo (gói Miễn phí, ADMIN, 34 tỉnh/thành, di sản) và thoát
+# Tạo CSDL sep490_dsvhvn rồi nạp dữ liệu khởi tạo (gói Miễn phí, ADMIN, 34 tỉnh/thành, di sản) và thoát
 dotnet tool run dotnet-ef database update --project src/DSVHVN.Infrastructure --startup-project src/DSVHVN.Api
 ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/DSVHVN.Api --no-launch-profile -- --chi-khoi-tao-csdl
 
@@ -77,11 +77,23 @@ API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-
 API_LOG="$PWD/api.log" ADMIN_PASSWORD='<mật khẩu trên>' bash scripts/smoke-khach-tham-quan.sh # nên chạy trên database tạm, cách chạy ở đầu tệp và docs/khach-tham-quan.md mục 7
 ```
 
-CSDL dev: `sep490_dsvhvn_v3_dev` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (không dùng các CSDL cũ `dsvhvn_dev`,
-`sep490_dsvhvn_dev`, `sep490_dsvhvn_v2_dev`). Dùng CSDL khác thì đặt biến môi trường
-`ConnectionStrings__Default` (cả cho `dotnet-ef` lẫn Api). Dữ liệu di sản đọc từ thư mục `doc/du-lieu-di-san` của nhóm nằm cạnh
-repo (`Seed:HeritageData:*` trong `appsettings.Development.json`); máy không có thư mục này thì bước nạp di sản được bỏ qua.
+CSDL dev: `sep490_dsvhvn` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (không dùng các CSDL cũ `dsvhvn_dev`,
+`sep490_dsvhvn_dev`, `sep490_dsvhvn_v2_dev`, `sep490_dsvhvn_v3_dev`). Dùng CSDL khác thì đặt biến môi trường
+`ConnectionStrings__Default` (cả cho `dotnet-ef` lẫn Api). Dữ liệu tỉnh/thành và di sản nằm ngay trong repo, thư mục `seed-data/`
+(`Seed:HeritageData:*` trong `appsettings.Development.json`), nên clone về là chạy backend ở môi trường Development sẽ tự tạo CSDL,
+áp migration và nạp 34 tỉnh, 20 di sản, gói dịch vụ, 4 quản trị hệ thống (cần `Seed:AdminPassword` hợp lệ, xem trên).
 Chi tiết endpoint, cấu hình và quyết định hiện thực ở [docs/nen-tang-to-chuc.md](docs/nen-tang-to-chuc.md).
+
+### Tạo CSDL thật kèm dữ liệu demo
+
+```powershell
+pwsh -File scripts/tao-csdl-demo.ps1                     # CSDL sep490_dsvhvn, cổng 5180; hỏi mật khẩu đặt cho 4 quản trị hệ thống
+pwsh -File scripts/tao-csdl-demo.ps1 -Database dsvhvn_tam_thu -Port 5190
+```
+
+Script dựng backend, tạo CSDL (đủ migration), nạp dữ liệu demo (một trường, giáo viên, ba lớp khối 3, 8, 11, bài học, bài kiểm tra,
+học sinh đã làm bài, di sản đã dịch, mô hình 3D mẫu) qua API rồi tắt backend. Email luôn ở chế độ Log nên không gửi thư thật. CSDL đã có
+dữ liệu demo thì script báo và thoát. Cách dùng, nội dung dữ liệu và tài khoản demo: [scripts/du-lieu-demo/README.md](scripts/du-lieu-demo/README.md).
 
 ## Dịch vụ AI soạn bài học, sinh câu hỏi, dịch và tóm tắt di sản
 
