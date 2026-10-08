@@ -216,6 +216,8 @@ public static class DatabaseInitializer
                 continue;
             }
 
+            if (await db.Users.AnyAsync(u => u.DeletedAt == null && (u.Email == email || u.Username == username), ct)) continue;
+
             var password = entry["Password"] is { Length: > 0 } own ? own : sharedPassword;
             if (string.IsNullOrEmpty(password))
             {
@@ -227,8 +229,6 @@ public static class DatabaseInitializer
                 logger.LogError("Mật khẩu seed của ADMIN {Username} không đúng quy tắc mật khẩu, bỏ qua", username);
                 continue;
             }
-
-            if (await db.Users.AnyAsync(u => u.DeletedAt == null && (u.Email == email || u.Username == username), ct)) continue;
 
             db.Users.Add(new User
             {
