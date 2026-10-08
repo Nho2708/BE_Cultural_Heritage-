@@ -56,7 +56,7 @@ public sealed class TeacherClassStatisticsController(ClassStatisticsService stat
     /// </summary>
     [HttpGet("students/{studentId:long}/profile")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    [ProducesResponseType<ApiResponse<StudentProfileDto>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ApiResponse<StudentProfileDto>>> StudentProfile(long classId, long studentId, CancellationToken ct)
+    [ProducesResponseType<ApiResponse<StudentLearningProfileDto>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<StudentLearningProfileDto>>> StudentProfile(long classId, long studentId, CancellationToken ct)
         => OkEnvelope(await statistics.StudentProfileAsync(CurrentActor, classId, studentId, ct));
 }

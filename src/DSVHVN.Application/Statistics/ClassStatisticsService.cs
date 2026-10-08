@@ -149,7 +149,7 @@ public sealed class ClassStatisticsService(IAppDbContext db, TimeProvider clock)
 
     // ---- Hồ sơ học tập của một học sinh ----
 
-    public async Task<StudentProfileDto> StudentProfileAsync(Actor actor, long classId, long studentId, CancellationToken ct)
+    public async Task<StudentLearningProfileDto> StudentProfileAsync(Actor actor, long classId, long studentId, CancellationToken ct)
     {
         const string action = "xem hồ sơ học tập";
         var schoolClass = await db.FindClassAsync(actor, classId, action, false, ct);
@@ -203,7 +203,7 @@ public sealed class ClassStatisticsService(IAppDbContext db, TimeProvider clock)
             .OrderBy(r => r.Name).ThenBy(r => r.Id).ToList();
 
         var finishedTuples = attempts.Select(a => (a.Status, a.Score, a.TotalPoint)).ToList();
-        return new StudentProfileDto(
+        return new StudentLearningProfileDto(
             student.Id, student.StudentCode, student.FullName, classId, schoolClass.Name, level, student.IsActive, student.LastLoginAt,
             doneQuizzes.Count(id => quizzes.Any(q => q.Id == id)), quizzes.Count, attempts.Count,
             AveragePercent(attempts.Select(a => (decimal?)AttemptRules.Percent(a.Score ?? 0m, a.TotalPoint ?? 0m)).ToList()),
