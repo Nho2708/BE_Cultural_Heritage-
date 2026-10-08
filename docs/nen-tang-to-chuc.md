@@ -140,7 +140,7 @@ Seed lúc khởi động (`DatabaseInitializer`, idempotent, chạy sau `Databas
 
 | Khóa cấu hình | Mặc định | Ghi chú |
 |---|---|---|
-| `ConnectionStrings:Default` | Development: LocalDB `sep490_dsvhvn_v3_dev` | Không dùng `dsvhvn_dev`, `sep490_dsvhvn_dev`, `sep490_dsvhvn_v2_dev` (CSDL cũ) |
+| `ConnectionStrings:Default` | Development: LocalDB `sep490_dsvhvn` | Không dùng `dsvhvn_dev`, `sep490_dsvhvn_dev`, `sep490_dsvhvn_v2_dev`, `sep490_dsvhvn_v3_dev` (CSDL cũ) |
 | `Database:InitMode` | `None`; Development `Migrate` | `EnsureCreated` chỉ cho kiểm thử |
 | `Jwt:SigningKey` | trống (Development/Testing sinh khóa ngẫu nhiên mỗi lần chạy) | Môi trường khác bắt buộc, ≥ 32 byte |
 | `Jwt:AccessTokenMinutes` | 480 | Access token 8 giờ |
