@@ -73,7 +73,7 @@ public sealed class LocalDbHeritageDataFactAttribute : FactAttribute
     public LocalDbHeritageDataFactAttribute()
     {
         if (!LocalDb.Available) Skip = "Máy này không có SQL Server LocalDB.";
-        else if (SqlServerApiFactory.HeritageDataDirectory is null) Skip = "Không thấy thư mục dữ liệu di sản doc/du-lieu-di-san.";
+        else if (SqlServerApiFactory.HeritageDataDirectory is null) Skip = "Không thấy thư mục dữ liệu di sản seed-data.";
     }
 }
 
@@ -90,7 +90,7 @@ public sealed class SqlServerApiFactory : ApiFactory
 
     public string DatabaseName { get; }
 
-    /// <summary>Thư mục dữ liệu di sản của nhóm (doc/du-lieu-di-san), tìm ngược lên từ thư mục chạy test; null nếu không có.</summary>
+    /// <summary>Thư mục dữ liệu di sản (seed-data trong repo, hoặc doc/du-lieu-di-san của nhóm), tìm ngược lên từ thư mục chạy test; null nếu không có.</summary>
     public static string? HeritageDataDirectory { get; } = FindHeritageData();
 
     protected override IEnumerable<KeyValuePair<string, string?>> ExtraSettings => HeritageDataDirectory is null
@@ -111,9 +111,9 @@ public sealed class SqlServerApiFactory : ApiFactory
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
         {
-            var candidate = Path.Combine(dir.FullName, "doc", "du-lieu-di-san");
-            if (File.Exists(Path.Combine(candidate, "seed-dot-1.json")) && File.Exists(Path.Combine(candidate, "provinces.json")))
-                return candidate;
+            foreach (var candidate in new[] { Path.Combine(dir.FullName, "seed-data"), Path.Combine(dir.FullName, "doc", "du-lieu-di-san") })
+                if (File.Exists(Path.Combine(candidate, "seed-dot-1.json")) && File.Exists(Path.Combine(candidate, "provinces.json")))
+                    return candidate;
         }
         return null;
     }
