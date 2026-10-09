@@ -1,5 +1,6 @@
 using DSVHVN.Application.Common;
 using DSVHVN.Infrastructure.Email;
+using DSVHVN.Infrastructure.ExternalServices;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,9 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<IAuthThrottle, InMemoryAuthThrottle>();
         services.AddEmail(configuration);
+
+        services.AddHttpClient<IGeocodingService, GeocodingService>();
+        services.AddHttpClient<IAiServiceClient, AiServiceClient>();
         return services;
     }
 
