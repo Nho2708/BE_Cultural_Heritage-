@@ -16,7 +16,8 @@ namespace DSVHVN.Application.Ads;
 /// <list type="bullet">
 /// <item><b>App, AdMob (xác minh phía máy chủ):</b> AdMob gọi <c>GET</c> về máy chủ khi người xem nhận thưởng. Hợp lệ khi đồng thời: chữ ký ECDSA đúng theo khóa công khai của Google; đơn vị quảng cáo
 /// thuộc cấu hình (đồng thời cho biết Android hay iOS); mã thiết bị (<c>user_id</c>) đúng UUID phiên bản 4; mã di sản (<c>custom_data</c>) là di sản đã xuất bản; thời điểm không lệch quá 1 giờ;
-/// mã giao dịch chưa ghi. Mã giao dịch đã ghi thì không ghi thêm và vẫn trả thành công (không phải lượt bị từ chối) để Google không gọi lại. Không hợp lệ thì từ chối và ghi nhật ký thao tác.</item>
+/// mã giao dịch chưa ghi. Mã giao dịch đã ghi thì không ghi thêm và vẫn trả thành công (không phải lượt bị từ chối) để Google không gọi lại. Thiếu hoặc sai chữ ký thì từ chối (400) và ghi nhật ký thao tác;
+/// chữ ký đúng (lời gọi thật của Google) mà không đạt các điều kiện còn lại thì không ghi lượt, ghi nhật ký thao tác và vẫn trả thành công kèm lý do.</item>
 /// <item><b>Web, Ad Manager (trình duyệt báo):</b> máy chủ cấp một mã giao dịch dùng một lần khi khách bắt đầu xem (ký HMAC, gắn thiết bị và di sản, hết hạn sau 10 phút); trình duyệt gửi lại mã
 /// khi nhận sự kiện "đã cấp thưởng". Vì không có xác minh của Google nên kém tin cậy hơn: có giới hạn tần suất (10 lượt mỗi giờ mỗi thiết bị, 60 lượt mỗi giờ mỗi IP).</item>
 /// </list>
@@ -45,7 +46,9 @@ public sealed class AdRewardService(
 
     /// <summary>
     /// Xử lý một lời gọi xác minh của AdMob. <paramref name="rawQueryString"/> là chuỗi truy vấn thô (để kiểm chữ ký), <paramref name="query"/> là các tham số đã giải mã.
-    /// Hợp lệ (kể cả lần gọi lại trùng mã giao dịch) thì trả kết quả để Api trả 200; không hợp lệ thì ghi nhật ký thao tác rồi ném 400.
+    /// Hợp lệ (kể cả lần gọi lại trùng mã giao dịch) thì trả kết quả để Api trả 200. Thiếu hoặc sai chữ ký thì ghi nhật ký thao tác rồi ném 400.
+    /// Chữ ký đúng nhưng đơn vị quảng cáo lạ, thiếu hoặc sai tham số, thời điểm lệch thì ghi nhật ký thao tác và trả kết quả không ghi kèm lý do (vẫn 200): lời gọi đúng là của Google
+    /// nên trả lỗi chỉ làm Google gọi lại vô ích, và lời gọi thử của nút kiểm địa chỉ trong bảng điều khiển AdMob mang đơn vị và tham số thử vẫn phải qua được.
     /// </summary>
     public async Task<AdRewardResultDto> HandleAdMobAsync(string? rawQueryString, IReadOnlyDictionary<string, string> query, CancellationToken ct)
     {
@@ -67,17 +70,17 @@ public sealed class AdRewardService(
         var timestamp = Param("timestamp");
         if (adUnit is null || transactionId is null || userId is null || customData is null || timestamp is null
             || transactionId.Length > MaxTransactionIdLength || adUnit.Length > MaxAdUnitLength)
-            throw await RejectAsync(AdRules.RejectedBadParameter, AdNetwork.ADMOB, null, ct);
+            return await IgnoreSignedAsync(AdRules.RejectedBadParameter, null, ct);
 
         var platform = options.Value.PlatformOfAdMobUnit(adUnit);
-        if (platform is null) throw await RejectAsync(AdRules.RejectedUnknownAdUnit, AdNetwork.ADMOB, null, ct);
+        if (platform is null) return await IgnoreSignedAsync(AdRules.RejectedUnknownAdUnit, null, ct);
 
         // Google gọi lại cùng một giao dịch (do lỗi mạng hoặc phản hồi chậm): đã ghi thì trả thành công, không ghi thêm, không ghi nhật ký từ chối.
         if (await FindByTransactionAsync(AdNetwork.ADMOB, transactionId, ct) is { } existing)
             return new AdRewardResultDto(false, ReasonDuplicate, existing.ExpiresAt);
 
         if (!long.TryParse(timestamp, NumberStyles.None, CultureInfo.InvariantCulture, out var milliseconds) || milliseconds <= 0)
-            throw await RejectAsync(AdRules.RejectedBadParameter, AdNetwork.ADMOB, platform, ct);
+            return await IgnoreSignedAsync(AdRules.RejectedBadParameter, platform, ct);
         DateTime sentAt;
         try
         {
@@ -85,17 +88,17 @@ public sealed class AdRewardService(
         }
         catch (ArgumentOutOfRangeException)
         {
-            throw await RejectAsync(AdRules.RejectedBadParameter, AdNetwork.ADMOB, platform, ct);
+            return await IgnoreSignedAsync(AdRules.RejectedBadParameter, platform, ct);
         }
 
         var now = Now();
         if ((now - sentAt).Duration() > AdRules.MaxTimestampSkew)
-            throw await RejectAsync(AdRules.RejectedStaleTimestamp, AdNetwork.ADMOB, platform, ct);
+            return await IgnoreSignedAsync(AdRules.RejectedStaleTimestamp, platform, ct);
 
         var deviceKey = GuestRules.NormalizeDeviceKey(userId);
         if (deviceKey is null || !long.TryParse(customData, NumberStyles.None, CultureInfo.InvariantCulture, out var heritageId) || heritageId <= 0
             || !await IsPublishedAsync(heritageId, ct))
-            throw await RejectAsync(AdRules.RejectedBadParameter, AdNetwork.ADMOB, platform, ct);
+            return await IgnoreSignedAsync(AdRules.RejectedBadParameter, platform, ct);
 
         return await RecordAsync(deviceKey, heritageId, platform.Value, AdNetwork.ADMOB, transactionId, adUnit, ct);
     }
@@ -210,6 +213,13 @@ public sealed class AdRewardService(
     {
         await LogRejectionAsync(reason, network, platform, ct);
         return new AppException(400, AdMessages.RewardRejected);
+    }
+
+    /// <summary>Lời gọi xác minh có chữ ký đúng của Google nhưng không ghi được lượt: ghi nhật ký từ chối như lượt sai, trả kết quả không ghi kèm lý do để Api trả 200.</summary>
+    private async Task<AdRewardResultDto> IgnoreSignedAsync(string reason, ClientPlatform? platform, CancellationToken ct)
+    {
+        await LogRejectionAsync(reason, AdNetwork.ADMOB, platform, ct);
+        return new AdRewardResultDto(false, reason, null);
     }
 
     private async Task LogRejectionAsync(string reason, AdNetwork network, ClientPlatform? platform, CancellationToken ct)

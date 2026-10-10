@@ -128,7 +128,7 @@ public sealed class AdsRewardApiTests(AdsApiFactory factory) : IClassFixture<Ads
     }
 
     [Fact]
-    public async Task Every_invalid_callback_is_refused_leaves_no_unlock_and_leaves_one_log_line_with_its_reason()
+    public async Task Every_invalid_callback_leaves_no_unlock_and_one_log_line_and_only_a_missing_or_wrong_signature_gets_400()
     {
         var admin = await _k.AdminAsync();
         var heritage = await _k.HeritageWithoutSummaryAsync(admin);
@@ -136,43 +136,52 @@ public sealed class AdsRewardApiTests(AdsApiFactory factory) : IClassFixture<Ads
         await _k.Guests.ArchiveAsync(admin, archived.Id);
         var device = NewKey();
 
-        var cases = new (string Name, string Url, string Reason)[]
+        var cases = new (string Name, string Url, string Reason, bool Signed)[]
         {
-            ("sửa tham số sau khi ký", _k.Ssv(heritage.Id, device, mutate: q => q.Replace("reward_amount=1", "reward_amount=9")), AdRules.RejectedBadSignature),
-            ("đổi di sản sau khi ký", _k.Ssv(heritage.Id, device, mutate: q => q.Replace($"custom_data={heritage.Id}", "custom_data=1")), AdRules.RejectedBadSignature),
-            ("mã khóa lạ", _k.Ssv(heritage.Id, device, keyId: 12345), AdRules.RejectedBadSignature),
-            ("chữ ký rác", _k.Ssv(heritage.Id, device, mutate: q => System.Text.RegularExpressions.Regex.Replace(q, "signature=[^&]+", "signature=AAAA")), AdRules.RejectedBadSignature),
-            ("đơn vị quảng cáo lạ", _k.Ssv(heritage.Id, device, adUnit: "999"), AdRules.RejectedUnknownAdUnit),
-            ("đơn vị của Ad Manager không dùng cho AdMob", _k.Ssv(heritage.Id, device, adUnit: "rewarded_web_example"), AdRules.RejectedUnknownAdUnit),
-            ("thiếu mã thiết bị", _k.Ssv(heritage.Id, device, leaveOutUserId: true), AdRules.RejectedBadParameter),
-            ("thiếu mã di sản", _k.Ssv(heritage.Id, device, leaveOutCustomData: true), AdRules.RejectedBadParameter),
-            ("thiếu đơn vị quảng cáo", _k.Ssv(heritage.Id, device, leaveOutAdUnit: true), AdRules.RejectedBadParameter),
-            ("thiếu mã giao dịch", _k.Ssv(heritage.Id, device, leaveOutTransaction: true), AdRules.RejectedBadParameter),
-            ("mã thiết bị không phải UUID", _k.Ssv(heritage.Id, device, userId: "khong-phai-uuid"), AdRules.RejectedBadParameter),
-            ("mã thiết bị là UUID phiên bản 1", _k.Ssv(heritage.Id, device, userId: "3f2b8c1e-9a47-1d6b-8e10-5c7a9b2d4f61"), AdRules.RejectedBadParameter),
-            ("mã di sản không phải số", _k.Ssv(heritage.Id, device, customData: "abc"), AdRules.RejectedBadParameter),
-            ("mã di sản bằng không", _k.Ssv(heritage.Id, device, customData: "0"), AdRules.RejectedBadParameter),
-            ("mã di sản âm", _k.Ssv(heritage.Id, device, customData: "-5"), AdRules.RejectedBadParameter),
-            ("di sản không có", _k.Ssv(heritage.Id, device, customData: "99999999"), AdRules.RejectedBadParameter),
-            ("di sản đã ẩn", _k.Ssv(archived.Id, device), AdRules.RejectedBadParameter),
-            ("thời điểm không phải số", _k.Ssv(heritage.Id, device, timestamp: "abc"), AdRules.RejectedBadParameter),
-            ("thời điểm bằng không", _k.Ssv(heritage.Id, device, timestamp: "0"), AdRules.RejectedBadParameter),
-            ("mã giao dịch quá dài", _k.Ssv(heritage.Id, device, transactionId: new string('T', 256)), AdRules.RejectedBadParameter),
-            ("không có chữ ký", _k.Ssv(heritage.Id, device, mutate: q => q[..q.IndexOf("&signature=", StringComparison.Ordinal)]), AdRules.RejectedBadParameter),
-            ("mã khóa không phải số", _k.Ssv(heritage.Id, device, mutate: q => q.Replace($"key_id={FakeAdMobKeyStore.KeyId}", "key_id=abc")), AdRules.RejectedBadParameter),
-            ("thời điểm cũ hơn 1 giờ", _k.Ssv(heritage.Id, device, at: DateTime.UtcNow.AddMinutes(-61)), AdRules.RejectedStaleTimestamp),
-            ("thời điểm ở tương lai quá 1 giờ", _k.Ssv(heritage.Id, device, at: DateTime.UtcNow.AddMinutes(61)), AdRules.RejectedStaleTimestamp),
+            ("sửa tham số sau khi ký", _k.Ssv(heritage.Id, device, mutate: q => q.Replace("reward_amount=1", "reward_amount=9")), AdRules.RejectedBadSignature, false),
+            ("đổi di sản sau khi ký", _k.Ssv(heritage.Id, device, mutate: q => q.Replace($"custom_data={heritage.Id}", "custom_data=1")), AdRules.RejectedBadSignature, false),
+            ("mã khóa lạ", _k.Ssv(heritage.Id, device, keyId: 12345), AdRules.RejectedBadSignature, false),
+            ("chữ ký rác", _k.Ssv(heritage.Id, device, mutate: q => System.Text.RegularExpressions.Regex.Replace(q, "signature=[^&]+", "signature=AAAA")), AdRules.RejectedBadSignature, false),
+            ("đơn vị quảng cáo lạ", _k.Ssv(heritage.Id, device, adUnit: "999"), AdRules.RejectedUnknownAdUnit, true),
+            ("đơn vị của Ad Manager không dùng cho AdMob", _k.Ssv(heritage.Id, device, adUnit: "rewarded_web_example"), AdRules.RejectedUnknownAdUnit, true),
+            ("thiếu mã thiết bị", _k.Ssv(heritage.Id, device, leaveOutUserId: true), AdRules.RejectedBadParameter, true),
+            ("thiếu mã di sản", _k.Ssv(heritage.Id, device, leaveOutCustomData: true), AdRules.RejectedBadParameter, true),
+            ("thiếu đơn vị quảng cáo", _k.Ssv(heritage.Id, device, leaveOutAdUnit: true), AdRules.RejectedBadParameter, true),
+            ("thiếu mã giao dịch", _k.Ssv(heritage.Id, device, leaveOutTransaction: true), AdRules.RejectedBadParameter, true),
+            ("mã thiết bị không phải UUID", _k.Ssv(heritage.Id, device, userId: "khong-phai-uuid"), AdRules.RejectedBadParameter, true),
+            ("mã thiết bị là UUID phiên bản 1", _k.Ssv(heritage.Id, device, userId: "3f2b8c1e-9a47-1d6b-8e10-5c7a9b2d4f61"), AdRules.RejectedBadParameter, true),
+            ("mã di sản không phải số", _k.Ssv(heritage.Id, device, customData: "abc"), AdRules.RejectedBadParameter, true),
+            ("mã di sản bằng không", _k.Ssv(heritage.Id, device, customData: "0"), AdRules.RejectedBadParameter, true),
+            ("mã di sản âm", _k.Ssv(heritage.Id, device, customData: "-5"), AdRules.RejectedBadParameter, true),
+            ("di sản không có", _k.Ssv(heritage.Id, device, customData: "99999999"), AdRules.RejectedBadParameter, true),
+            ("di sản đã ẩn", _k.Ssv(archived.Id, device), AdRules.RejectedBadParameter, true),
+            ("thời điểm không phải số", _k.Ssv(heritage.Id, device, timestamp: "abc"), AdRules.RejectedBadParameter, true),
+            ("thời điểm bằng không", _k.Ssv(heritage.Id, device, timestamp: "0"), AdRules.RejectedBadParameter, true),
+            ("mã giao dịch quá dài", _k.Ssv(heritage.Id, device, transactionId: new string('T', 256)), AdRules.RejectedBadParameter, true),
+            ("không có chữ ký", _k.Ssv(heritage.Id, device, mutate: q => q[..q.IndexOf("&signature=", StringComparison.Ordinal)]), AdRules.RejectedBadParameter, false),
+            ("mã khóa không phải số", _k.Ssv(heritage.Id, device, mutate: q => q.Replace($"key_id={FakeAdMobKeyStore.KeyId}", "key_id=abc")), AdRules.RejectedBadParameter, false),
+            ("thời điểm cũ hơn 1 giờ", _k.Ssv(heritage.Id, device, at: DateTime.UtcNow.AddMinutes(-61)), AdRules.RejectedStaleTimestamp, true),
+            ("thời điểm ở tương lai quá 1 giờ", _k.Ssv(heritage.Id, device, at: DateTime.UtcNow.AddMinutes(61)), AdRules.RejectedStaleTimestamp, true),
         };
 
         var unlocksBefore = await _k.UnlockCountAsync();
         var logsBefore = await _k.RejectionCountAsync();
         var expected = 0;
-        foreach (var (name, url, reason) in cases)
+        foreach (var (name, url, reason, signed) in cases)
         {
             var (response, body) = await _k.CallSsvAsync(url);
-            Assert.True((HttpStatusCode.BadRequest, AdMessages.RewardRejectedCode) == (response.StatusCode, body.ErrorCode), $"{name}: {(int)response.StatusCode} {body.ErrorCode}");
-            Assert.False(body.Success);
-            Assert.Null(body.Data);
+            if (signed)
+            {
+                // Chữ ký đúng là lời gọi thật của Google: 200 để Google không gọi lại, nhưng không ghi lượt và nêu lý do.
+                Assert.True(response.StatusCode == HttpStatusCode.OK, $"{name}: {(int)response.StatusCode} {body.ErrorCode}");
+                Assert.True((false, reason, (DateTime?)null) == (body.Data!.Recorded, body.Data.Reason, body.Data.ExpiresAt), $"{name}: {body.Data.Recorded} {body.Data.Reason}");
+            }
+            else
+            {
+                Assert.True((HttpStatusCode.BadRequest, AdMessages.RewardRejectedCode) == (response.StatusCode, body.ErrorCode), $"{name}: {(int)response.StatusCode} {body.ErrorCode}");
+                Assert.False(body.Success);
+                Assert.Null(body.Data);
+            }
             expected++;
 
             var logs = await _k.NewRejectionsAsync(logsBefore);
