@@ -144,6 +144,9 @@ dotnet user-secrets set "VnPay:HashSecret" "<khóa bí mật sandbox>" --project
 # địa chỉ IPN /api/v1/payments/vnpay/ipn phải công khai và khai trong trang quản lý cửa hàng sandbox của VNPay (localhost không nhận được IPN).
 ```
 
+Hoặc chạy `pwsh -File scripts/dat-khoa-vnpay.ps1 -PublicBaseUrl https://<tên miền công khai>`: script hỏi hai giá trị (chuỗi bí mật nhập ẩn, không vào lịch sử lệnh), đặt vào User Secrets
+và in địa chỉ IPN cần khai. Trên máy cá nhân, địa chỉ công khai lấy bằng đường hầm (vd `ngrok http 5080`).
+
 Chỉ IPN hợp lệ mới kích hoạt gói. Tác vụ nền gói và thanh toán chạy cùng Api (`Billing:Maintenance:Enabled`, `IntervalSeconds`). Gói trả phí mẫu "Cơ bản", "Nâng cao" chỉ nạp ở môi trường Development (`Seed:Plans`); UAT và Release 1.0 do quản trị hệ thống tạo ở màn hình
 Gói dịch vụ. Quy tắc, endpoint, mã phản hồi IPN, kiểm thử: [docs/goi-thanh-toan.md](docs/goi-thanh-toan.md).
 
