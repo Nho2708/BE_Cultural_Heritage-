@@ -11,8 +11,9 @@ namespace DSVHVN.Api.Controllers;
 /// Địa chỉ cho xác minh phía máy chủ (server-side verification) của Google AdMob: khi người xem app nhận thưởng, AdMob gọi <c>GET</c> về đây (khai địa chỉ này trong bảng điều khiển AdMob,
 /// mục xác minh phía máy chủ của đơn vị quảng cáo có thưởng). Không đăng nhập: được bảo vệ bằng chữ ký ECDSA của Google. Đây là căn cứ DUY NHẤT để mở khóa trên app.
 /// <para>
-/// App gắn mã thiết bị làm <c>user_id</c> và mã di sản làm <c>custom_data</c> khi tải quảng cáo. Hợp lệ (kể cả lần gọi lại trùng <c>transaction_id</c>) thì 200 để Google không gọi lại;
-/// chữ ký sai, đơn vị quảng cáo lạ, thiếu hoặc sai tham số, thời điểm lệch quá 1 giờ thì 400, không mở khóa và ghi nhật ký thao tác. Giới hạn như API công khai.
+/// App gắn mã thiết bị làm <c>user_id</c> và mã di sản làm <c>custom_data</c> khi tải quảng cáo. Hợp lệ (kể cả lần gọi lại trùng <c>transaction_id</c>) thì 200 để Google không gọi lại.
+/// Thiếu hoặc sai chữ ký thì 400. Chữ ký đúng nhưng đơn vị quảng cáo lạ, thiếu hoặc sai tham số, thời điểm lệch quá 1 giờ thì vẫn 200 với <c>recorded</c> = false và lý do
+/// (lời gọi thử của nút kiểm địa chỉ trong bảng điều khiển AdMob thuộc loại này); cả hai trường hợp đều không mở khóa và ghi nhật ký thao tác. Giới hạn như API công khai.
 /// </para>
 /// </summary>
 [Route("api/v1/ads/admob/ssv")]
