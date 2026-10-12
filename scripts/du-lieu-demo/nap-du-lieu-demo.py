@@ -4,7 +4,8 @@ Thường được gọi bởi scripts/tao-csdl-demo.ps1 (script này bật back
 
 Dữ liệu tạo ra (tên cố định, không có hậu tố giờ):
   - xuất bản các di sản đã nạp từ tệp JSON; bản dịch và tóm tắt cho 12 di sản tiêu biểu (AI giả lập: Việt, Anh được duyệt, Hàn, Trung, Nhật là dịch máy);
-    mô hình 3D mẫu tối thiểu cho 2 di sản;
+    mô hình 3D thật (giấy phép mở) cho các di sản có trong seed-data/mo-hinh-3d.json khi tệp .glb đã được tải về seed-data/mo-hinh-3d/
+    (scripts/du-lieu-demo/tai-mo-hinh-3d.py); chưa có tệp nào thì gắn mô hình mẫu tối thiểu cho 2 di sản như trước;
   - một trường demo (gói Miễn phí), 1 quản trị trường, 2 giáo viên, 3 lớp khối 3, 8, 11, mỗi lớp 8 học sinh đã đổi mật khẩu sang mật khẩu demo;
   - mỗi lớp 2 bài học đã phát hành (có mã bài học), ngân hàng câu hỏi theo cấp, mỗi bài học 1 bài kiểm tra đang mở tới 30/06/2027;
   - 5 học sinh mỗi lớp đã làm và nộp bài kiểm tra thứ nhất, 3 em đã làm bài thứ hai, kết quả khác nhau; số còn lại chưa làm.
@@ -15,7 +16,11 @@ Biến môi trường:
   ADMIN_LOGIN     tên đăng nhập quản trị hệ thống dùng để nạp (mặc định admin.nho)
   ADMIN_PASSWORD  mật khẩu của tài khoản đó (không ghi ra tệp, không in)
   OUT             tệp JSON kết quả (mã học sinh, mã bài học...; không có mật khẩu quản trị)
+  MO_HINH_DIR     thư mục chứa tệp .glb (mặc định seed-data/mo-hinh-3d của repo)
 Mã thoát: 0 xong; 3 cơ sở dữ liệu đã có dữ liệu demo (không nạp trùng); khác 0 là lỗi.
+
+Chạy với tham số --chi-mo-hinh để chỉ gắn mô hình 3D thật vào một cơ sở dữ liệu đã nạp từ trước (không cần API_LOG): gỡ mô hình mẫu,
+tải mô hình thật lên và cho hiện; di sản đã có mô hình cùng trang nguồn thì bỏ qua, nên chạy lại nhiều lần không bị trùng.
 """
 import datetime
 import json
@@ -26,9 +31,10 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 
 BASE = os.environ.get("BASE", "http://localhost:5180").rstrip("/")
-API_LOG = os.environ["API_LOG"]
+API_LOG = os.environ.get("API_LOG")
 ADMIN_LOGIN = os.environ.get("ADMIN_LOGIN", "admin.nho")
 ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
 OUT = os.environ.get("OUT", "du-lieu-demo.json")
@@ -49,9 +55,15 @@ STUDENT_NAMES = {
     11: ["Nguyễn Hữu Phúc", "Lê Thị Kim Ngân", "Trần Quang Vinh", "Phạm Thu Hà", "Hồ Gia Bảo", "Mai Xuân Trang", "Cao Tiến Dũng", "Lương Thanh Tâm"],
 }
 CLASSES = [(3, "3A", 0), (8, "8A1", 0), (11, "11A2", 1)]  # (khối, tên lớp, chỉ số giáo viên phụ trách)
-# Di sản được dịch, tóm tắt (12 di sản tiêu biểu theo mã nạp từ tệp JSON) và di sản gắn mô hình 3D mẫu.
+# Di sản được dịch, tóm tắt (12 di sản tiêu biểu theo mã nạp từ tệp JSON) và di sản gắn mô hình 3D mẫu khi chưa có tệp mô hình thật.
 TRANSLATED_HERITAGE_IDS = [1, 2, 5, 6, 7, 9, 11, 12, 14, 15, 16, 17]
 MODEL_HERITAGE_IDS = [1, 14]
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+MODEL_LIST = os.path.join(REPO, "seed-data", "mo-hinh-3d.json")
+MODEL_DIR = os.environ.get("MO_HINH_DIR") or os.path.join(REPO, "seed-data", "mo-hinh-3d")
+SAMPLE_MODEL_AUTHOR = "Mô hình mẫu để thử tính năng xem 3D"
+# Giấy phép CC BY yêu cầu ghi rõ đã chỉnh sửa: mọi mô hình đều được giảm chi tiết và nén lại trước khi tải lên.
+MODIFIED_NOTE = ", đã nén để xem trên web"
 # Số em đã nộp bài: bài kiểm tra thứ nhất 5 em, bài thứ hai 3 em; mức đúng giảm dần để điểm khác nhau.
 DONE_COUNT = [5, 3]
 
@@ -81,6 +93,8 @@ def call(method, path, body=None, token=None, expect=None):
 
 def mail_token(email):
     """Lấy mã trong liên kết đặt mật khẩu từ log backend (Email__Mode=Log)."""
+    if not API_LOG:
+        sys.exit("thiếu biến môi trường API_LOG (tệp log của backend)")
     email = email.lower()
     for _ in range(60):
         text = open(API_LOG, encoding="utf-8", errors="replace").read()
@@ -115,25 +129,92 @@ def minimal_glb():
             + struct.pack("<II", len(binary), 0x004E4942) + binary)
 
 
-def upload_model(token, heritage_id, title):
-    boundary = "----dsvhvndemo"
+def upload_model(token, heritage_id, fields, content, filename):
+    """Tải tệp .glb lên tab Mô hình 3D của di sản kèm ghi công (multipart/form-data)."""
+    boundary = "----dsvhvn" + uuid.uuid4().hex
     crlf = bytes([13, 10])
     body = b""
-    fields = (("title", title), ("author", "Mô hình mẫu để thử tính năng xem 3D"),
-              ("license", "CC0 1.0"), ("sourceUrl", "https://creativecommons.org/publicdomain/zero/1.0/"), ("show", "true"))
     for name, value in fields:
         body += (f"--{boundary}").encode() + crlf + f'Content-Disposition: form-data; name="{name}"'.encode() + crlf + crlf
         body += value.encode("utf-8") + crlf
     body += (f"--{boundary}").encode() + crlf
-    body += b'Content-Disposition: form-data; name="file"; filename="mo-hinh-mau.glb"' + crlf
-    body += b"Content-Type: model/gltf-binary" + crlf + crlf + minimal_glb() + crlf
+    body += f'Content-Disposition: form-data; name="file"; filename="{filename}"'.encode() + crlf
+    body += b"Content-Type: model/gltf-binary" + crlf + crlf + content + crlf
     body += (f"--{boundary}--").encode() + crlf
     req = urllib.request.Request(f"{BASE}/api/v1/admin/heritages/{heritage_id}/models/upload", data=body, method="POST",
                                  headers={"Authorization": "Bearer " + token, "Content-Type": f"multipart/form-data; boundary={boundary}"})
     try:
-        urllib.request.urlopen(req, timeout=60).read()
+        urllib.request.urlopen(req, timeout=300).read()
     except urllib.error.HTTPError as e:
         sys.exit(f"tải mô hình 3D lên di sản {heritage_id}: {e.code} {e.read()[:300]}")
+
+
+def real_models():
+    """Mô hình chọn chính trong seed-data/mo-hinh-3d.json đã có tệp .glb trong thư mục mô hình."""
+    if not os.path.exists(MODEL_LIST):
+        return []
+    with open(MODEL_LIST, encoding="utf-8") as f:
+        items = json.load(f)
+    return [(m, os.path.join(MODEL_DIR, m["file"])) for m in items
+            if m["role"] == "chinh" and os.path.isfile(os.path.join(MODEL_DIR, m["file"]))]
+
+
+def attach_models(token, published):
+    """Gắn mô hình 3D cho các di sản đã xuất bản, trả về mã các di sản có mô hình đang hiển thị.
+
+    Có tệp mô hình thật: gỡ mô hình mẫu cũ, tải mô hình thật lên và cho hiện. Di sản đã có mô hình cùng trang nguồn thì bỏ qua;
+    di sản đang hiện một mô hình khác do người dùng tự thêm thì mô hình thật chỉ được lưu nháp. Chưa có tệp nào thì gắn mô hình mẫu như trước.
+    """
+    found = real_models()
+    if not found:
+        print(f"Chưa có tệp mô hình 3D thật trong {MODEL_DIR}: gắn mô hình mẫu tối thiểu")
+        sample = [("author", SAMPLE_MODEL_AUTHOR), ("license", "CC0 1.0"),
+                  ("sourceUrl", "https://creativecommons.org/publicdomain/zero/1.0/"), ("show", "true")]
+        shown = []
+        for hid in MODEL_HERITAGE_IDS:
+            if hid in published:
+                title = "Mô hình mẫu - " + published[hid]["name"][:60]
+                upload_model(token, hid, [("title", title)] + sample, minimal_glb(), "mo-hinh-mau.glb")
+                shown.append(hid)
+        return shown
+
+    by_slug = {h["slug"]: h["id"] for h in published.values()}
+    shown, skipped = [], []
+    for m, path in found:
+        hid = by_slug.get(m["heritageSlug"])
+        if hid is None:
+            skipped.append(m["heritageSlug"])
+            continue
+        existing, _ = call("GET", f"/admin/heritages/{hid}/models", token=token, expect=200)
+        if any(x["sourceUrl"] == m["sourceUrl"] for x in existing):
+            shown.append(hid)
+            continue
+        for x in existing:
+            if x["author"] == SAMPLE_MODEL_AUTHOR:
+                call("DELETE", f"/admin/models/{x['id']}", token=token, expect=200)
+        other_visible = any(x["author"] != SAMPLE_MODEL_AUTHOR and x["status"] == "PUBLISHED" for x in existing)
+        license_name = m["license"] + ("" if m["license"].startswith("CC0") else MODIFIED_NOTE)
+        fields = [("title", m["title"]), ("author", m["author"]), ("license", license_name), ("licenseUrl", m["licenseUrl"]),
+                  ("sourceUrl", m["sourceUrl"]), ("show", "false" if other_visible else "true")]
+        with open(path, "rb") as f:
+            upload_model(token, hid, fields, f.read(), m["file"])
+        if other_visible:
+            print(f"  {m['title']}: di sản đang hiện mô hình khác, mô hình thật chỉ lưu nháp")
+        else:
+            shown.append(hid)
+    if skipped:
+        print(f"  Bỏ qua {len(skipped)} mô hình vì di sản chưa xuất bản: {', '.join(skipped)}")
+    return shown
+
+
+def main_models_only():
+    admin, st = call("POST", "/auth/login", {"emailOrUsername": ADMIN_LOGIN, "password": ADMIN_PASSWORD})
+    if st != 200:
+        sys.exit(f"Đăng nhập quản trị hệ thống {ADMIN_LOGIN} thất bại ({st}).")
+    pub, _ = call("GET", "/admin/heritages?status=PUBLISHED&pageSize=100", token=admin["accessToken"], expect=200)
+    published = {h["id"]: h for h in pub["items"]}
+    shown = attach_models(admin["accessToken"], published)
+    print(f"Có mô hình 3D đang hiển thị ở {len(shown)} di sản")
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -353,14 +434,10 @@ def main():
     result["heritagesTranslated"] = translated
     print(f"Đã dịch và tóm tắt {len(translated)} di sản")
 
-    # ---- Mô hình 3D mẫu ----
-    models = []
-    for hid in MODEL_HERITAGE_IDS:
-        if hid in published:
-            upload_model(A, hid, "Mô hình mẫu - " + published[hid]["name"][:60])
-            models.append(hid)
+    # ---- Mô hình 3D ----
+    models = attach_models(A, published)
     result["heritagesWith3d"] = models
-    print(f"Đã gắn mô hình 3D mẫu cho {len(models)} di sản")
+    print(f"Đã gắn mô hình 3D cho {len(models)} di sản")
 
     # ---- Trường, quản trị trường, giáo viên ----
     call("POST", "/admin/organizations", {"name": SCHOOL_NAME, "address": "Hà Nội", "orgAdmin": ORG_ADMIN}, token=A, expect=201)
@@ -471,4 +548,7 @@ def main():
     print("Đã ghi", OUT)
 
 
-main()
+if "--chi-mo-hinh" in sys.argv[1:]:
+    main_models_only()
+else:
+    main()
