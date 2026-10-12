@@ -129,7 +129,7 @@ try {
         Write-Host ("   đã nộp bài: {0}" -f ($done -join ', '))
     }
     foreach ($l in $data.lessons) { Write-Host ("Bài học khối {0}: {1} - mã {2}; bài kiểm tra: {3}" -f $l.grade, $l.title, $l.code, $l.quizName) }
-    Write-Host "Di sản đã xuất bản: $($data.heritagesPublished); đã dịch và tóm tắt: $(@($data.heritagesTranslated).Count); có mô hình 3D mẫu: $(@($data.heritagesWith3d).Count)"
+    Write-Host "Di sản đã xuất bản: $($data.heritagesPublished); đã dịch và tóm tắt: $(@($data.heritagesTranslated).Count); có mô hình 3D: $(@($data.heritagesWith3d).Count)"
     Write-Host "Tệp kết quả: $resultFile"
 }
 catch {

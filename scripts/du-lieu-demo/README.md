@@ -6,7 +6,8 @@ Hai script tạo cơ sở dữ liệu thật trên SQL Server LocalDB (đủ m�
 | Tệp | Việc |
 |---|---|
 | `scripts/tao-csdl-demo.ps1` | Kiểm môi trường, dựng và chạy backend (Development) trên cơ sở dữ liệu đích, gọi script Python, tắt backend, in bảng tài khoản |
-| `scripts/du-lieu-demo/nap-du-lieu-demo.py` | Nạp dữ liệu demo qua API (chạy riêng được khi đã có backend) |
+| `scripts/du-lieu-demo/nap-du-lieu-demo.py` | Nạp dữ liệu demo qua API (chạy riêng được khi đã có backend); `--chi-mo-hinh` chỉ gắn mô hình 3D thật vào cơ sở dữ liệu đã nạp |
+| `scripts/du-lieu-demo/tai-mo-hinh-3d.py` | Tải mô hình 3D giấy phép mở trong `seed-data/mo-hinh-3d.json` từ Sketchfab và nén thành `.glb` dưới 15 MB vào `seed-data/mo-hinh-3d/` |
 
 ## Cách chạy
 
@@ -34,7 +35,7 @@ dotnet user-secrets set "Seed:AdminPassword" "<mật khẩu của bạn>" --proj
 Cách an toàn:
 
 - Email luôn ở chế độ Log (`Email__Mode=Log`): không gửi thư thật dù User Secrets đang cấu hình SMTP. Liên kết đặt mật khẩu được đọc từ log của backend.
-- Nơi lưu tệp là `Local` (tệp mô hình 3D mẫu nằm trong `src/DSVHVN.Api/storage/`, đã được bỏ qua khỏi git), dịch vụ AI chạy bản giả lập.
+- Nơi lưu tệp là `Local` (tệp mô hình 3D nằm trong `src/DSVHVN.Api/storage/`, đã được bỏ qua khỏi git), dịch vụ AI chạy bản giả lập.
 - Cơ sở dữ liệu đã có trường demo thì script báo và thoát, không nạp trùng. Muốn nạp lại thì xoá cơ sở dữ liệu rồi chạy lại.
 - Tiến trình backend do script bật được tắt theo PID khi xong hoặc khi lỗi.
 - Tệp kết quả JSON (mã học sinh, mã bài học, ai đã nộp bài) nằm trong thư mục tạm `%TEMP%\dsvhvn-demo-<giờ>\`; không có mật khẩu quản trị.
@@ -43,8 +44,11 @@ Cách an toàn:
 
 **Di sản** (nạp khi backend khởi động, từ `seed-data/`): 34 tỉnh/thành, 20 di sản, tất cả được xuất bản. Mười hai di sản tiêu biểu có bản dịch và
 tóm tắt: tiếng Việt và tiếng Anh đã duyệt, tiếng Hàn, Trung, Nhật là bản dịch máy. Vì dịch vụ AI là bản giả lập nên chữ dịch có tiền tố mã ngôn ngữ
-(ví dụ `[en] ...`): đủ để thử chế độ khách ở 5 ngôn ngữ, không phải bản dịch thật. Hai di sản (Khu Trung tâm Hoàng thành Thăng Long và Quần thể
-di tích Cố đô Huế) có mô hình 3D mẫu tối thiểu (một hình tam giác), giấy phép CC0, ghi công "Mô hình mẫu để thử tính năng xem 3D", không phải mô hình thật.
+(ví dụ `[en] ...`): đủ để thử chế độ khách ở 5 ngôn ngữ, không phải bản dịch thật.
+
+**Mô hình 3D**: 14 di sản có mô hình 3D thật lấy từ Sketchfab (giấy phép CC BY hoặc CC0, ghi công đủ tác giả, giấy phép, trang nguồn), nếu tệp `.glb`
+đã được tải về `seed-data/mo-hinh-3d/` (xem mục dưới). Chưa có tệp thì hai di sản (Khu Trung tâm Hoàng thành Thăng Long và Quần thể di tích Cố đô Huế)
+có mô hình mẫu tối thiểu (một hình tam giác), giấy phép CC0, ghi công "Mô hình mẫu để thử tính năng xem 3D".
 
 **Trường demo** "Trường Liên cấp Demo Di sản Việt" (gói Miễn phí): 1 quản trị trường, 2 giáo viên, 3 lớp năm học 2026-2027, mỗi lớp 8 học sinh đã đổi sang mật khẩu demo.
 
@@ -57,6 +61,28 @@ di tích Cố đô Huế) có mô hình 3D mẫu tối thiểu (một hình tam 
 Mỗi bài học có mã bài học, nội dung soạn bằng AI giả lập, và một bài kiểm tra 5 câu đang mở đến hết ngày 30/06/2027. Năm em đầu của mỗi lớp đã làm và nộp
 bài kiểm tra thứ nhất với điểm giảm dần (đúng 5, 4, 3, 2, 1 trong 5 câu); ba em đầu đã nộp bài thứ hai. Các em còn lại chưa làm để trình diễn làm bài
 (mỗi học sinh chỉ có một lượt cho mỗi bài kiểm tra).
+
+## Mô hình 3D thật
+
+`seed-data/mo-hinh-3d.json` liệt kê 27 mô hình giấy phép mở trên Sketchfab cho 14 di sản: mỗi di sản một mô hình chọn chính (`"role": "chinh"`) và các
+mô hình dự phòng. Mỗi mục có tên hiển thị, mức gắn với di sản ("hiện vật của di sản", "công trình của di sản" hoặc "liên quan, minh họa"), tác giả,
+giấy phép và trang nguồn. Tệp `.glb` nặng nên không nằm trong git; tải và nén một lần:
+
+```powershell
+# Khóa API Sketchfab (Settings → Password & API) lưu ở %USERPROFILE%\.sketchfab_token, hoặc biến môi trường SKETCHFAB_TOKEN
+python scripts/du-lieu-demo/tai-mo-hinh-3d.py            # 14 mô hình chính, cần Node.js
+```
+
+Sau đó `tao-csdl-demo.ps1` tự gắn mô hình thật cho cơ sở dữ liệu mới. Cơ sở dữ liệu đã nạp từ trước (có mô hình mẫu) thì chạy riêng phần mô hình:
+
+```powershell
+$env:BASE = "http://localhost:5080"; $env:ADMIN_PASSWORD = "<mật khẩu admin.nho>"
+python -X utf8 scripts/du-lieu-demo/nap-du-lieu-demo.py --chi-mo-hinh
+```
+
+Phần này gỡ mô hình mẫu, tải mô hình thật lên và cho hiện; di sản đã có mô hình cùng trang nguồn thì bỏ qua (chạy lại không trùng); di sản đang hiện
+một mô hình khác do người dùng tự thêm thì mô hình thật chỉ lưu nháp. Giấy phép CC BY yêu cầu ghi rõ đã chỉnh sửa nên giấy phép được ghi
+"CC BY 4.0, đã nén để xem trên web". Đổi mô hình cho một di sản: đổi `role` trong tệp JSON, tải tệp mới bằng `--chi <slug>`.
 
 ## Tài khoản demo
 

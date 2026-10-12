@@ -41,3 +41,6 @@ Thumbs.db
 # Tep tai len (kho tep Local), khong dua vao git
 src/DSVHVN.Api/storage/
 storage/
+
+# Tep mo hinh 3D tai ve bang scripts/du-lieu-demo/tai-mo-hinh-3d.py (nang, tai lai duoc)
+seed-data/mo-hinh-3d/
