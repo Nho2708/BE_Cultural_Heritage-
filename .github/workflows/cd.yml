@@ -1,0 +1,109 @@
+name: CD
+
+# Triển khai backend lên máy demo: gộp vào main thì cập nhật môi trường demo,
+# gắn tag v* thì cập nhật bản phát hành (chủ repo duyệt) và tạo GitHub Release.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trien-khai-api
+  cancel-in-progress: false
+
+jobs:
+  dong-goi:
+    name: Đóng gói
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Máy demo chạy Windows x64: chỉ lấy thư viện gốc của nền tảng này (nhẹ hơn nhiều so với đủ mọi hệ điều hành),
+      # vẫn phụ thuộc runtime cài sẵn trên máy (framework-dependent).
+      - name: Dựng bản chạy (publish)
+        run: dotnet publish src/DSVHVN.Api -c Release -r win-x64 --self-contained false -o goi/api
+
+      - name: Sinh tệp migration idempotent
+        run: |
+          dotnet tool restore
+          dotnet tool run dotnet-ef migrations script --idempotent \
+            --project src/DSVHVN.Infrastructure --startup-project src/DSVHVN.Api \
+            -o goi/migrations.sql
+
+      - name: Ghi thông tin phiên bản
+        run: |
+          {
+            echo "sha=${GITHUB_SHA}"
+            echo "ref=${GITHUB_REF}"
+            echo "thoi-diem=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > goi/phien-ban.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ban-api
+          path: goi
+          if-no-files-found: error
+          retention-days: 30
+
+  trien-khai:
+    name: Triển khai lên máy demo
+    needs: dong-goi
+    runs-on: [self-hosted, windows, may-demo]
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'phat-hanh' || 'demo' }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/trien-khai
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: ban-api
+          path: ${{ runner.temp }}/goi
+
+      - name: Chạy script triển khai
+        shell: pwsh
+        run: ./scripts/trien-khai/trien-khai-api.ps1 -ThuMucGoi "${{ runner.temp }}/goi"
+
+  phat-hanh:
+    name: Tạo bản phát hành
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: trien-khai
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ban-api
+          path: goi
+
+      - name: Nén gói và tạo GitHub Release
+        run: |
+          set -euo pipefail
+          zip_file="dsvhvn-api-${TAG}.zip"
+          sql_file="migrations-${TAG}.sql"
+          (cd goi/api && zip -qr "../../${zip_file}" .)
+          cp goi/migrations.sql "${sql_file}"
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
+            gh release upload "${TAG}" "${zip_file}" "${sql_file}" --clobber --repo "${GITHUB_REPOSITORY}"
+          else
+            gh release create "${TAG}" "${zip_file}" "${sql_file}" \
+              --generate-notes --verify-tag --title "${TAG}" --repo "${GITHUB_REPOSITORY}"
+          fi
