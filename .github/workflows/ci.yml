@@ -1,0 +1,192 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**", "bugfix/**", "release/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Đẩy commit mới lên cùng nhánh thì hủy lượt chạy cũ.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore DSVHVN.sln
+
+      - name: Build
+        run: dotnet build DSVHVN.sln -c Release --no-restore
+
+      - name: Test
+        run: >-
+          dotnet test DSVHVN.sln -c Release --no-build
+          --collect:"XPlat Code Coverage"
+          --results-directory TestResults --logger trx
+
+      # Chỉ báo số, không chặn. Bỏ qua mã migration sinh tự động khi tính tỷ lệ.
+      - name: Coverage summary
+        if: ${{ !cancelled() }}
+        run: |
+          if ls TestResults/*/coverage.cobertura.xml > /dev/null 2>&1; then
+            dotnet tool restore
+            dotnet reportgenerator \
+              "-reports:TestResults/*/coverage.cobertura.xml" \
+              "-targetdir:TestResults/coverage-report" \
+              "-reporttypes:MarkdownSummaryGithub" \
+              "-classfilters:-DSVHVN.Infrastructure.Persistence.Migrations.*"
+            {
+              echo "## Độ phủ test"
+              cat TestResults/coverage-report/SummaryGithub.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Không có tệp coverage để tóm tắt."
+          fi
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: TestResults
+          retention-days: 7
+
+  migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2019-latest
+        env:
+          ACCEPT_EULA: "Y"
+          # Mật khẩu dùng một lần cho container tạm của lượt chạy này, không phải bí mật.
+          MSSQL_SA_PASSWORD: Ci_Only_Pa55word!
+        ports:
+          - 1433:1433
+        # Ảnh có thể chứa sqlcmd ở tools18 (cần -C) hoặc tools: thử lần lượt.
+        options: >-
+          --health-cmd "for s in /opt/mssql-tools18/bin/sqlcmd /opt/mssql-tools/bin/sqlcmd; do if [ -x $s ]; then c=; case $s in *tools18*) c=-C;; esac; $s $c -S localhost -U sa -P $MSSQL_SA_PASSWORD -Q 'SELECT 1' && exit 0; fi; done; exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 20s
+    env:
+      ConnectionStrings__Default: Server=localhost,1433;Database=dsvhvn_ci;User Id=sa;Password=Ci_Only_Pa55word!;TrustServerCertificate=True;Encrypt=True
+      EF_ARGS: --project src/DSVHVN.Infrastructure --startup-project src/DSVHVN.Api --configuration Release --no-build
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore and build
+        run: |
+          dotnet tool restore
+          dotnet restore src/DSVHVN.Api/DSVHVN.Api.csproj
+          dotnet build src/DSVHVN.Api/DSVHVN.Api.csproj -c Release --no-restore
+
+      - name: Apply every migration to an empty database
+        run: dotnet ef database update $EF_ARGS
+
+      # Lỗi nếu sửa entity mà quên tạo migration.
+      - name: Check the model has no pending changes
+        run: dotnet ef migrations has-pending-model-changes $EF_ARGS
+
+      - name: Generate idempotent script
+        run: |
+          mkdir -p artifacts
+          dotnet ef migrations script --idempotent -o artifacts/migrations.sql $EF_ARGS
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: migrations-sql
+          path: artifacts/migrations.sql
+          retention-days: 14
+
+  bao-mat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore DSVHVN.sln
+
+      - name: Fail on High or Critical vulnerable packages
+        run: |
+          dotnet list DSVHVN.sln package --vulnerable --include-transitive --format json > vulnerable.json
+          python3 - <<'PY'
+          import json, sys
+
+          data = json.load(open("vulnerable.json", encoding="utf-8"))
+          loi_nuget = [p.get("text", "") for p in data.get("problems", []) if p.get("level") == "error"]
+          if loi_nuget:
+              print("Không đọc được nguồn lỗ hổng NuGet:")
+              for dong in loi_nuget:
+                  print("  " + dong)
+              sys.exit(1)
+
+          gap = []
+          dem = {}
+          for du_an in data.get("projects", []):
+              for khung in du_an.get("frameworks", []):
+                  for nhom in ("topLevelPackages", "transitivePackages"):
+                      for goi in khung.get(nhom, []):
+                          for lh in goi.get("vulnerabilities", []):
+                              muc = lh.get("severity", "Unknown")
+                              dem[muc] = dem.get(muc, 0) + 1
+                              dong = "{} | {} {} | {} | {}".format(
+                                  du_an["path"].replace("\\", "/").split("/")[-1],
+                                  goi["id"], goi.get("resolvedVersion", "?"), muc, lh.get("advisoryurl", ""))
+                              print(dong)
+                              if muc in ("High", "Critical"):
+                                  gap.append(dong)
+
+          print("Tổng theo mức: " + (json.dumps(dem, sort_keys=True) if dem else "không có gói nào có lỗ hổng"))
+          if gap:
+              print("Có {} lỗ hổng mức High hoặc Critical.".format(len(gap)))
+              sys.exit(1)
+          PY
+
+  ky-hieu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'origin/main' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Scan internal working codes
+        run: python .github/scripts/kiem-ky-hieu.py --base "$BASE_REF"
