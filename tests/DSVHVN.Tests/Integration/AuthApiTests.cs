@@ -124,21 +124,20 @@ public sealed class AuthApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Profile_update_keeps_vietnamese_text_and_validates_phone_and_avatar()
+    public async Task Profile_update_keeps_vietnamese_text_and_validates_phone()
     {
         var (_, orgAdminToken) = await _api.OrgWithAdminAsync();
 
         var (ok, okBody) = await Http.PutAsync<ProfileDto>("/api/v1/me",
-            new { fullName = "Nguyễn Thị Ánh Tuyết", phone = "+84 912 345 678", avatarUrl = "https://anh.example.vn/tuyet.png" }, orgAdminToken);
+            new { fullName = "Nguyễn Thị Ánh Tuyết", phone = "+84 912 345 678" }, orgAdminToken);
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         Assert.Equal("Lưu hồ sơ thành công.", okBody.Message);
         Assert.Equal(("Nguyễn Thị Ánh Tuyết", "+84 912 345 678"), (okBody.Data!.FullName, okBody.Data.Phone));
 
         var (bad, badBody) = await Http.PutAsync<object>("/api/v1/me",
-            new { fullName = "A", phone = "abc", avatarUrl = "javascript:alert(1)" }, orgAdminToken);
+            new { fullName = "A", phone = "abc" }, orgAdminToken);
         Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
         Assert.Equal("INVALID", badBody.ErrorCode);
         Assert.True(badBody.Errors!.ContainsKey("phone"));
-        Assert.True(badBody.Errors.ContainsKey("avatarUrl"));
     }
 }

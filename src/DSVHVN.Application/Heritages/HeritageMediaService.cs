@@ -195,26 +195,8 @@ public sealed class HeritageMediaService(
     private static MediaRequest ToMediaRequest(UploadMediaRequest r, string url) =>
         new(HeritageRules.MediaImage, url, r.Caption, r.Author, r.License, r.Source, r.SortOrder, r.SetAsThumbnail);
 
-    /// <summary>Kiểm tệp ảnh gửi lên (có tệp, không quá 5 MB, đúng định dạng theo nội dung, không quá nhiều điểm ảnh) rồi xử lý.</summary>
-    private ProcessedImage ProcessImage(UploadedFile? file)
-    {
-        if (file is null || file.Content.Length == 0)
-            throw AppException.Validation("file", Messages.Required("tệp ảnh"));
-        if (file.Content.Length > StoredFileRules.MaxImageBytes)
-            throw AppException.Validation("file", Messages.Invalid("Tệp ảnh", "tối đa 5 MB"));
-
-        var result = images.Process(file.Content);
-        return result.Problem switch
-        {
-            ImageProblem.None => result.Image!,
-            ImageProblem.UnsupportedFormat => throw AppException.Validation("file",
-                Messages.Invalid("Tệp ảnh", "chỉ nhận định dạng JPG, PNG hoặc WEBP")),
-            ImageProblem.TooLarge => throw AppException.Validation("file",
-                Messages.Invalid("Tệp ảnh", "có quá nhiều điểm ảnh (tối đa 30 triệu điểm ảnh)")),
-            _ => throw AppException.Validation("file",
-                Messages.Invalid("Tệp ảnh", "không đọc được, tệp không phải ảnh hoặc đã bị hỏng")),
-        };
-    }
+    /// <summary>Kiểm tệp ảnh gửi lên (quy tắc chung của <see cref="UploadedImages"/>) rồi xử lý.</summary>
+    private ProcessedImage ProcessImage(UploadedFile? file) => UploadedImages.Process(file, images.Process);
 
     /// <summary>Lưu ảnh và ảnh thu nhỏ vào kho, rồi chạy <paramref name="record"/> (ghi dòng media). Ghi dòng lỗi thì gỡ hai tệp vừa lưu.</summary>
     private async Task<MediaDto> SaveFilesThenAsync(Guid id, ProcessedImage image, Func<string, Task<MediaDto>> record, CancellationToken ct)

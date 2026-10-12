@@ -14,7 +14,30 @@ public sealed class SkiaImageProcessor : IImageProcessor
     private const int WebpQuality = 90;
     private const int ThumbnailQuality = 78;
 
-    public ImageProcessResult Process(byte[] content)
+    public ImageProcessResult Process(byte[] content) => Run(content, (upright, encoded, extension) =>
+    {
+        var stored = Encode(upright, encoded, encoded == SKEncodedImageFormat.Jpeg ? JpegQuality : WebpQuality);
+        using var small = Thumbnail(upright);
+        var thumbnail = Encode(small, SKEncodedImageFormat.Webp, ThumbnailQuality);
+        if (stored is null || thumbnail is null) return ImageProcessResult.Failure(ImageProblem.Unreadable);
+
+        return ImageProcessResult.Success(new ProcessedImage(extension, stored, thumbnail, upright.Width, upright.Height));
+    });
+
+    public ImageProcessResult ProcessAvatar(byte[] content) => Run(content, (upright, _, _) =>
+    {
+        using var square = SquareAvatar(upright);
+        var stored = Encode(square, SKEncodedImageFormat.Webp, WebpQuality);
+        if (stored is null) return ImageProcessResult.Failure(ImageProblem.Unreadable);
+
+        return ImageProcessResult.Success(new ProcessedImage(StoredFileRules.Webp, stored, [], square.Width, square.Height));
+    });
+
+    /// <summary>
+    /// Giải mã trọn vẹn, đưa về đúng chiều rồi giao ảnh cho <paramref name="encode"/>. Việc kiểm định dạng theo nội dung, giới hạn điểm ảnh
+    /// và bỏ EXIF (do giải mã rồi mã hóa lại) dùng chung cho mọi loại ảnh.
+    /// </summary>
+    private static ImageProcessResult Run(byte[] content, Func<SKBitmap, SKEncodedImageFormat, string, ImageProcessResult> encode)
     {
         try
         {
@@ -44,18 +67,30 @@ public sealed class SkiaImageProcessor : IImageProcessor
                 return ImageProcessResult.Failure(ImageProblem.Unreadable);
 
             using var upright = ApplyOrigin(decoded, codec.EncodedOrigin);
-            var stored = Encode(upright, encoded, encoded == SKEncodedImageFormat.Jpeg ? JpegQuality : WebpQuality);
-            using var small = Thumbnail(upright);
-            var thumbnail = Encode(small, SKEncodedImageFormat.Webp, ThumbnailQuality);
-            if (stored is null || thumbnail is null) return ImageProcessResult.Failure(ImageProblem.Unreadable);
-
-            return ImageProcessResult.Success(new ProcessedImage(extension, stored, thumbnail, upright.Width, upright.Height));
+            return encode(upright, encoded, extension);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Tệp hỏng hoặc cố ý làm hỏng bộ giải mã: coi như không đọc được, không để lộ chi tiết.
             return ImageProcessResult.Failure(ImageProblem.Unreadable);
         }
+    }
+
+    /// <summary>Cắt hình vuông ở giữa (cạnh bằng cạnh ngắn của ảnh) rồi thu nhỏ còn tối đa <see cref="StoredFileRules.AvatarMaxSide"/> điểm ảnh; ảnh nhỏ hơn không bị phóng to.</summary>
+    private static SKBitmap SquareAvatar(SKBitmap source)
+    {
+        var side = Math.Min(source.Width, source.Height);
+        var left = (source.Width - side) / 2;
+        var top = (source.Height - side) / 2;
+        var size = Math.Min(side, StoredFileRules.AvatarMaxSide);
+
+        var result = new SKBitmap(new SKImageInfo(size, size, source.ColorType, source.AlphaType));
+        using var canvas = new SKCanvas(result);
+        canvas.Clear(SKColors.Transparent);
+        using var image = SKImage.FromBitmap(source);
+        canvas.DrawImage(image, new SKRect(left, top, left + side, top + side), new SKRect(0, 0, size, size),
+            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), null);
+        return result;
     }
 
     private static byte[]? Encode(SKBitmap bitmap, SKEncodedImageFormat format, int quality)

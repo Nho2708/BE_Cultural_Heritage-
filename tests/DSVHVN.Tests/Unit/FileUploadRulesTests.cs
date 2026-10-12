@@ -196,6 +196,70 @@ public sealed class SkiaImageProcessorTests
         Assert.Equal((64, 32), (smallThumb.Width, smallThumb.Height));
     }
 
+    [Theory]
+    [InlineData("jpg")]
+    [InlineData("png")]
+    [InlineData("webp")]
+    public void An_avatar_is_cropped_square_from_the_centre_and_always_stored_as_webp(string format)
+    {
+        var bytes = format switch { "jpg" => FileSamples.Jpeg(64, 32), "png" => FileSamples.Png(64, 32), _ => FileSamples.Webp(64, 32) };
+
+        var result = _processor.ProcessAvatar(bytes);
+
+        Assert.Equal(ImageProblem.None, result.Problem);
+        Assert.Equal("webp", result.Image!.Extension);
+        Assert.Empty(result.Image.Thumbnail);
+        Assert.Equal((32, 32), (result.Image.Width, result.Image.Height));      // cạnh ngắn của ảnh rộng 64 x 32, không phóng to
+        Assert.Equal(SKEncodedImageFormat.Webp, SKCodec.Create(new MemoryStream(result.Image.Content))!.EncodedFormat);
+        using var stored = SKBitmap.Decode(result.Image.Content);
+        Assert.Equal((32, 32), (stored.Width, stored.Height));
+        // Phần giữa của ảnh gốc: nửa phải của ô đỏ và xanh lá nằm ở hàng trên, hai ô còn lại ở hàng dưới.
+        AssertNear(SKColors.Red, stored.GetPixel(4, 4));
+        AssertNear(SKColors.Lime, stored.GetPixel(28, 4));
+        AssertNear(SKColors.Blue, stored.GetPixel(4, 28));
+        AssertNear(SKColors.Yellow, stored.GetPixel(28, 28));
+    }
+
+    [Fact]
+    public void A_large_avatar_is_shrunk_to_at_most_512_pixels_a_side()
+    {
+        var tall = _processor.ProcessAvatar(FileSamples.Jpeg(900, 1600)).Image!;
+        Assert.Equal((512, 512), (tall.Width, tall.Height));
+        using var stored = SKBitmap.Decode(tall.Content);
+        Assert.Equal((512, 512), (stored.Width, stored.Height));
+
+        var exact = _processor.ProcessAvatar(FileSamples.Png(512, 512)).Image!;
+        Assert.Equal((512, 512), (exact.Width, exact.Height));
+    }
+
+    [Fact]
+    public void An_avatar_drops_exif_and_follows_the_exif_orientation()
+    {
+        var withExif = FileSamples.WithExif(FileSamples.Jpeg(64, 32), orientation: 6);   // hiển thị đúng là ảnh cao 32 x 64
+        Assert.True(FileSamples.Contains(withExif, FileSamples.Marker));
+
+        var result = _processor.ProcessAvatar(withExif);
+
+        Assert.Equal(ImageProblem.None, result.Problem);
+        Assert.False(FileSamples.Contains(result.Image!.Content, FileSamples.Marker));
+        Assert.False(FileSamples.Contains(result.Image.Content, "Exif"));
+        Assert.Equal((32, 32), (result.Image.Width, result.Image.Height));
+        using var stored = SKBitmap.Decode(result.Image.Content);
+        AssertNear(SKColors.Blue, stored.GetPixel(4, 4));        // sau khi xoay, góc trái trên là ô xanh dương của ảnh gốc
+    }
+
+    [Fact]
+    public void An_avatar_applies_the_same_content_checks_as_any_uploaded_image()
+    {
+        Assert.Equal(ImageProblem.UnsupportedFormat, _processor.ProcessAvatar(FileSamples.Gif()).Problem);
+        Assert.Equal(ImageProblem.Unreadable, _processor.ProcessAvatar(Encoding.UTF8.GetBytes("<script>alert(1)</script>")).Problem);
+        Assert.Equal(ImageProblem.Unreadable, _processor.ProcessAvatar([]).Problem);
+        var jpeg = FileSamples.Jpeg(200, 200);
+        Assert.Equal(ImageProblem.Unreadable, _processor.ProcessAvatar(jpeg[..(jpeg.Length / 3)]).Problem);
+        using var huge = new SKBitmap(new SKImageInfo(6000, 6000, SKColorType.Gray8, SKAlphaType.Opaque));
+        Assert.Equal(ImageProblem.TooLarge, _processor.ProcessAvatar(FileSamples.Encode(huge, SKEncodedImageFormat.Png)).Problem);
+    }
+
     private static void AssertNear(SKColor expected, SKColor actual)
     {
         Assert.InRange(Math.Abs(expected.Red - actual.Red), 0, 60);

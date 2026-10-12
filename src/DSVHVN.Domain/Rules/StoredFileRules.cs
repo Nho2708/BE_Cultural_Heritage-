@@ -20,6 +20,9 @@ public static partial class StoredFileRules
     /// <summary>Cạnh dài nhất của ảnh thu nhỏ, tính bằng điểm ảnh.</summary>
     public const int ThumbnailMaxSide = 320;
 
+    /// <summary>Ảnh đại diện tài khoản được cắt vuông và thu nhỏ còn tối đa 512 điểm ảnh mỗi cạnh.</summary>
+    public const int AvatarMaxSide = 512;
+
     /// <summary>Phần đầu của đường dẫn công khai tới tệp trong kho.</summary>
     public const string PublicPathPrefix = "/files/";
 
