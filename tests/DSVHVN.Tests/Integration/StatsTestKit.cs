@@ -175,6 +175,14 @@ public sealed class StatsTestKit(ApiFactory factory)
             return await db.SaveChangesAsync();
         });
 
+    /// <summary>Đặt thời điểm tạo bài học (thứ tự "bài mới tạo trước" của gợi ý bài học mới).</summary>
+    public Task SetLessonCreatedAtAsync(long lessonId, DateTime createdAt) =>
+        Factory.WithDbAsync(async db =>
+        {
+            (await db.Lessons.SingleAsync(l => l.Id == lessonId)).CreatedAt = createdAt;
+            return await db.SaveChangesAsync();
+        });
+
     public Task RenameHeritageAsync(long heritageId, string name) =>
         Factory.WithDbAsync(async db =>
         {
