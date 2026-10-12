@@ -17,6 +17,13 @@
   Tắt cổng quảng cáo (Ads:GateEnabled = false).
 .PARAMETER TepBiMat
   Ghi đè đường dẫn secrets.json (mặc định suy ra từ UserSecretsId trong csproj).
+.PARAMETER CheDoAi
+  TuDong (mặc định): Dịch vụ AI trên máy demo trả 200 ở <DiaChiAi>/health thì dùng AI thật (Remote), không thì giả lập.
+  Remote hoặc Simulated: đặt thẳng, không kiểm.
+.PARAMETER DiaChiAi
+  Địa chỉ Dịch vụ AI trên máy demo (site IIS "DSVHVN AI" do cai-dat-may-demo-ai.ps1 của repo AI tạo), mặc định http://127.0.0.1:8090.
+.PARAMETER ApDungNgay
+  Chép tệp vừa tạo vào C:\dsvhvn\api và khởi động lại API (chạm web.config) thay vì chờ lần triển khai sau.
 #>
 [CmdletBinding()]
 param(
@@ -24,7 +31,10 @@ param(
     [string]$TepDich = 'C:\dsvhvn\cau-hinh\appsettings.Production.json',
     [string]$DiaChiNgrok = 'https://maynard-unphysical-planographically.ngrok-free.dev',
     [switch]$TatCongQuangCao,
-    [string]$TepBiMat
+    [string]$TepBiMat,
+    [ValidateSet('TuDong', 'Remote', 'Simulated')][string]$CheDoAi = 'TuDong',
+    [string]$DiaChiAi = 'http://127.0.0.1:8090',
+    [switch]$ApDungNgay
 )
 
 $ErrorActionPreference = 'Stop'
@@ -127,10 +137,25 @@ foreach ($k in ($bimat.Keys | Where-Object { $_ -like 'Email:*' } | Sort-Object)
 }
 if (-not (Lay-BiMat 'Email:Mode')) { Dat 'Email:Mode' 'Log' }
 
-# AI: giả lập (không gọi Dịch vụ AI thật).
-Dat 'Ai:Mode' 'Simulated'
+# AI: dịch vụ thật trên máy demo nếu đã chạy (site IIS 127.0.0.1:8090), không thì giả lập.
+# Không lấy Ai:Mode, Ai:BaseUrl của User Secrets: đó là cấu hình máy dev (dịch vụ chạy tay ở cổng 8000).
+$diaChiAi = $DiaChiAi.TrimEnd('/')
+$cheDo = $CheDoAi
+if ($cheDo -eq 'TuDong') {
+    try {
+        $r = Invoke-WebRequest -Uri "$diaChiAi/health" -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
+        $cheDo = if ($r.StatusCode -eq 200) { 'Remote' } else { 'Simulated' }
+    } catch {
+        $cheDo = 'Simulated'
+    }
+    if ($cheDo -eq 'Simulated') {
+        Write-Warning "Dịch vụ AI chưa trả lời ở $diaChiAi/health: dùng AI giả lập. Cài và triển khai Dịch vụ AI (repo AI, scripts\trien-khai) rồi chạy lại script này."
+    }
+}
+Dat 'Ai:Mode' $cheDo
+if ($cheDo -eq 'Remote') { Dat 'Ai:BaseUrl' $diaChiAi }
 $khoaAi = Lay-BiMat 'Ai:InternalKey'
-if ($khoaAi) { Dat 'Ai:InternalKey' $khoaAi }
+if ($khoaAi) { Dat 'Ai:InternalKey' $khoaAi } elseif ($cheDo -eq 'Remote') { throw 'Dùng AI thật cần Ai:InternalKey trong User Secrets (cùng giá trị AI_INTERNAL_KEY của Dịch vụ AI).' }
 
 # Kho tệp: đĩa cục bộ.
 Dat 'Storage:Provider' 'Local'
@@ -175,5 +200,15 @@ Write-Host ''
 Write-Host "Đã ghi: $TepDich" -ForegroundColor Green
 Write-Host 'Các khoá đã ghi (không in giá trị):'
 $daGhi | Sort-Object -Unique | ForEach-Object { Write-Host "  $_" }
+Write-Host "AI: $cheDo$(if ($cheDo -eq 'Remote') { " ($diaChiAi)" })"
+
+if ($ApDungNgay) {
+    # API đọc appsettings lúc khởi động: chép tệp rồi chạm web.config để IIS khởi động lại ứng dụng.
+    $thuApi = 'C:\dsvhvn\api'
+    if (-not (Test-Path -LiteralPath (Join-Path $thuApi 'web.config'))) { throw "Chưa có bản API ở $thuApi (chạy CD của backend trước)." }
+    Copy-Item -LiteralPath $TepDich -Destination (Join-Path $thuApi 'appsettings.Production.json') -Force
+    (Get-Item -LiteralPath (Join-Path $thuApi 'web.config')).LastWriteTime = Get-Date
+    Write-Host "Đã chép vào $thuApi và khởi động lại API." -ForegroundColor Green
+}
 Write-Host ''
 Write-Host 'Lưu ý: cau-hinh\ chứa bí mật, chỉ cấp quyền cho quản trị viên, người dùng hiện tại và tài khoản chạy ứng dụng (do cai-dat-may-demo.ps1 làm).'
