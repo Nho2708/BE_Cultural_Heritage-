@@ -384,6 +384,37 @@ public sealed class FileUploadApiTests(ApiFactory factory) : IClassFixture<ApiFa
         Assert.Equal(before, StoredFiles().Length);
     }
 
+    [Fact]
+    public async Task An_image_far_over_the_request_limit_gets_the_same_clear_5_MB_message_with_413()
+    {
+        var admin = await _api.AdminTokenAsync();
+        var heritage = await NewHeritageAsync(admin);
+        var before = StoredFiles().Length;
+
+        // Vượt cả phần chừa 512 KB của thân yêu cầu: trước đây máy chủ ngắt lúc đọc biểu mẫu và chỉ báo "Dữ liệu gửi lên không hợp lệ: sai định dạng".
+        var huge = new byte[6 * 1024 * 1024];
+        FileSamples.Jpeg().CopyTo(huge, 0);
+        var tooBig = await Fail(UploadAsync<object>($"{Api}/heritages/{heritage.Id}/media/upload", admin, huge), HttpStatusCode.RequestEntityTooLarge, "INVALID");
+
+        Assert.Equal("Tệp ảnh không hợp lệ: tối đa 5 MB.", tooBig.Errors!["file"]);
+        Assert.Equal(before, StoredFiles().Length);
+    }
+
+    [Fact]
+    public async Task A_model_far_over_the_request_limit_gets_the_same_clear_15_MB_message_with_413()
+    {
+        var admin = await _api.AdminTokenAsync();
+        var huge = new byte[16 * 1024 * 1024];
+        FileSamples.Glb().CopyTo(huge, 0);
+        var before = StoredFiles().Length;
+
+        var response = await Fail(UploadAsync<object>($"{Api}/files/models", admin, huge, fields: new Dictionary<string, string>()),
+            HttpStatusCode.RequestEntityTooLarge, "INVALID");
+
+        Assert.Equal("Tệp mô hình 3D không hợp lệ: tối đa 15 MB.", response.Errors!["file"]);
+        Assert.Equal(before, StoredFiles().Length);
+    }
+
     // ---- Phục vụ tệp ----
 
     [Fact]

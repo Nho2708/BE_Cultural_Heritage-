@@ -182,6 +182,55 @@ public sealed class ProfileAvatarApiTests(ApiFactory factory) : IClassFixture<Ap
         Assert.NotNull((await UploadedAsync(orgAdmin, padded)).AvatarUrl);
     }
 
+    /// <summary>Tệp vượt cả phần chừa của thân yêu cầu (5 MB + 512 KB): trước đây máy chủ ngắt lúc đọc biểu mẫu và chỉ báo "sai định dạng".</summary>
+    private static byte[] FarTooBig()
+    {
+        var bytes = new byte[6 * 1024 * 1024];
+        FileSamples.Jpeg().CopyTo(bytes, 0);
+        return bytes;
+    }
+
+    [Fact]
+    public async Task A_file_far_over_the_request_limit_gets_the_same_clear_5_MB_message_with_413()
+    {
+        var (_, orgAdmin) = await _api.OrgWithAdminAsync();
+        var before = StoredFiles().Length;
+
+        var (res, body) = await UploadAsync<object>(orgAdmin, FarTooBig());
+
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, res.StatusCode);
+        Assert.Equal("INVALID", body.ErrorCode);
+        Assert.False(body.Success);
+        Assert.Equal("Tệp ảnh không hợp lệ: tối đa 5 MB.", body.Errors!["file"]);
+        Assert.Equal("Tệp ảnh không hợp lệ: tối đa 5 MB.", body.Message);
+        Assert.Equal(before, StoredFiles().Length);
+        Assert.Null(await AvatarOfAsync(orgAdmin));
+    }
+
+    [Fact]
+    public async Task A_file_far_over_the_limit_sent_without_content_length_gets_the_same_message()
+    {
+        var (_, orgAdmin) = await _api.OrgWithAdminAsync();
+
+        // Gửi theo từng khúc, không có Content-Length: máy chủ chỉ biết tệp quá lớn khi đang đọc biểu mẫu.
+        using var form = new MultipartFormDataContent();
+        var part = new ByteArrayContent(FarTooBig());
+        part.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        form.Add(part, "file", "toi.jpg");
+        form.Headers.ContentLength = null;
+        using var request = new HttpRequestMessage(HttpMethod.Post, Url) { Content = form };
+        request.Headers.TransferEncodingChunked = true;
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", orgAdmin);
+
+        var response = await Http.SendAsync(request);
+        var body = (await response.Content.ReadFromJsonAsync<Envelope<object>>(HttpTestExtensions.Json))!;
+
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
+        Assert.Equal("INVALID", body.ErrorCode);
+        Assert.Equal("Tệp ảnh không hợp lệ: tối đa 5 MB.", body.Errors!["file"]);
+        Assert.Null(await AvatarOfAsync(orgAdmin));
+    }
+
     [Fact]
     public async Task Replacing_the_avatar_keeps_the_old_file_and_each_user_changes_only_their_own()
     {

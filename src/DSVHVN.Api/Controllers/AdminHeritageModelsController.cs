@@ -59,7 +59,8 @@ public sealed class ReplaceModelFileForm
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
 public sealed class AdminHeritageModelsController(HeritageModelService models) : ApiControllerBase
 {
-    private const long ModelRequestLimit = StoredFileRules.MaxModelBytes + 512 * 1024;
+    // Giới hạn thân yêu cầu rộng hơn tệp một chút để chừa chỗ cho các trường chữ; tệp quá cỡ bị UploadSizeLimit chặn bằng câu rõ ràng.
+    private const long ModelRequestLimit = StoredFileRules.MaxModelBytes + UploadSizeLimitAttribute.FormHeadroom;
 
     /// <summary>Mô hình 3D của di sản (chưa gỡ): đang hiển thị trước. <c>isVisibleToPublic</c> true khi mô hình đang hiển thị và di sản đã xuất bản.</summary>
     [HttpGet("heritages/{heritageId:long}/models")]
@@ -85,6 +86,7 @@ public sealed class AdminHeritageModelsController(HeritageModelService models) :
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(ModelRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = ModelRequestLimit)]
+    [UploadSizeLimit("Tệp mô hình 3D", StoredFileRules.MaxModelBytes)]
     [ProducesResponseType<ApiResponse<HeritageModelDto>>(StatusCodes.Status201Created)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status413PayloadTooLarge)]
@@ -106,6 +108,7 @@ public sealed class AdminHeritageModelsController(HeritageModelService models) :
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(ModelRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = ModelRequestLimit)]
+    [UploadSizeLimit("Tệp mô hình 3D", StoredFileRules.MaxModelBytes)]
     [ProducesResponseType<ApiResponse<HeritageModelDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status413PayloadTooLarge)]
