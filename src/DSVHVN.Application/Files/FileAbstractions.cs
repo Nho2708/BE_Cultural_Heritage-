@@ -1,3 +1,6 @@
+using DSVHVN.Application.Common;
+using DSVHVN.Domain.Rules;
+
 namespace DSVHVN.Application.Files;
 
 /// <summary>
@@ -59,6 +62,12 @@ public sealed record ImageProcessResult(ProcessedImage? Image, ImageProblem Prob
 public interface IImageProcessor
 {
     ImageProcessResult Process(byte[] content);
+
+    /// <summary>
+    /// Cùng các kiểm tra và việc bỏ EXIF như <see cref="Process"/>, nhưng cho ảnh đại diện của tài khoản: cắt vuông ở giữa, thu nhỏ còn tối đa
+    /// <c>StoredFileRules.AvatarMaxSide</c> điểm ảnh mỗi cạnh (không phóng to) và luôn lưu WEBP. Chỉ có một tệp: <see cref="ProcessedImage.Thumbnail"/> để trống.
+    /// </summary>
+    ImageProcessResult ProcessAvatar(byte[] content);
 }
 
 /// <summary>Tệp người dùng gửi lên: tên gốc (chỉ để ghi log, không dùng làm tên lưu) và nội dung đã đọc vào bộ nhớ.</summary>
@@ -66,3 +75,30 @@ public sealed record UploadedFile(string? FileName, byte[] Content);
 
 /// <summary>Tệp đã lưu vào kho: đường dẫn công khai, ảnh thu nhỏ (nếu là ảnh) và dung lượng.</summary>
 public sealed record StoredFileDto(string Url, string? PreviewUrl, long Size, string ContentType);
+
+/// <summary>
+/// Kiểm tệp ảnh gửi lên theo cùng một bộ quy tắc cho mọi nơi nhận ảnh (thư viện di sản, ảnh đại diện tài khoản): có tệp, không quá 5 MB,
+/// đúng JPG, PNG hoặc WEBP theo nội dung, không quá nhiều điểm ảnh. Lỗi trả về dạng lỗi kiểm tra ở trường <c>file</c>.
+/// </summary>
+public static class UploadedImages
+{
+    public static ProcessedImage Process(UploadedFile? file, Func<byte[], ImageProcessResult> process)
+    {
+        if (file is null || file.Content.Length == 0)
+            throw AppException.Validation("file", Messages.Required("tệp ảnh"));
+        if (file.Content.Length > StoredFileRules.MaxImageBytes)
+            throw AppException.Validation("file", Messages.Invalid("Tệp ảnh", "tối đa 5 MB"));
+
+        var result = process(file.Content);
+        return result.Problem switch
+        {
+            ImageProblem.None => result.Image!,
+            ImageProblem.UnsupportedFormat => throw AppException.Validation("file",
+                Messages.Invalid("Tệp ảnh", "chỉ nhận định dạng JPG, PNG hoặc WEBP")),
+            ImageProblem.TooLarge => throw AppException.Validation("file",
+                Messages.Invalid("Tệp ảnh", "có quá nhiều điểm ảnh (tối đa 30 triệu điểm ảnh)")),
+            _ => throw AppException.Validation("file",
+                Messages.Invalid("Tệp ảnh", "không đọc được, tệp không phải ảnh hoặc đã bị hỏng")),
+        };
+    }
+}
