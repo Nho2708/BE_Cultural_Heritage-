@@ -24,8 +24,9 @@ public sealed class UploadAvatarForm
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
 public sealed class MeController(ProfileService profiles, AuthService auth) : ApiControllerBase
 {
-    // Giới hạn thân yêu cầu rộng hơn tệp một chút để chừa chỗ cho phần đầu biểu mẫu; dung lượng tệp do dịch vụ kiểm lại.
-    private const long AvatarRequestLimit = StoredFileRules.MaxImageBytes + 512 * 1024;
+    // Giới hạn thân yêu cầu rộng hơn tệp một chút để chừa chỗ cho phần đầu biểu mẫu; tệp quá cỡ bị UploadSizeLimit chặn bằng câu rõ ràng
+    // trước khi đọc biểu mẫu, dung lượng tệp vẫn do dịch vụ kiểm lại.
+    private const long AvatarRequestLimit = StoredFileRules.MaxImageBytes + UploadSizeLimitAttribute.FormHeadroom;
 
     /// <summary>Tab Thông tin: hồ sơ, vai trò, trường, cờ buộc đổi mật khẩu.</summary>
     [HttpGet]
@@ -47,6 +48,7 @@ public sealed class MeController(ProfileService profiles, AuthService auth) : Ap
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(AvatarRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = AvatarRequestLimit)]
+    [UploadSizeLimit("Tệp ảnh", StoredFileRules.MaxImageBytes)]
     [ProducesResponseType<ApiResponse<ProfileDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status413PayloadTooLarge)]

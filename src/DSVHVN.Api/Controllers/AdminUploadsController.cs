@@ -55,9 +55,10 @@ public sealed class UploadModelForm
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status413PayloadTooLarge)]
 public sealed class AdminUploadsController(HeritageMediaService media, ModelFileService models) : ApiControllerBase
 {
-    // Giới hạn thân yêu cầu rộng hơn tệp một chút để chừa chỗ cho các trường văn bản; dung lượng tệp do dịch vụ kiểm lại.
-    private const long ImageRequestLimit = StoredFileRules.MaxImageBytes + 512 * 1024;
-    private const long ModelRequestLimit = StoredFileRules.MaxModelBytes + 512 * 1024;
+    // Giới hạn thân yêu cầu rộng hơn tệp một chút để chừa chỗ cho các trường văn bản; tệp quá cỡ bị UploadSizeLimit chặn bằng câu rõ ràng
+    // trước khi đọc biểu mẫu, dung lượng tệp vẫn do dịch vụ kiểm lại.
+    private const long ImageRequestLimit = StoredFileRules.MaxImageBytes + UploadSizeLimitAttribute.FormHeadroom;
+    private const long ModelRequestLimit = StoredFileRules.MaxModelBytes + UploadSizeLimitAttribute.FormHeadroom;
 
     /// <summary>
     /// Tải ảnh lên thư viện của di sản. Ghi công bắt buộc (<c>author</c>, <c>license</c>, <c>source</c>); <c>setAsThumbnail</c> true để chọn luôn làm ảnh đại diện.
@@ -66,6 +67,7 @@ public sealed class AdminUploadsController(HeritageMediaService media, ModelFile
     [HttpPost("heritages/{heritageId:long}/media/upload")]
     [RequestSizeLimit(ImageRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = ImageRequestLimit)]
+    [UploadSizeLimit("Tệp ảnh", StoredFileRules.MaxImageBytes)]
     [ProducesResponseType<ApiResponse<MediaDto>>(StatusCodes.Status201Created)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<MediaDto>>> UploadHeritageImage(
@@ -78,6 +80,7 @@ public sealed class AdminUploadsController(HeritageMediaService media, ModelFile
     [HttpPost("events/{eventId:long}/media/upload")]
     [RequestSizeLimit(ImageRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = ImageRequestLimit)]
+    [UploadSizeLimit("Tệp ảnh", StoredFileRules.MaxImageBytes)]
     [ProducesResponseType<ApiResponse<MediaDto>>(StatusCodes.Status201Created)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<MediaDto>>> UploadEventImage(
@@ -93,6 +96,7 @@ public sealed class AdminUploadsController(HeritageMediaService media, ModelFile
     [HttpPost("files/models")]
     [RequestSizeLimit(ModelRequestLimit)]
     [RequestFormLimits(MultipartBodyLengthLimit = ModelRequestLimit)]
+    [UploadSizeLimit("Tệp mô hình 3D", StoredFileRules.MaxModelBytes)]
     [ProducesResponseType<ApiResponse<StoredFileDto>>(StatusCodes.Status201Created)]
     public async Task<ActionResult<ApiResponse<StoredFileDto>>> UploadModel([FromForm] UploadModelForm form, CancellationToken ct)
         => CreatedEnvelope(await models.UploadAsync(await FormFiles.ReadAsync(form.File, StoredFileRules.MaxModelBytes, ct), ct),
