@@ -79,6 +79,19 @@ Cấu hình bản Local:
 `Media` trả `url` (ảnh đã xử lý) và `previewUrl` (ảnh thu nhỏ; `null` với ảnh dán đường dẫn ngoài). Chi tiết di sản ở web quản trị và chi tiết di sản công khai đều có `previewUrl`.
 Tải ảnh ghi một dòng `media` rồi mới trả về; ảnh đại diện chọn được ngay bằng `setAsThumbnail=true`.
 
+### Ảnh đại diện của tài khoản (quản trị hệ thống, quản trị trường, giáo viên)
+
+Hồ sơ cá nhân đổi ảnh đại diện bằng tải ảnh lên, không còn dán đường dẫn: `PUT /api/v1/me` chỉ sửa họ tên và số điện thoại, không đổi `avatarUrl`.
+
+| Method | Đường dẫn | Trường gửi | Thành công | Lỗi chính |
+|---|---|---|---|---|
+| POST | `/api/v1/me/avatar` | `file` (multipart/form-data) | 200 hồ sơ với `avatarUrl` mới | 400 (tệp) · 401 · 403 (học sinh) · 413 · 503 |
+| DELETE | `/api/v1/me/avatar` | — | 200 hồ sơ với `avatarUrl` null (gọi lại khi chưa có ảnh vẫn 200) | 401 |
+
+Dùng chung dịch vụ kiểm ảnh với ảnh di sản: định dạng JPG, PNG, WEBP xét theo nội dung, tối đa 5 MB, bỏ EXIF, tên lưu là mã ngẫu nhiên, khóa lỗi `file` như mục 4.
+Khác ảnh di sản: ảnh được **cắt vuông ở giữa**, thu nhỏ còn tối đa **512 điểm ảnh** mỗi cạnh (không phóng to) và luôn lưu **WEBP** (`/files/images/{mã}.webp`); không có ảnh thu nhỏ riêng và không ghi dòng `media`.
+Đường dẫn lưu vào `users.avatar_url`. Đổi hoặc gỡ ảnh chỉ đổi cột này; **tệp ảnh cũ được giữ lại trong kho** (xóa mềm). Mỗi người chỉ đổi được ảnh của chính mình.
+
 ## 3. Quy tắc
 
 **Ảnh** (di sản, sự kiện)

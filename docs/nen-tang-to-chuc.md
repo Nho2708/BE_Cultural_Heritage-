@@ -42,7 +42,9 @@ Cột "Lỗi chính" ghi mã HTTP và `errorCode` trả về.
 | POST | `/auth/password-token/check` `{ token }` | Công khai | 200 `{ username, expiresAt }` | 422 `PASSWORD_LINK_INVALID` |
 | POST | `/auth/set-password` `{ token, newPassword }` | Công khai | 200 "Đặt mật khẩu thành công." | 400 `PASSWORD_POLICY` · 422 `PASSWORD_LINK_INVALID` |
 | GET | `/me` | ADMIN, ORG_ADMIN, TEACHER | 200 hồ sơ (vai trò, trường, `mustChangePassword`) | 401 `ACCOUNT_BLOCKED`/`FORBIDDEN` · 403 với học sinh |
-| PUT | `/me` `{ fullName, phone, avatarUrl }` | ADMIN, ORG_ADMIN, TEACHER | 200 "Lưu hồ sơ thành công." | 400 `REQUIRED`/`INVALID` |
+| PUT | `/me` `{ fullName, phone }` | ADMIN, ORG_ADMIN, TEACHER | 200 "Lưu hồ sơ thành công." (không đụng tới ảnh đại diện; trường `avatarUrl` gửi kèm bị bỏ qua) | 400 `REQUIRED`/`INVALID` |
+| POST | `/me/avatar` (multipart, trường `file`) | ADMIN, ORG_ADMIN, TEACHER | 200 "Cập nhật ảnh đại diện thành công." + hồ sơ với `avatarUrl` mới | 400 `REQUIRED`/`INVALID` (khóa `file`) · 401 · 413 · 503 `STORAGE_UNAVAILABLE` |
+| DELETE | `/me/avatar` | ADMIN, ORG_ADMIN, TEACHER | 200 "Gỡ ảnh đại diện thành công." + hồ sơ với `avatarUrl` null | 401 |
 | PUT | `/me/password` `{ currentPassword, newPassword }` | ADMIN, ORG_ADMIN, TEACHER | 200 access token mới | 400 `INVALID`/`PASSWORD_POLICY`/`SAME_PASSWORD` |
 | GET | `/admin/organizations?keyword&status&page&pageSize` | ADMIN | 200 trang trường (gói, số giáo viên, trạng thái) | 400 `INVALID` |
 | POST | `/admin/organizations` `{ name, address, phone, email, orgAdmin{ fullName, username, email, phone } }` | ADMIN | 201 "Đã gửi email đặt mật khẩu tới …" | 400 · 409 `DUPLICATE` (`orgAdmin.email`, `orgAdmin.username`) |
