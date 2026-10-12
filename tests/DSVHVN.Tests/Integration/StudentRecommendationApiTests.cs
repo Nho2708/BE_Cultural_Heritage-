@@ -195,7 +195,7 @@ public sealed class StudentRecommendationApiTests : IClassFixture<ApiFactory>
         await _k.Quizzes.SetQuizTimesAsync(s.QuizB.Id, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddHours(2));
         await _k.Quizzes.SetQuizTimesAsync(s.QuizC.Id, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddHours(30));
 
-        // Chưa có kết quả: theo hạn đóng gần nhất trước.
+        // Chưa có lượt nào và mọi quiz cùng độ khó Trung bình (đúng mức mục tiêu của cấp 2): theo hạn đóng gần nhất trước.
         var before = await _k.RecommendationsAsync(s.X);
         Assert.Equal([s.QuizB.Id, s.QuizA.Id, s.QuizC.Id], before.NextQuizzes.Select(q => q.QuizId).Take(3));
 
@@ -226,6 +226,47 @@ public sealed class StudentRecommendationApiTests : IClassFixture<ApiFactory>
         Assert.All(recs.NextQuizzes, q => Assert.Equal("Trung bình", q.DifficultyName));
     }
 
+    /// <summary>
+    /// Em chưa có lượt nào: quiz xếp theo độ khó gần mức khó mục tiêu của cấp trước (cấp 1 Dễ, cấp 2 và 3 Trung bình), hạn đóng chỉ phân thứ tự giữa các quiz
+    /// cùng độ lệch. A Khó đóng sớm nhất, B Dễ đóng sau, C Trung bình đóng muộn nhất.
+    /// </summary>
+    [Theory]
+    [InlineData(1, "B,C,A")]   // Dễ (lệch 0), Trung bình (lệch 1), Khó (lệch 2)
+    [InlineData(2, "C,A,B")]   // Trung bình (lệch 0); A và B cùng lệch 1 thì A đóng sớm hơn
+    [InlineData(3, "C,A,B")]
+    public async Task Without_any_attempt_the_quizzes_closest_to_the_target_difficulty_of_the_level_come_first_then_the_nearest_closing_time(int level, string expected)
+    {
+        var s = await SceneAsync(level);
+        await _k.SetQuizDifficultyAsync(s.QuizA.Id, DifficultyLevel.HARD);
+        await _k.SetQuizDifficultyAsync(s.QuizB.Id, DifficultyLevel.EASY);
+        await _k.SetQuizDifficultyAsync(s.QuizC.Id, DifficultyLevel.MEDIUM);
+        await _k.Quizzes.SetQuizTimesAsync(s.QuizA.Id, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddHours(2));
+        await _k.Quizzes.SetQuizTimesAsync(s.QuizB.Id, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddHours(30));
+        await _k.Quizzes.SetQuizTimesAsync(s.QuizC.Id, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddDays(10));
+        var byName = new Dictionary<string, long> { ["A"] = s.QuizA.Id, ["B"] = s.QuizB.Id, ["C"] = s.QuizC.Id };
+
+        var recs = await _k.RecommendationsAsync(s.X);
+
+        Assert.Equal(Messages.StudentNoAttemptsYet, recs.Message);
+        Assert.Equal(expected.Split(',').Select(n => byName[n]), recs.NextQuizzes.Select(q => q.QuizId));
+    }
+
+    [Fact]
+    public async Task After_an_attempt_without_a_weak_heritage_the_quizzes_still_follow_the_closing_time_before_the_difficulty()
+    {
+        var s = await SceneAsync();
+        await _k.AllCorrectAsync(s.QuizA, s.X);                                         // đúng hết: mức mục tiêu Khó, không có di sản yếu
+        await _k.SetQuizDifficultyAsync(s.QuizB.Id, DifficultyLevel.MEDIUM);
+        await _k.SetQuizDifficultyAsync(s.QuizC.Id, DifficultyLevel.HARD);
+        await _k.Quizzes.SetQuizTimesAsync(s.QuizB.Id, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddHours(2));
+        await _k.Quizzes.SetQuizTimesAsync(s.QuizC.Id, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddDays(10));
+
+        var recs = await _k.RecommendationsAsync(s.X);
+
+        Assert.Equal(DifficultyLevel.HARD, recs.TargetDifficulty);
+        Assert.Equal([s.QuizB.Id, s.QuizC.Id], recs.NextQuizzes.Select(q => q.QuizId));   // B đóng sớm hơn dù C mới đúng mức Khó
+    }
+
     [Fact]
     public async Task The_reason_of_a_quiz_that_closes_within_three_days_counts_the_days()
     {
@@ -235,6 +276,38 @@ public sealed class StudentRecommendationApiTests : IClassFixture<ApiFactory>
         var recs = await _k.RecommendationsAsync(s.X);
         Assert.Equal("Còn 3 ngày", recs.NextQuizzes.Single(q => q.QuizId == s.QuizB.Id).Reason);
         Assert.Equal(RecommendationRules.OpenQuizReason, recs.NextQuizzes.Single(q => q.QuizId == s.QuizC.Id).Reason);
+    }
+
+    // ---- Xếp hạng bài học mới ----
+
+    /// <summary>
+    /// Em chưa có lượt nào: bài học mới xếp theo độ khó quiz của bài gần mức khó mục tiêu của cấp trước, rồi bài mới tạo trước. Bốn bài tạo theo thứ tự A, B, C, D
+    /// với quiz A Trung bình, B Khó, C Dễ, D Khó; chỉ hiện 3 bài.
+    /// </summary>
+    [Theory]
+    [InlineData(1, "C,A,D")]   // Dễ (lệch 0), Trung bình (lệch 1); B và D cùng Khó (lệch 2) thì D mới tạo hơn
+    [InlineData(2, "A,D,C")]   // Trung bình (lệch 0); B, C, D cùng lệch 1 thì bài mới tạo trước: D rồi C
+    [InlineData(3, "A,D,C")]
+    public async Task Without_any_attempt_the_new_lessons_closest_to_the_target_difficulty_of_the_level_come_first_then_the_newest_created(int level, string expected)
+    {
+        var s = await SceneAsync(level);
+        var d = await _k.LessonOnNewHeritageAsync(s.A, "Đờn ca tài tử", "79", HeritageType.INTANGIBLE);
+        var quizD = await _k.QuizAsync(d, "Em D");
+        await _k.SetQuizDifficultyAsync(s.QuizA.Id, DifficultyLevel.MEDIUM);
+        await _k.SetQuizDifficultyAsync(s.QuizB.Id, DifficultyLevel.HARD);
+        await _k.SetQuizDifficultyAsync(s.QuizC.Id, DifficultyLevel.EASY);
+        await _k.SetQuizDifficultyAsync(quizD.Id, DifficultyLevel.HARD);
+        var created = DateTime.UtcNow.AddDays(-10);
+        await _k.SetLessonCreatedAtAsync(s.A.LessonId, created);
+        await _k.SetLessonCreatedAtAsync(s.B.LessonId, created.AddDays(1));
+        await _k.SetLessonCreatedAtAsync(s.C.LessonId, created.AddDays(2));
+        await _k.SetLessonCreatedAtAsync(d.LessonId, created.AddDays(3));
+        var byName = new Dictionary<string, long> { ["A"] = s.A.LessonId, ["B"] = s.B.LessonId, ["C"] = s.C.LessonId, ["D"] = d.LessonId };
+
+        var recs = await _k.RecommendationsAsync(s.X);
+
+        Assert.Equal(expected.Split(',').Select(n => byName[n]), recs.NewLessons.Select(l => l.LessonId));
+        Assert.All(recs.NewLessons, l => Assert.Equal((RecommendationRules.NewLessonReason, (string?)null), (l.Reason, l.AccessCode)));
     }
 
     // ---- Chỉ trong lớp của em, chỉ di sản đã xuất bản ----

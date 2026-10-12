@@ -42,6 +42,8 @@ public sealed class StudentRecommendationService(IAppDbContext db, AttemptLifecy
         var attemptedLessons = attempts.Select(a => a.LessonId).ToHashSet();
         var attemptedQuizzes = attempts.Select(a => a.QuizId).ToHashSet();
         var finishedLessons = attempts.Where(a => a.Status != AttemptStatus.IN_PROGRESS).Select(a => a.LessonId).ToHashSet();
+        // Em chưa có lượt nào: quiz nên làm tiếp và bài học mới xếp theo mức khó mục tiêu theo cấp trước (quy tắc gợi ý cá nhân hóa cho học sinh).
+        var hasAttempts = attempts.Count > 0;
 
         // Mức thành thạo theo di sản và chung, từ mọi lượt đã nộp.
         var byHeritage = facts.GroupBy(f => f.HeritageId)
@@ -75,15 +77,13 @@ public sealed class StudentRecommendationService(IAppDbContext db, AttemptLifecy
 
         var catalog = await HeritageCatalog.LoadAsync(db, ct);
 
-        // (1) Quiz nên làm tiếp: đang mở, em chưa làm; di sản em còn yếu trước, rồi hạn đóng gần, rồi độ khó gần mức mục tiêu.
-        var nextQuizzes = quizzes
+        // (1) Quiz nên làm tiếp: đang mở, em chưa làm. Em đã có lượt: di sản em còn yếu trước, rồi hạn đóng gần, rồi độ khó gần mức mục tiêu;
+        // em chưa có lượt nào: độ khó gần mức mục tiêu theo cấp trước, rồi hạn đóng gần.
+        var openQuizzes = quizzes
             .Where(q => q.Status == QuizStatus.PUBLISHED && (q.OpenAt is null || q.OpenAt <= now) && (q.CloseAt is null || q.CloseAt > now)
                         && !attemptedQuizzes.Contains(q.Id))
-            .Select(q => (Quiz: q, Weak: quizHeritages.GetValueOrDefault(q.Id)?.Count(weak.Contains) ?? 0))
-            .OrderByDescending(x => x.Weak > 0)
-            .ThenBy(x => x.Quiz.CloseAt is null)
-            .ThenBy(x => x.Quiz.CloseAt)
-            .ThenBy(x => RecommendationRules.DifficultyDistance(x.Quiz.Difficulty, target))
+            .Select(q => (Quiz: q, Weak: quizHeritages.GetValueOrDefault(q.Id)?.Count(weak.Contains) ?? 0));
+        var nextQuizzes = OrderNextQuizzes(openQuizzes, hasAttempts, target)
             .ThenBy(x => x.Quiz.Id)
             .Take(RecommendationRules.StudentSectionLimit)
             .Select(x =>
@@ -158,19 +158,44 @@ public sealed class StudentRecommendationService(IAppDbContext db, AttemptLifecy
                 return (Lesson: l, Match: best, Distance: distances.GetValueOrDefault(l.Id, 2));
             })
             .ToList();
-        var newOrdered = hasReferences
-            ? newRanked.OrderByDescending(x => x.Match?.Score ?? 0d).ThenBy(x => x.Distance).ThenByDescending(x => x.Lesson.CreatedAt).ThenByDescending(x => x.Lesson.Id)
-            : newRanked.OrderByDescending(x => x.Lesson.CreatedAt).ThenBy(x => x.Distance).ThenByDescending(x => x.Lesson.Id);
-        var newCards = newOrdered
+        var newCards = OrderNewLessons(newRanked, hasAttempts, hasReferences)
+            .ThenByDescending(x => x.Lesson.Id)
             .Take(RecommendationRules.StudentSectionLimit)
             .Select(x => new RecommendedLessonDto(x.Lesson.Id, x.Lesson.Title, null, RecommendationRules.AskTeacherForLessonCode, x.Match?.Reason ?? RecommendationRules.NewLessonReason))
             .ToList();
 
-        var message = attempts.Count == 0 || lessons.Count == 0 ? Messages.StudentNoAttemptsYet : null;
+        var message = !hasAttempts || lessons.Count == 0 ? Messages.StudentNoAttemptsYet : null;
         return new StudentRecommendationsDto(
             student.Level, student.LevelName, LessonFrames.For(student.Level).Layout, attemptId, target, RecommendationRules.DifficultyName(target),
             nextQuizzes, lessonsToReview, heritagesToReview, related, newCards, praise, message, ranked.UsedFallback);
     }
+
+    /// <summary>
+    /// Thứ tự phần "quiz nên làm tiếp". Em đã có lượt: quiz có câu về di sản em còn yếu trước, rồi hạn đóng gần nhất (không hạn thì sau cùng), rồi độ khó
+    /// gần mức khó mục tiêu. Em chưa có lượt nào: độ khó gần mức khó mục tiêu theo cấp trước, rồi hạn đóng gần nhất.
+    /// </summary>
+    private static IOrderedEnumerable<(QuizRow Quiz, int Weak)> OrderNextQuizzes(
+        IEnumerable<(QuizRow Quiz, int Weak)> open, bool hasAttempts, DifficultyLevel target) =>
+        hasAttempts
+            ? open.OrderByDescending(x => x.Weak > 0)
+                .ThenBy(x => x.Quiz.CloseAt is null)
+                .ThenBy(x => x.Quiz.CloseAt)
+                .ThenBy(x => RecommendationRules.DifficultyDistance(x.Quiz.Difficulty, target))
+            : open.OrderBy(x => RecommendationRules.DifficultyDistance(x.Quiz.Difficulty, target))
+                .ThenBy(x => x.Quiz.CloseAt is null)
+                .ThenBy(x => x.Quiz.CloseAt);
+
+    /// <summary>
+    /// Thứ tự phần "bài học mới nên học". Có di sản tham chiếu: độ tương đồng cao trước, rồi độ khó các quiz của bài gần mức khó mục tiêu, rồi bài mới tạo trước.
+    /// Em đã có lượt nhưng chưa có gì để so: bài mới tạo trước, rồi độ khó. Em chưa có lượt nào: độ khó gần mức khó mục tiêu theo cấp trước, rồi bài mới tạo trước.
+    /// </summary>
+    private static IOrderedEnumerable<(LessonRow Lesson, RelatedHeritage? Match, int Distance)> OrderNewLessons(
+        IEnumerable<(LessonRow Lesson, RelatedHeritage? Match, int Distance)> lessons, bool hasAttempts, bool hasReferences) =>
+        hasReferences
+            ? lessons.OrderByDescending(x => x.Match?.Score ?? 0d).ThenBy(x => x.Distance).ThenByDescending(x => x.Lesson.CreatedAt)
+            : hasAttempts
+                ? lessons.OrderByDescending(x => x.Lesson.CreatedAt).ThenBy(x => x.Distance)
+                : lessons.OrderBy(x => x.Distance).ThenByDescending(x => x.Lesson.CreatedAt);
 
     /// <summary>Lượt phải là của em (lượt của em khác như không tồn tại) và đã nộp; lượt đã quá hạn nhận bài thì chốt hết giờ trước.</summary>
     private async Task EnsureFinishedAttemptAsync(StudentContext student, long attemptId, CancellationToken ct)
