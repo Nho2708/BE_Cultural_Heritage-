@@ -1,0 +1,31 @@
+name: Sao lưu hằng đêm
+
+# Sao lưu CSDL của máy demo mỗi đêm (01:30 giờ Việt Nam) trên runner tự host, giữ 14 bản mới nhất ở C:\dsvhvn\sao-luu\hang-dem.
+# Máy demo tắt thì lượt chạy chờ runner rồi tự huỷ, đêm sau chạy lại; chạy tay bằng nút "Run workflow".
+on:
+  schedule:
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Dùng chung nhóm với workflow triển khai để không sao lưu giữa lúc đang áp migration.
+concurrency:
+  group: trien-khai-api
+  cancel-in-progress: false
+
+jobs:
+  sao-luu:
+    name: Sao lưu CSDL demo
+    runs-on: [self-hosted, windows, may-demo]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/trien-khai
+
+      - name: Chạy script sao lưu
+        shell: pwsh
+        run: ./scripts/trien-khai/sao-luu-csdl.ps1
