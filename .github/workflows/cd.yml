@@ -10,6 +10,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      ma_commit:
+        description: Commit cần triển khai (bỏ trống thì lấy commit mới nhất của nhánh đã chọn)
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -30,13 +35,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      MA_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
+      MA_COMMIT: ${{ inputs.ma_commit || github.event.workflow_run.head_sha || github.sha }}
     steps:
       # Lấy đúng commit CI vừa kiểm (main có thể đã có commit mới hơn).
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ inputs.ma_commit || github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -79,7 +84,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ inputs.ma_commit || github.event.workflow_run.head_sha || github.sha }}
           sparse-checkout: scripts/trien-khai
 
       - uses: actions/download-artifact@v8
