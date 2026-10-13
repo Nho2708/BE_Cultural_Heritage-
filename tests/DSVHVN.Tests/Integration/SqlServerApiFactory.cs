@@ -11,7 +11,7 @@ public static class LocalDb
     {
         try
         {
-            using var connection = new SqlConnection(ConnectionString("master") + ";Connect Timeout=15");
+            using var connection = new SqlConnection(ConnectionString("master"));
             connection.Open();
             return true;
         }
@@ -23,8 +23,9 @@ public static class LocalDb
 
     public static bool Available => Reachable.Value;
 
+    /// <summary>Chờ kết nối tới 60 giây: trên máy ảo của CI, LocalDB mở chậm khi nhiều kiểm thử cùng tạo database tạm.</summary>
     public static string ConnectionString(string database) =>
-        $"Server={Server};Database={database};Trusted_Connection=True;TrustServerCertificate=True";
+        $"Server={Server};Database={database};Trusted_Connection=True;TrustServerCertificate=True;Connect Timeout=60";
 
     /// <summary>Tiền tố tên database tạm của kiểm thử luồng hiện tại; tiền tố cũ vẫn được xóa để dọn database còn sót từ các lần chạy trước.</summary>
     public const string TemporaryPrefix = "dsvhvn_tam_a2_";
