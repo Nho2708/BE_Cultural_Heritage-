@@ -1,8 +1,10 @@
 name: CI
 
 on:
+  # Nhánh việc chỉ chạy CI qua Pull Request (mở ở dạng nháp nếu chưa xong): chạy thêm lượt push cho cùng commit thì
+  # hai lượt cùng tên kiểm tra, một lượt hỏng ngẫu nhiên cũng chặn gộp.
   push:
-    branches: [main, "feature/**", "bugfix/**", "release/**"]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -38,6 +40,12 @@ jobs:
 
       - name: Build
         run: dotnet build DSVHVN.sln -c Release --no-restore
+
+      # LocalDB của máy ảo khởi động chậm ở lần kết nối đầu: khởi động sẵn để các kiểm thử trên CSDL thật không hết thời gian chờ.
+      - name: Start SQL Server LocalDB
+        run: |
+          sqllocaldb start MSSQLLocalDB
+          sqllocaldb info MSSQLLocalDB
 
       - name: Test
         run: >-
