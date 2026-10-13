@@ -2,9 +2,9 @@ name: Tự động gộp
 
 # Pull Request vào main tự gộp (squash) khi CI của đúng commit cuối cùng đạt, không cần người duyệt.
 # Không gộp: PR nháp, PR của Dependabot, PR gắn nhãn "giu-lai", PR từ fork.
-# Gộp bằng GITHUB_TOKEN thì GitHub không tự chạy workflow cho commit mới trên main, nên sau khi gộp phải gọi CI trên main;
-# CI đó đạt thì CD triển khai lên máy demo.
-# Sau mỗi lượt CI trên main: báo các PR đang xung đột với main, và báo khi CI trên main không đạt.
+# Việc làm bằng GITHUB_TOKEN không kích hoạt workflow khác (trừ workflow_dispatch), nên sau khi gộp job tự gọi CI trên main,
+# chờ CI xong rồi mới gọi CD cho đúng commit đã gộp; CI hỏng thì ghi vào PR, máy demo giữ bản trước.
+# Sau mỗi lần main đổi: nhắc các PR đang xung đột với main. CI trên main do người đẩy lên mà hỏng thì cũng báo.
 on:
   workflow_run:
     workflows: [CI]
@@ -35,10 +35,14 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      so: ${{ steps.gop.outputs.so }}
+      ma_gop: ${{ steps.gop.outputs.ma_gop }}
     env:
       NHANH: ${{ github.event.workflow_run.head_branch }}
     steps:
-      - name: Gộp vào main rồi gọi CI trên main
+      - name: Gộp vào main
+        id: gop
         run: |
           set -euo pipefail
           ds=$(gh pr list --base main --state open --head "$NHANH" --json number,headRefOid,isDraft,author,labels)
@@ -65,16 +69,62 @@ jobs:
           Cập nhật nhánh từ \`main\` hoặc xử lý xung đột rồi đẩy lại; CI chạy xong sẽ tự gộp."
             exit 1
           fi
-          echo "Đã gộp PR #$so vào main."
+          ma_gop=$(gh pr view "$so" --json mergeCommit --jq '.mergeCommit.oid')
+          echo "Đã gộp PR #$so vào main (commit $ma_gop)."
+          echo "so=$so" >> "$GITHUB_OUTPUT"
+          echo "ma_gop=$ma_gop" >> "$GITHUB_OUTPUT"
+
+  ci-va-trien-khai:
+    name: CI trên main rồi triển khai
+    needs: gop
+    if: needs.gop.outputs.ma_gop != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SO: ${{ needs.gop.outputs.so }}
+      MA_GOP: ${{ needs.gop.outputs.ma_gop }}
+      CHU_REPO: ${{ github.repository_owner }}
+    steps:
+      - name: Chạy CI trên commit vừa gộp, đạt thì gọi CD
+        run: |
+          set -euo pipefail
           gh workflow run ci.yml --ref main
-          echo "Đã gọi CI trên main; CI đạt thì CD triển khai lên máy demo."
+          lan_chay=""
+          for lan in $(seq 1 30); do
+            lan_chay=$(gh run list --workflow ci.yml --branch main --event workflow_dispatch --commit "$MA_GOP" \
+              --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            [ -n "$lan_chay" ] && break
+            sleep 5
+          done
+          if [ -z "$lan_chay" ]; then
+            echo "Không thấy lượt CI vừa gọi cho commit $MA_GOP."
+            exit 1
+          fi
+          echo "Chờ CI: https://github.com/$GH_REPO/actions/runs/$lan_chay"
+          gh run watch "$lan_chay" --interval 20 > /dev/null || true
+          ket_qua=$(gh run view "$lan_chay" --json conclusion --jq '.conclusion')
+          case "$ket_qua" in
+            success)
+              gh workflow run cd.yml --ref main -f ma_commit="$MA_GOP"
+              echo "CI đạt: đã gọi CD triển khai commit $MA_GOP lên máy demo." ;;
+            cancelled)
+              echo "CI của commit $MA_GOP bị huỷ vì main đã có commit mới hơn; lượt gộp sau sẽ triển khai cả commit này." ;;
+            *)
+              tac_gia=$(gh pr view "$SO" --json author --jq '.author.login')
+              gh pr comment "$SO" --body "@$CHU_REPO @$tac_gia CI trên \`main\` không đạt sau khi gộp PR này (commit $MA_GOP, https://github.com/$GH_REPO/actions/runs/$lan_chay), nên CD chưa triển khai; máy demo vẫn chạy bản trước. Sửa bằng một Pull Request mới."
+              echo "CI trên main: $ket_qua. Đã ghi vào PR #$SO."
+              exit 1 ;;
+          esac
 
   bao-xung-dot:
     name: Báo Pull Request xung đột với main
+    needs: gop
     if: >-
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.event != 'pull_request' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      always() &&
+      (needs.gop.outputs.ma_gop != '' ||
+       (github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.event != 'pull_request' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
