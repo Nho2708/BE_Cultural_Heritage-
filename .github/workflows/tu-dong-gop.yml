@@ -1,0 +1,139 @@
+name: Tự động gộp
+
+# Pull Request vào main tự gộp (squash) khi CI của đúng commit cuối cùng đạt, không cần người duyệt.
+# Không gộp: PR nháp, PR của Dependabot, PR gắn nhãn "giu-lai", PR từ fork.
+# Gộp bằng GITHUB_TOKEN thì GitHub không tự chạy workflow cho commit mới trên main, nên sau khi gộp phải gọi CI trên main;
+# CI đó đạt thì CD triển khai lên máy demo.
+# Sau mỗi lượt CI trên main: báo các PR đang xung đột với main, và báo khi CI trên main không đạt.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+concurrency:
+  group: tu-dong-gop-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+  MA_COMMIT: ${{ github.event.workflow_run.head_sha }}
+  NHAN_GIU: giu-lai
+
+jobs:
+  gop:
+    name: Gộp Pull Request đã đạt CI
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      NHANH: ${{ github.event.workflow_run.head_branch }}
+    steps:
+      - name: Gộp vào main rồi gọi CI trên main
+        run: |
+          set -euo pipefail
+          ds=$(gh pr list --base main --state open --head "$NHANH" --json number,headRefOid,isDraft,author,labels)
+          pr=$(jq -c --arg sha "$MA_COMMIT" '[.[] | select(.headRefOid == $sha)] | first // empty' <<<"$ds")
+          if [ -z "$pr" ]; then
+            echo "Không có Pull Request mở vào main ứng với commit $MA_COMMIT (PR đã đóng hoặc nhánh đã có commit mới hơn)."
+            exit 0
+          fi
+          so=$(jq -r '.number' <<<"$pr")
+          if [ "$(jq -r '.isDraft' <<<"$pr")" = "true" ]; then
+            echo "PR #$so đang ở dạng nháp: không gộp."
+            exit 0
+          fi
+          case "$(jq -r '.author.login' <<<"$pr")" in
+            *dependabot*) echo "PR #$so của Dependabot: để người xem rồi gộp tay."; exit 0 ;;
+          esac
+          if jq -e --arg nhan "$NHAN_GIU" 'any(.labels[]; .name == $nhan)' <<<"$pr" > /dev/null; then
+            echo "PR #$so có nhãn $NHAN_GIU: không gộp."
+            exit 0
+          fi
+          if ! loi=$(gh pr merge "$so" --squash --match-head-commit "$MA_COMMIT" 2>&1); then
+            echo "Không gộp được PR #$so: $loi"
+            gh pr comment "$so" --body "Tự động gộp không thành công: ${loi}
+          Cập nhật nhánh từ \`main\` hoặc xử lý xung đột rồi đẩy lại; CI chạy xong sẽ tự gộp."
+            exit 1
+          fi
+          echo "Đã gộp PR #$so vào main."
+          gh workflow run ci.yml --ref main
+          echo "Đã gọi CI trên main; CI đạt thì CD triển khai lên máy demo."
+
+  bao-xung-dot:
+    name: Báo Pull Request xung đột với main
+    if: >-
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event != 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Nhắc tác giả các PR đang xung đột
+        run: |
+          set -euo pipefail
+          # GitHub tính lại khả năng gộp sau khi main đổi: trạng thái UNKNOWN thì chờ một lúc rồi hỏi lại.
+          for lan in 1 2 3 4 5 6; do
+            ds=$(gh pr list --base main --state open --json number,mergeable,headRefOid,author)
+            jq -e 'any(.[]; .mergeable == "UNKNOWN")' <<<"$ds" > /dev/null || break
+            sleep 10
+          done
+          jq -c '.[] | select(.mergeable == "CONFLICTING")' <<<"$ds" | while read -r pr; do
+            so=$(jq -r '.number' <<<"$pr")
+            dau="<!-- xung-dot:$(jq -r '.headRefOid' <<<"$pr") -->"
+            binh_luan=$(gh pr view "$so" --json comments --jq '.comments[].body')
+            if grep -qF "$dau" <<<"$binh_luan"; then
+              continue
+            fi
+            tac_gia=$(jq -r '.author.login' <<<"$pr")
+            case "$tac_gia" in app/*) goi="" ;; *) goi="@$tac_gia " ;; esac
+            gh pr comment "$so" --body "$dau
+          ${goi}Pull Request này đang xung đột với \`main\` nên CI không chạy và chưa tự gộp được. Xử lý trên máy của bạn:
+
+          \`\`\`
+          git fetch origin
+          git merge origin/main
+          # sửa các tệp bị đánh dấu xung đột, chạy lại test
+          git add <các tệp đã sửa>
+          git commit
+          git push
+          \`\`\`
+
+          Đẩy lên xong CI tự chạy lại; đạt thì PR tự gộp."
+            echo "Đã báo xung đột ở PR #$so."
+          done
+
+  bao-main-hong:
+    name: Báo CI trên main không đạt
+    if: >-
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event != 'pull_request' &&
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      LINK_CI: ${{ github.event.workflow_run.html_url }}
+      CHU_REPO: ${{ github.repository_owner }}
+    steps:
+      - name: Ghi vào PR đã đưa commit này vào main
+        run: |
+          set -euo pipefail
+          noi_dung="@$CHU_REPO CI trên \`main\` không đạt ở commit $MA_COMMIT ($LINK_CI), nên CD chưa triển khai commit này lên máy demo (máy demo vẫn chạy bản trước). Sửa bằng một Pull Request mới."
+          so=$(gh api "repos/$GH_REPO/commits/$MA_COMMIT/pulls" --jq '.[0].number // empty')
+          if [ -n "$so" ]; then
+            gh pr comment "$so" --body "$noi_dung"
+            echo "Đã ghi vào PR #$so."
+          else
+            gh issue create --title "CI trên main không đạt" --body "$noi_dung"
+            echo "Đã mở issue."
+          fi
