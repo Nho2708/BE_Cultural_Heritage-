@@ -57,6 +57,8 @@ public static class MessageCodes
     public const string AttemptFinished = "ATTEMPT_FINISHED";
     public const string AttemptInProgress = "ATTEMPT_IN_PROGRESS";
     public const string GuestOnly = "GUEST_ONLY";
+    public const string SchoolInquiryReceived = "SCHOOL_INQUIRY_RECEIVED";
+    public const string SchoolInquiryUnavailable = "SCHOOL_INQUIRY_UNAVAILABLE";
 }
 
 /// <summary>
@@ -310,6 +312,16 @@ public static class Messages
 
     /// <summary>Thống kê, tiến độ, gợi ý của lớp khi chưa có lượt nộp.</summary>
     public const string ClassNoResultsYet = "Chưa có học sinh nào nộp bài. Thống kê và gợi ý sẽ hiện khi có kết quả.";
+
+    // ---- Liên hệ của trường ----
+
+    /// <summary>Đã nhận biểu mẫu liên hệ của trang Dành cho nhà trường (cũng là câu trả lời cho ô bẫy).</summary>
+    public static readonly AppMessage SchoolInquiryReceived =
+        new(MessageCodes.SchoolInquiryReceived, "Đã gửi. Nhóm sẽ liên hệ lại qua email.");
+
+    /// <summary>Chưa chuyển được thư tới quản trị (chưa có người nhận hoặc máy chủ thư lỗi).</summary>
+    public static readonly AppMessage SchoolInquiryUnavailable =
+        new(MessageCodes.SchoolInquiryUnavailable, "Chưa gửi được, vui lòng thử lại sau.");
 
     /// <summary>Lỗi hệ thống ngoài dự kiến.</summary>
     public static readonly AppMessage SystemError =

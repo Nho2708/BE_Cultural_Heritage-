@@ -17,6 +17,7 @@ using DSVHVN.Application.Profile;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Quizzes;
 using DSVHVN.Application.Recommendations;
+using DSVHVN.Application.SchoolInquiries;
 using DSVHVN.Application.Statistics;
 using DSVHVN.Application.StudentAuth;
 using DSVHVN.Application.Students;
@@ -47,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<AccountProvisioner>();
         services.AddScoped<AccountActions>();
         services.AddScoped<AuthService>();
+        services.AddScoped<SchoolInquiryService>();
         services.AddScoped<ProfileService>();
         services.AddScoped<OrganizationService>();
         services.AddScoped<MyOrganizationService>();

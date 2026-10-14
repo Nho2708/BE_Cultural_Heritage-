@@ -17,6 +17,13 @@ public static class PublicRateLimit
     public const string ConfigKey = "RateLimiting:PublicRequestsPerMinute";
     public const int DefaultRequestsPerMinute = 300;
 
+    /// <summary>Chính sách riêng của biểu mẫu liên hệ của trường: mặc định 5 lần mỗi 10 phút mỗi IP (cửa sổ cố định).</summary>
+    public const string SchoolInquiryPolicyName = "school-inquiry";
+    public const string SchoolInquiryPermitsKey = "RateLimiting:SchoolInquiryPermits";
+    public const string SchoolInquiryWindowMinutesKey = "RateLimiting:SchoolInquiryWindowMinutes";
+    public const int DefaultSchoolInquiryPermits = 5;
+    public const int DefaultSchoolInquiryWindowMinutes = 10;
+
     public static IServiceCollection AddPublicRateLimit(this IServiceCollection services)
     {
         services.AddRateLimiter(options =>
@@ -32,6 +39,19 @@ public static class PublicRateLimit
                     PermitLimit = Math.Max(1, limit),
                     Window = TimeSpan.FromMinutes(1),
                     SegmentsPerWindow = 6,
+                    QueueLimit = 0,
+                    AutoReplenishment = true,
+                });
+            });
+            options.AddPolicy(SchoolInquiryPolicyName, context =>
+            {
+                var config = context.RequestServices.GetRequiredService<IConfiguration>();
+                var permits = config.GetValue(SchoolInquiryPermitsKey, DefaultSchoolInquiryPermits);
+                var minutes = config.GetValue(SchoolInquiryWindowMinutesKey, DefaultSchoolInquiryWindowMinutes);
+                return RateLimitPartition.GetFixedWindowLimiter(ClientKey(context), _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = Math.Max(1, permits),
+                    Window = TimeSpan.FromMinutes(Math.Max(1, minutes)),
                     QueueLimit = 0,
                     AutoReplenishment = true,
                 });
