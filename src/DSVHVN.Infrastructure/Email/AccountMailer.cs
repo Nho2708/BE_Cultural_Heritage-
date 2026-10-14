@@ -39,7 +39,7 @@ public sealed class AccountEmailComposer(AppLinkOptions links)
         return Compose(new Letter(
             To: email,
             FullName: fullName,
-            Subject: "Đặt mật khẩu cho tài khoản DSVHVN của bạn",
+            Subject: "Đặt mật khẩu cho tài khoản Vietnam Heritage của bạn",
             Intro:
             [
                 new Line($"Tài khoản DSVHVN{where} đã được tạo cho bạn. Tên đăng nhập: ", username, "."),
@@ -57,10 +57,10 @@ public sealed class AccountEmailComposer(AppLinkOptions links)
         Compose(new Letter(
             To: email,
             FullName: fullName,
-            Subject: "Đặt lại mật khẩu tài khoản DSVHVN",
+            Subject: "Đặt lại mật khẩu tài khoản Vietnam Heritage",
             Intro:
             [
-                new Line("Bạn vừa yêu cầu đặt lại mật khẩu tài khoản DSVHVN."),
+                new Line("Bạn vừa yêu cầu đặt lại mật khẩu tài khoản Vietnam Heritage."),
                 new Line("Mở liên kết dưới đây để đặt mật khẩu mới:"),
             ],
             ButtonText: "Đặt lại mật khẩu",
