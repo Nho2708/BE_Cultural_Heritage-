@@ -43,7 +43,7 @@ public sealed class EmailContentTests
         const string link = "https://quantri.dsvhvn.test/dat-mat-khau?token=Abc_123-xyz";
         Assert.Equal("hanh@truong.edu.vn", mail.To);
         Assert.Equal("Trần Thị Hạnh", mail.ToName);
-        Assert.Equal("Đặt mật khẩu cho tài khoản DSVHVN của bạn", mail.Subject);
+        Assert.Equal("Đặt mật khẩu cho tài khoản Vietnam Heritage của bạn", mail.Subject);
 
         Assert.StartsWith("Xin chào Trần Thị Hạnh,", mail.TextBody);
         Assert.Contains("Tài khoản DSVHVN của Trường Tiểu học Lê Lợi đã được tạo cho bạn. Tên đăng nhập: hanh.tran.", mail.TextBody);
@@ -66,9 +66,9 @@ public sealed class EmailContentTests
     {
         var mail = Composer.ResetPasswordLink("an@truong.edu.vn", "Nguyễn Văn An", Token, ExpiresAt);
 
-        Assert.Equal("Đặt lại mật khẩu tài khoản DSVHVN", mail.Subject);
+        Assert.Equal("Đặt lại mật khẩu tài khoản Vietnam Heritage", mail.Subject);
         Assert.StartsWith("Xin chào Nguyễn Văn An,", mail.TextBody);
-        Assert.Contains("Bạn vừa yêu cầu đặt lại mật khẩu tài khoản DSVHVN.", mail.TextBody);
+        Assert.Contains("Bạn vừa yêu cầu đặt lại mật khẩu tài khoản Vietnam Heritage.", mail.TextBody);
         Assert.Contains("https://quantri.dsvhvn.test/dat-mat-khau?token=Abc_123-xyz", mail.TextBody);
         Assert.Contains("Liên kết có hiệu lực 30 phút (đến 09:00 ngày 01/10/2026)", mail.TextBody);
         Assert.Contains("Nếu bạn không yêu cầu, hãy bỏ qua thư này", mail.TextBody);
@@ -138,7 +138,7 @@ public sealed class EmailContentTests
         var mime = SmtpEmailSender.CreateMimeMessage(mail, smtp);
 
         var from = Assert.Single(mime.From.Mailboxes);
-        Assert.Equal(("DSVHVN — Nền tảng học di sản", "dsvhvn.thu@gmail.com"), (from.Name, from.Address));
+        Assert.Equal(("Vietnam Heritage", "dsvhvn.thu@gmail.com"), (from.Name, from.Address));
         var to = Assert.Single(mime.To.Mailboxes);
         Assert.Equal(("Trần Thị Hạnh", "hanh@truong.edu.vn"), (to.Name, to.Address));
         Assert.Equal(mail.Subject, mime.Subject);
@@ -173,7 +173,7 @@ public sealed class EmailContentTests
         await new LogEmailSender(logger).SendAsync(mail);
 
         var entry = Assert.Single(logger.Messages);
-        Assert.Contains("Tới: an@truong.edu.vn | Tiêu đề: Đặt lại mật khẩu tài khoản DSVHVN", entry);
+        Assert.Contains("Tới: an@truong.edu.vn | Tiêu đề: Đặt lại mật khẩu tài khoản Vietnam Heritage", entry);
         Assert.Contains("token=" + Token, entry);
     }
 }
@@ -228,7 +228,7 @@ public sealed class EmailConfigurationTests
 
         Assert.IsType<SmtpEmailSender>(sp.GetRequiredService<IEmailSender>());
         var smtp = sp.GetRequiredService<IOptions<EmailOptions>>().Value.Smtp;
-        Assert.Equal((587, true, "DSVHVN — Nền tảng học di sản", 30), (smtp.Port, smtp.UseStartTls, smtp.FromName, smtp.TimeoutSeconds));
+        Assert.Equal((587, true, "Vietnam Heritage", 30), (smtp.Port, smtp.UseStartTls, smtp.FromName, smtp.TimeoutSeconds));
     }
 
     [Fact]
@@ -307,7 +307,7 @@ public sealed class SmtpEmailSenderTests
         await Sender(server.Port, logger).SendAsync(mail).WaitAsync(TimeSpan.FromSeconds(15));
 
         var received = await server.ReceivedAsync().WaitAsync(TimeSpan.FromSeconds(15));
-        Assert.Equal("Đặt mật khẩu cho tài khoản DSVHVN của bạn", received.Subject);
+        Assert.Equal("Đặt mật khẩu cho tài khoản Vietnam Heritage của bạn", received.Subject);
         Assert.Equal("hanh@truong.edu.vn", Assert.Single(received.To.Mailboxes).Address);
         Assert.Contains("token=" + token, received.TextBody);
         Assert.Contains("Xin chào <strong>Trần Thị Hạnh</strong>", received.HtmlBody);

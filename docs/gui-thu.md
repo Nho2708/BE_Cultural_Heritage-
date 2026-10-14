@@ -41,7 +41,7 @@ Quên mật khẩu gửi lỗi thì câu trả lời vẫn như cũ (không đ�
 | `Email:Smtp:Username` | trống | Để trống nếu máy chủ không yêu cầu đăng nhập |
 | `Email:Smtp:Password` | — | **Không ghi vào appsettings.** Chỉ đặt bằng User Secrets hoặc biến môi trường `Email__Smtp__Password`. Bắt buộc khi có `Username` |
 | `Email:Smtp:FromAddress` | trống | Bắt buộc khi `Smtp`, phải là địa chỉ email hợp lệ |
-| `Email:Smtp:FromName` | `DSVHVN — Nền tảng học di sản` | Tên người gửi hiện trong hộp thư |
+| `Email:Smtp:FromName` | `Vietnam Heritage` | Tên người gửi hiện trong hộp thư |
 | `Email:Smtp:TimeoutSeconds` | `30` | Thời gian chờ tối đa mỗi bước kết nối, đăng nhập, gửi |
 | `App:FrontendBaseUrl`, `App:SetPasswordPath` | `http://localhost:5173`, `/dat-mat-khau` | Đường dẫn trong thư |
 
