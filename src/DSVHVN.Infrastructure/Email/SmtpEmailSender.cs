@@ -54,6 +54,8 @@ public sealed class SmtpEmailSender : IEmailSender
         var mime = new MimeMessage();
         mime.From.Add(new MailboxAddress(smtp.FromName?.Trim() ?? string.Empty, smtp.FromAddress.Trim()));
         mime.To.Add(new MailboxAddress(message.ToName ?? string.Empty, message.To));
+        if (!string.IsNullOrWhiteSpace(message.ReplyTo) && MailboxAddress.TryParse(message.ReplyTo.Trim(), out var replyTo))
+            mime.ReplyTo.Add(replyTo);
         mime.Subject = message.Subject;
         mime.Body = new BodyBuilder { TextBody = message.TextBody, HtmlBody = message.HtmlBody }.ToMessageBody();
         return mime;
