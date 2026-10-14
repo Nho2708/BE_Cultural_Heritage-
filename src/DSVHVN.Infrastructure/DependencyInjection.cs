@@ -6,6 +6,7 @@ using DSVHVN.Application.Files;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Recommendations;
+using DSVHVN.Application.SchoolInquiries;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Translations;
 using DSVHVN.Infrastructure.Ads;
@@ -193,5 +194,9 @@ public static class DependencyInjection
                 ? ActivatorUtilities.CreateInstance<SmtpEmailSender>(sp)
                 : ActivatorUtilities.CreateInstance<LogEmailSender>(sp));
         services.AddScoped<IAccountMailer, AccountMailer>();
+
+        // Liên hệ của trường (trang Dành cho nhà trường): gửi tới quản trị hệ thống và các địa chỉ khai ở SchoolInquiry:Recipients.
+        services.AddOptions<SchoolInquiryOptions>().Bind(configuration.GetSection(SchoolInquiryOptions.Section));
+        services.AddScoped<ISchoolInquiryMailer, SchoolInquiryMailer>();
     }
 }
