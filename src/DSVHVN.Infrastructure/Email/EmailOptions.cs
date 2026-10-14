@@ -43,7 +43,7 @@ public sealed class EmailOptions
 /// </summary>
 public sealed class SmtpOptions
 {
-    public const string DefaultFromName = "DSVHVN — Nền tảng học di sản";
+    public const string DefaultFromName = "Vietnam Heritage";
 
     public string Host { get; set; } = string.Empty;
 
