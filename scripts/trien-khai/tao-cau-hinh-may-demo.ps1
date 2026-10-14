@@ -137,6 +137,11 @@ foreach ($k in ($bimat.Keys | Where-Object { $_ -like 'Email:*' } | Sort-Object)
 }
 if (-not (Lay-BiMat 'Email:Mode')) { Dat 'Email:Mode' 'Log' }
 
+# Người nhận thư liên hệ của trang Dành cho nhà trường (ngoài các quản trị hệ thống có email thật): SchoolInquiry:Recipients:0, :1...
+$nguoiNhan = Lay-DanhSach 'SchoolInquiry:Recipients'
+if ($nguoiNhan.Count -gt 0) { Dat 'SchoolInquiry:Recipients' $nguoiNhan }
+else { Write-Warning 'User Secrets chưa có SchoolInquiry:Recipients: thư liên hệ chỉ tới quản trị hệ thống có email thật (tài khoản demo đuôi .local không nhận được).' }
+
 # AI: dịch vụ thật trên máy demo nếu đã chạy (site IIS 127.0.0.1:8090), không thì giả lập.
 # Không lấy Ai:Mode, Ai:BaseUrl của User Secrets: đó là cấu hình máy dev (dịch vụ chạy tay ở cổng 8000).
 $diaChiAi = $DiaChiAi.TrimEnd('/')
