@@ -124,3 +124,7 @@ Tiêu đề thư: `Vietnam Heritage – Trường liên hệ: <tên trường>`.
 trả lời thẳng. Mọi chữ người dùng nhập được mã hóa HTML ở bản HTML; giá trị một dòng được gộp khoảng trắng và bỏ ký tự điều khiển. Hệ thống
 **không gửi thư xác nhận** về địa chỉ người nhập. Một người nhận lỗi chỉ ghi log (địa chỉ đã che bớt) và không chặn người khác. Máy demo dùng
 `Email:Mode=Log` thì nội dung thư chỉ hiện trong log.
+
+Máy demo: các tài khoản quản trị hệ thống mẫu có email đuôi `.local` nên không nhận được thư. Khai người nhận thật trong User Secrets của
+`src/DSVHVN.Api` (`dotnet user-secrets set "SchoolInquiry:Recipients:0" "<email>"`); `scripts/trien-khai/tao-cau-hinh-may-demo.ps1` chép mảng này
+vào `appsettings.Production.json` của máy demo.
