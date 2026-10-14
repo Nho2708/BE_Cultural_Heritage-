@@ -159,8 +159,9 @@ public interface ITokenIssuer
 
 /// <summary>
 /// Một thư đã soạn xong: địa chỉ và họ tên người nhận, tiêu đề, bản chữ thuần và bản HTML cùng nội dung.
+/// <paramref name="ReplyTo"/> (không bắt buộc) là địa chỉ nhận thư trả lời.
 /// </summary>
-public sealed record EmailMessage(string To, string? ToName, string Subject, string TextBody, string HtmlBody);
+public sealed record EmailMessage(string To, string? ToName, string Subject, string TextBody, string HtmlBody, string? ReplyTo = null);
 
 /// <summary>
 /// Gửi thư. Hai bản chọn theo cấu hình <c>Email:Mode</c>: <c>Log</c> (mặc định, chỉ ghi thư ra log cho máy phát triển)
