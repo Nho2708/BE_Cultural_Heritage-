@@ -192,4 +192,35 @@ public static class AttemptRules
     /// <summary>Tỉ lệ đúng theo phần trăm, làm tròn 1 chữ số thập phân; chưa trả lời câu nào thì 0.</summary>
     public static decimal RatePercent(int correct, int answered) =>
         answered <= 0 ? 0m : Math.Round(correct * 100m / answered, 1, MidpointRounding.AwayFromZero);
+
+    /// <summary>Số ngày học liên tiếp (streak) tính từ ngày nộp bài của các lượt làm bài so với hôm nay.</summary>
+    public static int StreakDays(IEnumerable<DateTime> dates, DateTime today)
+    {
+        var days = dates.Select(d => d.Date).Distinct().OrderByDescending(d => d).ToList();
+        if (days.Count == 0) return 0;
+
+        var current = today.Date;
+        if (!days.Contains(current))
+        {
+            current = current.AddDays(-1);
+            if (!days.Contains(current)) return 0;
+        }
+
+        int streak = 0;
+        while (days.Contains(current))
+        {
+            streak++;
+            current = current.AddDays(-1);
+        }
+        return streak;
+    }
+
+    /// <summary>Lời cổ vũ vui vẻ của linh vật cho học sinh cấp 1 ở trang chủ.</summary>
+    public static string LevelOneCheer(int stars, int streak, bool hasInProgress, bool hasOpenQuizzes)
+    {
+        if (hasInProgress) return "Em có bài đang làm dở kìa! Cùng hoàn thành để nhận thêm sao nhé!";
+        if (stars > 0) return $"Tuyệt vời! Em đã tích lũy được {stars} ngôi sao sáng chói rồi đó! 🌟";
+        if (hasOpenQuizzes) return "Có thử thách đố vui mới dành cho em! Vào chơi ngay nào! 🎮";
+        return "Nhập mã bài học từ thầy cô để mở khóa các chặng di sản kỳ thú nhé! 🔑";
+    }
 }

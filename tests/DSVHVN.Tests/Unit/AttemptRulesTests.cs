@@ -161,4 +161,26 @@ public sealed class AttemptRulesTests
     {
         Assert.Equal(["Đang làm", "Đã nộp", "Tự nộp khi hết giờ"], Enum.GetValues<AttemptStatus>().Select(s => AttemptRules.StatusLabel(s)));
     }
+
+    [Fact]
+    public void Streak_days_and_level_one_cheer()
+    {
+        var today = new DateTime(2026, 10, 16);
+        Assert.Equal(0, AttemptRules.StreakDays([], today));
+
+        // Submitted today and yesterday -> streak 2
+        Assert.Equal(2, AttemptRules.StreakDays([today, today.AddDays(-1), today.AddDays(-5)], today));
+
+        // Submitted yesterday but not today -> streak 1
+        Assert.Equal(1, AttemptRules.StreakDays([today.AddDays(-1)], today));
+
+        // Submitted 2 days ago but neither today nor yesterday -> streak 0
+        Assert.Equal(0, AttemptRules.StreakDays([today.AddDays(-2)], today));
+
+        // Level 1 cheers
+        Assert.Contains("làm dở", AttemptRules.LevelOneCheer(10, 2, hasInProgress: true, hasOpenQuizzes: true));
+        Assert.Contains("ngôi sao", AttemptRules.LevelOneCheer(15, 2, hasInProgress: false, hasOpenQuizzes: true));
+        Assert.Contains("thử thách", AttemptRules.LevelOneCheer(0, 0, hasInProgress: false, hasOpenQuizzes: true));
+        Assert.Contains("mã bài học", AttemptRules.LevelOneCheer(0, 0, hasInProgress: false, hasOpenQuizzes: false));
+    }
 }

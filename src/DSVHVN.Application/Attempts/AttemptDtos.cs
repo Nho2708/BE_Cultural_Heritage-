@@ -290,4 +290,6 @@ public sealed record StudentHomeDto(
     IReadOnlyList<StudentInProgressDto> InProgress,
     IReadOnlyList<StudentOpenQuizDto> OpenQuizzes,
     IReadOnlyList<StudentLessonRefDto> MyLessons,
-    IReadOnlyList<StudentRecentBadgeDto> RecentBadges);
+    IReadOnlyList<StudentRecentBadgeDto> RecentBadges,
+    int? StreakDays = null,
+    string? Cheer = null);
