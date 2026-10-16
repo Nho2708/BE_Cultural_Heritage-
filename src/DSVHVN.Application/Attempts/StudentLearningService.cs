@@ -91,13 +91,19 @@ public sealed class StudentLearningService(IAppDbContext db, AttemptLifecycle li
 
         int? totalStars = student.Level == 1 ? finished.Sum(a => AttemptRules.Stars(a.Score ?? 0m, a.TotalPoint ?? 0m)) : null;
 
+        var submittedDates = finished.Where(a => a.SubmittedAt != null).Select(a => a.SubmittedAt!.Value).ToList();
+        int? streakDays = AttemptRules.StreakDays(submittedDates, now);
+        string? cheer = student.Level == 1
+            ? AttemptRules.LevelOneCheer(totalStars ?? 0, streakDays ?? 0, inProgress.Count > 0, openQuizzes.Count > 0)
+            : null;
+
         return new StudentHomeDto(
             student.Id, student.StudentCode, student.FullName, student.ClassName, student.Grade, student.Level, student.LevelName,
             LessonFrames.For(student.Level).Layout, student.TeacherName, totalStars, inProgress,
             openQuizzes.Select(q => new StudentOpenQuizDto(
                 q.Id, q.Name, q.LessonId, q.LessonTitle, q.OpenAt, q.CloseAt, AttemptRules.EffectiveTimeLimit(student.Level, q.TimeLimitMinutes),
                 q.Questions, q.NeedsCode, q.NeedsCode ? NeedsLessonCodeLabel : null)).ToList(),
-            myLessons, recentBadges);
+            myLessons, recentBadges, streakDays, cheer);
     }
 
     // ---- Lịch sử bài làm ----
