@@ -12,6 +12,7 @@ namespace DSVHVN.Infrastructure.Email;
 /// Chế độ <c>Email:Mode = Smtp</c>: gửi thật qua MailKit, mỗi thư một kết nối (kết nối, đăng nhập, gửi, ngắt).
 /// Log chỉ ghi địa chỉ người nhận đã che bớt và tiêu đề, không bao giờ ghi nội dung thư (có token đặt mật khẩu).
 /// Gửi không được thì ném <see cref="EmailDeliveryException"/>; nơi gọi ghi log lỗi và không làm hỏng thao tác đã lưu.
+/// Người nhận có tên miền <c>.local</c> thì không kết nối, chỉ ghi log (xem <see cref="EmailAddress.CanReceiveMail"/>).
 /// </summary>
 public sealed class SmtpEmailSender : IEmailSender
 {
@@ -28,8 +29,14 @@ public sealed class SmtpEmailSender : IEmailSender
 
     public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
-        var mime = CreateMimeMessage(message, _smtp);
         var recipient = MaskAddress(message.To);
+        if (!EmailAddress.CanReceiveMail(message.To))
+        {
+            _logger.LogInformation("Bỏ qua thư tới {Recipient}: tên miền .local không nhận thư | Tiêu đề: {Subject}", recipient, message.Subject);
+            return;
+        }
+
+        var mime = CreateMimeMessage(message, _smtp);
         try
         {
             using var client = new SmtpClient { Timeout = (int)TimeSpan.FromSeconds(_smtp.TimeoutSeconds).TotalMilliseconds };
