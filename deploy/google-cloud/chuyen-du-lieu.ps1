@@ -47,9 +47,9 @@ try {
     $tenBak = $tepInfo.Name
     Copy-Item -LiteralPath $TepSaoLuu -Destination (Join-Path $tam $tenBak)
     Copy-LenMayChu $haTang (Join-Path $tam $tenBak) $tenBak
-    $ghiDe = if ($GhiDe) { ' --ghi-de' } else { '' }
+    $thamSoGhiDe = if ($GhiDe) { ' --ghi-de' } else { '' }
     Invoke-MayChu $haTang ("sudo install -o 10001 -g 0 -m 640 `$HOME/$tenBak /opt/dsvhvn/sao-luu/nhap/$tenBak && rm -f `$HOME/$tenBak && " +
-        "sudo /opt/dsvhvn/bin/khoi-phuc-csdl.sh /opt/dsvhvn/sao-luu/nhap/$tenBak$ghiDe")
+        "sudo /opt/dsvhvn/bin/khoi-phuc-csdl.sh /opt/dsvhvn/sao-luu/nhap/$tenBak$thamSoGhiDe")
 
     # ------------------------------------------------------------ kho tệp
     if (-not $BoQuaKhoTep) {
