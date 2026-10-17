@@ -1,0 +1,4 @@
+# Script và cấu hình chạy trên máy chủ Linux luôn giữ LF: core.autocrlf=true của Windows đổi sang CRLF thì bash báo lỗi "$'\r'".
+*.sh text eol=lf
+Dockerfile text eol=lf
+deploy/google-cloud/may-chu/** text eol=lf

@@ -198,3 +198,85 @@ jobs:
 
       - name: Scan internal working codes
         run: python .github/scripts/kiem-ky-hieu.py --base "$BASE_REF"
+
+  # Dựng ảnh Docker của API và chạy thử đúng các script của máy chủ Google Cloud (deploy/google-cloud/may-chu) trên máy ảo của
+  # GitHub: cài thư mục, nạp cấu hình, tạo CSDL trống, triển khai (sao lưu, migration, kiểm sức khỏe), sao lưu hằng đêm,
+  # khôi phục từ bản sao lưu. Ảnh dựng tại chỗ (DSVHVN_KHONG_KEO_ANH=1), không cần Google Cloud.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check server scripts and Caddyfile
+        run: |
+          set -euo pipefail
+          for f in deploy/google-cloud/may-chu/*.sh deploy/google-cloud/may-chu/bin/*.sh; do bash -n "$f"; done
+          shellcheck -x -S warning deploy/google-cloud/may-chu/*.sh deploy/google-cloud/may-chu/bin/*.sh
+          anh_caddy=$(sed -n 's/^ *image: \(caddy:.*\)$/\1/p' deploy/google-cloud/may-chu/compose.yml)
+          for dia_chi in '203.0.113.7 203.0.113.7:8443' 'vietnamheritage.vn quantri.vietnamheritage.vn'; do
+            read -r hoc_tap quan_tri <<< "$dia_chi"
+            docker run --rm -v "$PWD/deploy/google-cloud/may-chu:/etc/caddy:ro" \
+              -e DIA_CHI_HOC_TAP="$hoc_tap" -e DIA_CHI_QUAN_TRI="$quan_tri" \
+              "$anh_caddy" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          done
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build API image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: dsvhvn-ci/api:ci
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Set up a simulated server
+        run: |
+          set -euo pipefail
+          goc="$RUNNER_TEMP/dsvhvn"
+          echo "DSVHVN_GOC=$goc" >> "$GITHUB_ENV"
+          sudo env DSVHVN_GOC="$goc" bash deploy/google-cloud/may-chu/cai-dat-may-chu.sh --bo-qua-he-thong \
+            --registry dsvhvn-ci --dia-chi-hoc-tap localhost --dia-chi-quan-tri localhost:8443
+
+          # Cấu hình dùng một lần cho lượt chạy này, không phải bí mật.
+          cau_hinh="$RUNNER_TEMP/cau-hinh"
+          mkdir -p "$cau_hinh"
+          mk_app="Ci$(openssl rand -hex 12)Ap1"
+          printf 'MSSQL_SA_PASSWORD=Ci%sSa1\nMAT_KHAU_CSDL_UNG_DUNG=%s\n' "$(openssl rand -hex 12)" "$mk_app" > "$cau_hinh/bi-mat.env"
+          printf 'AI_INTERNAL_KEY=ci\nAI_PROVIDER=gemini\n' > "$cau_hinh/ai.env"
+          jq -n \
+            --arg cs "Server=sql,1433;Database=dsvhvn;User Id=dsvhvn_app;Password=$mk_app;TrustServerCertificate=True;Encrypt=True" \
+            --arg jwt "$(openssl rand -base64 64 | tr -d '\n')" \
+            '{ConnectionStrings: {Default: $cs}, Database: {InitMode: "None"}, Jwt: {SigningKey: $jwt},
+              Email: {Mode: "Log"}, Ai: {Mode: "Simulated"},
+              Storage: {Provider: "Local", Local: {RootPath: "/data/storage"}},
+              App: {FrontendBaseUrl: "https://localhost:8443", LearningWebBaseUrl: "https://localhost"},
+              Cors: {AllowedOrigins: ["https://localhost:8443", "https://localhost"]}}' > "$cau_hinh/appsettings.Production.json"
+          sudo env DSVHVN_GOC="$goc" "$goc/bin/nap-cau-hinh.sh" "$cau_hinh"
+
+      - name: Create an empty database and deploy the API
+        run: |
+          set -euo pipefail
+          sudo env DSVHVN_GOC="$DSVHVN_GOC" "$DSVHVN_GOC/bin/khoi-phuc-csdl.sh" --tao-trong
+          sudo env DSVHVN_GOC="$DSVHVN_GOC" DSVHVN_KHONG_KEO_ANH=1 DSVHVN_BO_QUA_EDGE=1 "$DSVHVN_GOC/bin/trien-khai.sh" api ci
+          curl -fsS http://127.0.0.1:8080/health; echo
+          # Đọc qua đăng nhập dsvhvn_app (chỉ đọc và ghi dữ liệu) và qua tiêu đề chuyển tiếp như sau Caddy.
+          curl -fsS -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-For: 203.0.113.7' \
+            'http://127.0.0.1:8080/api/v1/public/provinces' | head -c 300; echo
+
+      - name: Back up, redeploy and restore
+        run: |
+          set -euo pipefail
+          sudo env DSVHVN_GOC="$DSVHVN_GOC" "$DSVHVN_GOC/bin/sao-luu-csdl.sh" hang-dem
+          sudo env DSVHVN_GOC="$DSVHVN_GOC" DSVHVN_KHONG_KEO_ANH=1 DSVHVN_BO_QUA_EDGE=1 "$DSVHVN_GOC/bin/trien-khai.sh" api ci
+          bak=$(sudo find "$DSVHVN_GOC/sao-luu/hang-dem" -name '*.bak' | sort | tail -n 1)
+          sudo env DSVHVN_GOC="$DSVHVN_GOC" "$DSVHVN_GOC/bin/khoi-phuc-csdl.sh" --ghi-de "$bak"
+          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:8080/health && break; sleep 2; done
+          curl -fsS 'http://127.0.0.1:8080/api/v1/public/provinces' | head -c 300; echo
+          sudo find "$DSVHVN_GOC/sao-luu" -name '*.bak' -printf '%p %s\n'
+
+      - name: Server logs on failure
+        if: failure()
+        run: sudo docker compose --project-directory "$DSVHVN_GOC" -f "$DSVHVN_GOC/compose.yml" logs --no-color --tail 200

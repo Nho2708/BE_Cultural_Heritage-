@@ -1,5 +1,7 @@
 # Build
 [Bb]in/
+# Script của máy chủ Google Cloud (chép vào /opt/dsvhvn/bin), không phải thư mục dựng.
+!deploy/google-cloud/may-chu/bin/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
