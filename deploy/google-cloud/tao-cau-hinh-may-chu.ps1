@@ -18,13 +18,17 @@
   Tệp khóa của Dịch vụ AI trên máy dev, mặc định %APPDATA%\DSVHVN\ai-service.env.
 .PARAMETER TatCongQuangCao
   Tắt cổng quảng cáo (Ads:GateEnabled = false).
+.PARAMETER DiaChiTaiApp
+  Địa chỉ tải APK in trên phiếu đăng nhập học sinh (App:MobileAppDownloadUrl). Mặc định là tệp vietnam-heritage.apk của
+  bản phát hành mới nhất trong repo frontend; truyền chuỗi rỗng để phiếu không ghi địa chỉ tải.
 #>
 #Requires -Version 7.0
 [CmdletBinding()]
 param(
     [switch]$TaiLen,
     [string]$TepKhoaAi = (Join-Path $env:APPDATA 'DSVHVN\ai-service.env'),
-    [switch]$TatCongQuangCao
+    [switch]$TatCongQuangCao,
+    [string]$DiaChiTaiApp = 'https://github.com/Nho2708/FE_Cultural_Heritage-/releases/latest/download/vietnam-heritage.apk'
 )
 
 . (Join-Path $PSScriptRoot 'chung.ps1')
@@ -132,6 +136,7 @@ Dat 'Storage:Local:RootPath' '/data/storage'
 
 Dat 'App:FrontendBaseUrl' $diaChiQuanTri
 Dat 'App:LearningWebBaseUrl' $diaChiHocTap
+if ($DiaChiTaiApp) { Dat 'App:MobileAppDownloadUrl' $DiaChiTaiApp }
 Dat 'Cors:AllowedOrigins' @($diaChiQuanTri, $diaChiHocTap)
 
 $android = @(); if ($dev.Ads.AdMob.AndroidAdUnitIds) { $android += @($dev.Ads.AdMob.AndroidAdUnitIds) }
