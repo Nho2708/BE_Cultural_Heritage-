@@ -4,6 +4,12 @@
 #   có tên miền       DIA_CHI_HOC_TAP=vietnamheritage.vn  DIA_CHI_QUAN_TRI=quantri.vietnamheritage.vn
 # Đổi địa chỉ: sửa .env rồi chạy "docker compose up -d edge" trong /opt/dsvhvn (biến môi trường chỉ đọc lúc tạo container).
 
+{
+	# Trình duyệt mở bằng địa chỉ IP không gửi SNI; thiếu dòng này Caddy không biết chọn chứng chỉ nào và từ chối bắt tay TLS.
+	# DIA_CHI_HOC_TAP chỉ gồm IP hoặc tên miền, không có cổng.
+	default_sni {$DIA_CHI_HOC_TAP}
+}
+
 (chung) {
 	# Let's Encrypt chỉ cấp chứng chỉ cho địa chỉ IP theo hồ sơ shortlived (hạn khoảng 6 ngày, Caddy tự gia hạn);
 	# hồ sơ này dùng được cả cho tên miền nên giữ nguyên khi chuyển sang tên miền.
