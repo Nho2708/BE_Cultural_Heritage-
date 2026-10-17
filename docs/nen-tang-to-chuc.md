@@ -137,7 +137,7 @@ Seed lúc khởi động (`DatabaseInitializer`, idempotent, chạy sau `Databas
 | Seed | Cấu hình | Ghi chú |
 |---|---|---|
 | Gói "Miễn phí" giá 0 | `Seed:FreePlan:{DurationDays, MaxTeachers, MaxAiRequests}` | `appsettings.json` (UAT, Release 1.0): 30 ngày, 2 giáo viên, 20 lượt AI. `appsettings.Development.json`: 365, 10, 300 tới khi có chức năng quản lý gói. Đã có gói giá 0 thì không ghi đè |
-| 4 tài khoản ADMIN | `Seed:Admins[]` `{ Username, Email, FullName, Password? }` + `Seed:AdminPassword` | Development khai 4 thành viên (`admin.nho`, `admin.lam`, `admin.trieu`, `admin.huy`); **mật khẩu chỉ đặt trong User Secrets hoặc biến môi trường**, thiếu thì bỏ qua và ghi cảnh báo |
+| 4 tài khoản ADMIN | `Seed:Admins[]` `{ Username, Email, FullName, Password? }` + `Seed:AdminPassword` | Development khai 4 thành viên (`admin.nho`, `admin.lam`, `admin.trieu`, `admin.huy`); máy chủ và máy demo chỉ một tài khoản `admin.vietnamheritage` (`deploy/quan-tri-he-thong.json`, script tạo cấu hình đưa vào); **mật khẩu chỉ đặt trong User Secrets hoặc biến môi trường**, thiếu thì bỏ qua và ghi cảnh báo |
 | 34 tỉnh/thành, di sản đợt 1 | `Seed:HeritageData:{ProvincesFile, HeritagesFile}` | Chỉ khai ở Development, trỏ tới thư mục dữ liệu của nhóm; chi tiết ở [co-so-du-lieu.md](co-so-du-lieu.md) mục 2 |
 
 | Khóa cấu hình | Mặc định | Ghi chú |

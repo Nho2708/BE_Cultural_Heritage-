@@ -32,7 +32,7 @@ namespace DSVHVN.Tests.Integration;
 public class ApiFactory : WebApplicationFactory<Program>
 {
     public const string AdminUsername = "admin.test";
-    public const string AdminEmail = "admin@test.local";
+    public const string AdminEmail = "admin@kiemthu.vn";
     public const string AdminPassword = "SeedPass2026";
 
     private readonly SqliteConnection _connection = new("DataSource=:memory:");

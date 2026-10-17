@@ -31,4 +31,17 @@ public static class EmailAddress
 {
     /// <summary>Email lưu và so sánh ở dạng chữ thường, đã cắt khoảng trắng.</summary>
     public static string Normalize(string? email) => (email ?? string.Empty).Trim().ToLowerInvariant();
+
+    /// <summary>
+    /// Địa chỉ có tên miền đuôi <c>.local</c> (tài khoản seed ở Development, dữ liệu mẫu) không có máy chủ thư nào nhận:
+    /// gửi tới đó chỉ sinh thư báo không chuyển được về hộp thư người gửi, nên bỏ qua.
+    /// </summary>
+    public static bool CanReceiveMail(string? email)
+    {
+        var value = Normalize(email);
+        var at = value.LastIndexOf('@');
+        if (at < 0) return false;
+        var domain = value[(at + 1)..];
+        return domain != "local" && !domain.EndsWith(".local", StringComparison.Ordinal);
+    }
 }
