@@ -1,0 +1,9 @@
+[Unit]
+Description=Lịch sao lưu CSDL Vietnam Heritage lúc 01:30 (giờ Việt Nam)
+
+[Timer]
+OnCalendar=*-*-* 01:30:00 Asia/Ho_Chi_Minh
+Persistent=true
+
+[Install]
+WantedBy=timers.target
