@@ -178,5 +178,6 @@ dotnet user-secrets set "Email:Smtp:FromAddress" "<tai-khoan>@gmail.com" --proje
 ```
 
 Mật khẩu SMTP không ghi vào appsettings; ngoài Development đặt bằng biến môi trường `Email__Smtp__Password`. Thiếu cấu hình bắt
-buộc thì API dừng lúc khởi động và báo mục còn thiếu. Email `*.local` của 4 tài khoản quản trị mẫu **không nhận được thư**; thử
-bằng trường hoặc giáo viên tạo với email thật. Chi tiết, cách tắt và các lưu ý: [docs/gui-thu.md](docs/gui-thu.md).
+buộc thì API dừng lúc khởi động và báo mục còn thiếu. Email `*.local` của 4 tài khoản quản trị mẫu **không nhận được thư** (chế độ
+`Smtp` bỏ qua các địa chỉ này); thử bằng trường hoặc giáo viên tạo với email thật. Máy chủ và máy demo chỉ có một quản trị hệ
+thống với email thật, khai ở `deploy/quan-tri-he-thong.json`. Chi tiết, cách tắt và các lưu ý: [docs/gui-thu.md](docs/gui-thu.md).
