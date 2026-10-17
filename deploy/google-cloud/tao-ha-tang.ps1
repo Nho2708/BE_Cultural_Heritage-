@@ -67,21 +67,21 @@ function Write-TepTam([string]$ten, [string]$noiDung) {
 # ---------------------------------------------------------------- 0. kiểm gcloud và dự án
 Write-Buoc 'Kiểm gcloud và dự án'
 if (-not (Get-Command gcloud -ErrorAction SilentlyContinue)) { throw 'Chưa cài Google Cloud CLI (gcloud).' }
-$taiKhoan = (Gc auth list '--filter=status:ACTIVE' '--format=value(account)') | Select-Object -First 1
+$taiKhoan = (Invoke-Gcloud auth list '--filter=status:ACTIVE' '--format=value(account)') | Select-Object -First 1
 if (-not $taiKhoan) { throw 'gcloud chưa đăng nhập: chạy "gcloud auth login".' }
-$soDuAn = (Gc projects describe $DuAn '--format=value(projectNumber)') | Select-Object -First 1
+$soDuAn = (Invoke-Gcloud projects describe $DuAn '--format=value(projectNumber)') | Select-Object -First 1
 Write-Host "Dự án $DuAn (số $soDuAn), tài khoản gcloud đang dùng đã đăng nhập."
 
 # ---------------------------------------------------------------- 1. API
 Write-Buoc 'Bật các API cần dùng (lần đầu mất vài phút)'
-Gc services enable compute.googleapis.com artifactregistry.googleapis.com iam.googleapis.com iamcredentials.googleapis.com `
+Invoke-Gcloud services enable compute.googleapis.com artifactregistry.googleapis.com iam.googleapis.com iamcredentials.googleapis.com `
     sts.googleapis.com iap.googleapis.com oslogin.googleapis.com storage.googleapis.com $p | Out-Null
 Write-Host 'Đã bật.'
 
 # ---------------------------------------------------------------- 2. Artifact Registry
 Write-Buoc "Kho ảnh Docker $tenKho ($Vung)"
-if (-not (Test-Gc artifacts repositories describe $tenKho "--location=$Vung" $p)) {
-    Gc artifacts repositories create $tenKho '--repository-format=docker' "--location=$Vung" `
+if (-not (Test-Gcloud artifacts repositories describe $tenKho "--location=$Vung" $p)) {
+    Invoke-Gcloud artifacts repositories create $tenKho '--repository-format=docker' "--location=$Vung" `
         '--description=Vietnam Heritage images (api, ai, web)' $p | Out-Null
     Write-Host 'Đã tạo.'
 } else { Write-Host 'Đã có.' }
@@ -91,20 +91,20 @@ $chinhSach = Write-TepTam 'don-dep-anh.json' @'
   { "name": "xoa-ban-cu-hon-30-ngay", "action": { "type": "Delete" }, "condition": { "tagState": "any", "olderThan": "30d" } }
 ]
 '@
-Gc artifacts repositories set-cleanup-policies $tenKho "--location=$Vung" "--policy=$chinhSach" --no-dry-run $p | Out-Null
+Invoke-Gcloud artifacts repositories set-cleanup-policies $tenKho "--location=$Vung" "--policy=$chinhSach" --no-dry-run $p | Out-Null
 $khoAnh = "$Vung-docker.pkg.dev/$DuAn/$tenKho"
 Write-Host "Kho ảnh: $khoAnh"
 
 # ---------------------------------------------------------------- 3. mạng
 Write-Buoc 'Địa chỉ IP tĩnh và tường lửa'
-if (-not (Test-Gc compute addresses describe $tenIp "--region=$Vung" $p)) {
-    Gc compute addresses create $tenIp "--region=$Vung" $p | Out-Null
+if (-not (Test-Gcloud compute addresses describe $tenIp "--region=$Vung" $p)) {
+    Invoke-Gcloud compute addresses create $tenIp "--region=$Vung" $p | Out-Null
 }
-$ip = (Gc compute addresses describe $tenIp "--region=$Vung" '--format=value(address)' $p) | Select-Object -First 1
+$ip = (Invoke-Gcloud compute addresses describe $tenIp "--region=$Vung" '--format=value(address)' $p) | Select-Object -First 1
 Write-Host "IP tĩnh: $ip"
 
-if (-not (Test-Gc compute networks describe default $p)) {
-    Gc compute networks create default '--subnet-mode=auto' $p | Out-Null
+if (-not (Test-Gcloud compute networks describe default $p)) {
+    Invoke-Gcloud compute networks create default '--subnet-mode=auto' $p | Out-Null
     Write-Host 'Đã tạo mạng default.'
 }
 $quyTac = @(
@@ -113,72 +113,72 @@ $quyTac = @(
     @{ Ten = 'dsvhvn-ssh-iap'; Luat = 'tcp:22'; Nguon = '35.235.240.0/20' }
 )
 foreach ($q in $quyTac) {
-    if (-not (Test-Gc compute firewall-rules describe $q.Ten $p)) {
-        Gc compute firewall-rules create $q.Ten '--network=default' '--direction=INGRESS' '--action=ALLOW' "--rules=$($q.Luat)" `
+    if (-not (Test-Gcloud compute firewall-rules describe $q.Ten $p)) {
+        Invoke-Gcloud compute firewall-rules create $q.Ten '--network=default' '--direction=INGRESS' '--action=ALLOW' "--rules=$($q.Luat)" `
             "--source-ranges=$($q.Nguon)" "--target-tags=$theMay" $p | Out-Null
         Write-Host "Đã tạo quy tắc $($q.Ten)."
     } else { Write-Host "Đã có quy tắc $($q.Ten)." }
 }
 foreach ($ten in @('default-allow-ssh', 'default-allow-rdp')) {
-    if (Test-Gc compute firewall-rules describe $ten $p) {
-        Gc compute firewall-rules delete $ten $p | Out-Null
+    if (Test-Gcloud compute firewall-rules describe $ten $p) {
+        Invoke-Gcloud compute firewall-rules delete $ten $p | Out-Null
         Write-Host "Đã bỏ quy tắc mặc định $ten (mở cho mọi nơi)."
     }
 }
 
 # ---------------------------------------------------------------- 4. bucket sao lưu
 Write-Buoc "Bucket sao lưu gs://$bucket"
-if (-not (Test-Gc storage buckets describe "gs://$bucket" $p)) {
-    Gc storage buckets create "gs://$bucket" "--location=$Vung" '--uniform-bucket-level-access' '--public-access-prevention' $p | Out-Null
+if (-not (Test-Gcloud storage buckets describe "gs://$bucket" $p)) {
+    Invoke-Gcloud storage buckets create "gs://$bucket" "--location=$Vung" '--uniform-bucket-level-access' '--public-access-prevention' $p | Out-Null
     Write-Host 'Đã tạo.'
 } else { Write-Host 'Đã có.' }
 $vongDoi = Write-TepTam 'vong-doi.json' '{ "rule": [ { "action": { "type": "Delete" }, "condition": { "age": 30 } } ] }'
-Gc storage buckets update "gs://$bucket" "--lifecycle-file=$vongDoi" $p | Out-Null
+Invoke-Gcloud storage buckets update "gs://$bucket" "--lifecycle-file=$vongDoi" $p | Out-Null
 
 # ---------------------------------------------------------------- 5. tài khoản dịch vụ
 Write-Buoc 'Tài khoản dịch vụ'
 foreach ($sa in @(
         @{ Ten = 'dsvhvn-may-chu'; Email = $saMay; Hien = 'Vietnam Heritage server' },
         @{ Ten = 'dsvhvn-trien-khai'; Email = $saTrienKhai; Hien = 'Vietnam Heritage GitHub deploy' })) {
-    if (-not (Test-Gc iam service-accounts describe $sa.Email $p)) {
-        Gc iam service-accounts create $sa.Ten "--display-name=$($sa.Hien)" $p | Out-Null
+    if (-not (Test-Gcloud iam service-accounts describe $sa.Email $p)) {
+        Invoke-Gcloud iam service-accounts create $sa.Ten "--display-name=$($sa.Hien)" $p | Out-Null
         Write-Host "Đã tạo $($sa.Email)."
         Start-Sleep -Seconds 10  # tài khoản mới cần vài giây mới gán quyền được
     } else { Write-Host "Đã có $($sa.Email)." }
 }
 
 Write-Host 'Gán quyền (gán lại quyền đã có không đổi gì):'
-Gc artifacts repositories add-iam-policy-binding $tenKho "--location=$Vung" "--member=serviceAccount:$saMay" `
+Invoke-Gcloud artifacts repositories add-iam-policy-binding $tenKho "--location=$Vung" "--member=serviceAccount:$saMay" `
     '--role=roles/artifactregistry.reader' $p | Out-Null
-Gc artifacts repositories add-iam-policy-binding $tenKho "--location=$Vung" "--member=serviceAccount:$saTrienKhai" `
+Invoke-Gcloud artifacts repositories add-iam-policy-binding $tenKho "--location=$Vung" "--member=serviceAccount:$saTrienKhai" `
     '--role=roles/artifactregistry.writer' $p | Out-Null
-Gc storage buckets add-iam-policy-binding "gs://$bucket" "--member=serviceAccount:$saMay" '--role=roles/storage.objectCreator' $p | Out-Null
+Invoke-Gcloud storage buckets add-iam-policy-binding "gs://$bucket" "--member=serviceAccount:$saMay" '--role=roles/storage.objectCreator' $p | Out-Null
 foreach ($vaiTro in @('roles/logging.logWriter', 'roles/monitoring.metricWriter')) {
-    Gc projects add-iam-policy-binding $DuAn "--member=serviceAccount:$saMay" "--role=$vaiTro" '--condition=None' | Out-Null
+    Invoke-Gcloud projects add-iam-policy-binding $DuAn "--member=serviceAccount:$saMay" "--role=$vaiTro" '--condition=None' | Out-Null
 }
 foreach ($vaiTro in @('roles/compute.viewer', 'roles/iap.tunnelResourceAccessor')) {
-    Gc projects add-iam-policy-binding $DuAn "--member=serviceAccount:$saTrienKhai" "--role=$vaiTro" '--condition=None' | Out-Null
+    Invoke-Gcloud projects add-iam-policy-binding $DuAn "--member=serviceAccount:$saTrienKhai" "--role=$vaiTro" '--condition=None' | Out-Null
 }
 # Đăng nhập OS Login vào máy ảo chạy bằng tài khoản dịch vụ khác cần quyền "dùng" tài khoản đó.
-Gc iam service-accounts add-iam-policy-binding $saMay "--member=serviceAccount:$saTrienKhai" '--role=roles/iam.serviceAccountUser' $p | Out-Null
+Invoke-Gcloud iam service-accounts add-iam-policy-binding $saMay "--member=serviceAccount:$saTrienKhai" '--role=roles/iam.serviceAccountUser' $p | Out-Null
 Write-Host '  máy chủ: đọc kho ảnh, ghi bucket sao lưu, ghi nhật ký và số đo'
 Write-Host '  GitHub Actions: đẩy ảnh, xem máy ảo, đi qua IAP, dùng tài khoản của máy chủ'
 
 # ---------------------------------------------------------------- 6. Workload Identity Federation
 Write-Buoc 'Workload Identity Federation cho GitHub Actions'
-if (-not (Test-Gc iam workload-identity-pools describe github '--location=global' $p)) {
-    Gc iam workload-identity-pools create github '--location=global' '--display-name=GitHub Actions' $p | Out-Null
+if (-not (Test-Gcloud iam workload-identity-pools describe github '--location=global' $p)) {
+    Invoke-Gcloud iam workload-identity-pools create github '--location=global' '--display-name=GitHub Actions' $p | Out-Null
     Write-Host 'Đã tạo pool github.'
 }
-if (-not (Test-Gc iam workload-identity-pools providers describe github '--location=global' '--workload-identity-pool=github' $p)) {
-    Gc iam workload-identity-pools providers create-oidc github '--location=global' '--workload-identity-pool=github' `
+if (-not (Test-Gcloud iam workload-identity-pools providers describe github '--location=global' '--workload-identity-pool=github' $p)) {
+    Invoke-Gcloud iam workload-identity-pools providers create-oidc github '--location=global' '--workload-identity-pool=github' `
         '--display-name=GitHub' '--issuer-uri=https://token.actions.githubusercontent.com' `
         '--attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner,attribute.ref=assertion.ref' `
         "--attribute-condition=assertion.repository_owner=='$ChuRepo'" $p | Out-Null
     Write-Host "Đã tạo provider github (chỉ nhận token của repo thuộc $ChuRepo)."
 }
 foreach ($repo in $baRepo) {
-    Gc iam service-accounts add-iam-policy-binding $saTrienKhai '--role=roles/iam.workloadIdentityUser' `
+    Invoke-Gcloud iam service-accounts add-iam-policy-binding $saTrienKhai '--role=roles/iam.workloadIdentityUser' `
         "--member=principalSet://iam.googleapis.com/projects/$soDuAn/locations/global/workloadIdentityPools/github/attribute.repository/$ChuRepo/$repo" $p | Out-Null
 }
 $wifProvider = "projects/$soDuAn/locations/global/workloadIdentityPools/github/providers/github"
@@ -186,8 +186,8 @@ Write-Host "Provider: $wifProvider (ba repo được dùng $saTrienKhai)"
 
 # ---------------------------------------------------------------- 7. máy ảo
 Write-Buoc "Máy ảo $TenMay ($LoaiMay, $VungCon)"
-if (-not (Test-Gc compute instances describe $TenMay "--zone=$VungCon" $p)) {
-    Gc compute instances create $TenMay "--zone=$VungCon" "--machine-type=$LoaiMay" `
+if (-not (Test-Gcloud compute instances describe $TenMay "--zone=$VungCon" $p)) {
+    Invoke-Gcloud compute instances create $TenMay "--zone=$VungCon" "--machine-type=$LoaiMay" `
         '--image-family=ubuntu-2404-lts-amd64' '--image-project=ubuntu-os-cloud' `
         "--boot-disk-size=${DungLuongDiaGb}GB" '--boot-disk-type=pd-balanced' `
         "--address=$ip" "--tags=$theMay" "--service-account=$saMay" '--scopes=cloud-platform' `
@@ -195,7 +195,7 @@ if (-not (Test-Gc compute instances describe $TenMay "--zone=$VungCon" $p)) {
         '--deletion-protection' $p | Out-Null
     Write-Host 'Đã tạo (bảo vệ chống xóa đang bật).'
 } else { Write-Host 'Đã có.' }
-Gc compute instances add-iam-policy-binding $TenMay "--zone=$VungCon" "--member=serviceAccount:$saTrienKhai" `
+Invoke-Gcloud compute instances add-iam-policy-binding $TenMay "--zone=$VungCon" "--member=serviceAccount:$saTrienKhai" `
     '--role=roles/compute.osAdminLogin' $p | Out-Null
 
 $haTang = [ordered]@{
@@ -211,7 +211,7 @@ $haTang = Read-HaTang
 Write-Buoc 'Chờ SSH qua IAP sẵn sàng'
 $sanSang = $false
 for ($i = 1; $i -le 30; $i++) {
-    if (Test-Gc compute ssh $TenMay "--zone=$VungCon" '--tunnel-through-iap' '--command=true' $p) { $sanSang = $true; break }
+    if (Test-Gcloud compute ssh $TenMay "--zone=$VungCon" '--tunnel-through-iap' '--command=true' $p) { $sanSang = $true; break }
     Write-Host "  chưa được (lần $i), thử lại sau 10 giây..."
     Start-Sleep -Seconds 10
 }

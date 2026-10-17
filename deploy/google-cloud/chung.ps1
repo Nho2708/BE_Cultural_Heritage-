@@ -16,7 +16,7 @@ function Write-Buoc([string]$noiDung) {
 
 # gcloud không hỏi lại (--quiet); lỗi thì dừng kèm thông báo của gcloud. Trả các dòng của đầu ra chuẩn.
 # Hàm đơn giản dùng $args để mọi tham số dạng --ten=gia-tri đi thẳng vào gcloud.
-function Gc {
+function Invoke-Gcloud {
     $kq = & gcloud @args --quiet 2>&1
     $ma = $LASTEXITCODE
     $global:LASTEXITCODE = 0
@@ -27,7 +27,7 @@ function Gc {
 }
 
 # Trả $true khi lệnh gcloud thành công (dùng để hỏi tài nguyên đã có chưa).
-function Test-Gc {
+function Test-Gcloud {
     & gcloud @args --quiet *> $null
     $ok = ($LASTEXITCODE -eq 0)
     $global:LASTEXITCODE = 0
@@ -50,13 +50,30 @@ function Invoke-MayChu($haTang, [string]$lenh) {
 }
 
 # Chép tệp hoặc thư mục lên máy chủ. Đích là đường dẫn chưa tồn tại: tuyệt đối, hoặc tương đối tính từ thư mục nhà.
+# Thư mục được nén thành một tệp rồi giải nén trên máy chủ: pscp mà gcloud dùng trên Windows không chép thư mục vào đường dẫn
+# chưa có (báo "unable to open").
 function Copy-LenMayChu($haTang, [string]$nguon, [string]$dich) {
     $thamSo = @('compute', 'scp', "--zone=$($haTang.VungCon)", "--project=$($haTang.DuAn)", '--tunnel-through-iap', '--quiet')
-    if (Test-Path -LiteralPath $nguon -PathType Container) { $thamSo += '--recurse' }
-    & gcloud @thamSo $nguon "$($haTang.TenMay):$dich"
-    $ma = $LASTEXITCODE
-    $global:LASTEXITCODE = 0
-    if ($ma -ne 0) { throw "Chép $nguon lên máy chủ lỗi (mã $ma)." }
+    if (-not (Test-Path -LiteralPath $nguon -PathType Container)) {
+        & gcloud @thamSo $nguon "$($haTang.TenMay):$dich"
+        $ma = $LASTEXITCODE
+        $global:LASTEXITCODE = 0
+        if ($ma -ne 0) { throw "Chép $nguon lên máy chủ lỗi (mã $ma)." }
+        return
+    }
+    $tenNen = 'dsvhvn-' + [guid]::NewGuid().ToString('N').Substring(0, 8) + '.tar.gz'
+    $nen = Join-Path ([System.IO.Path]::GetTempPath()) $tenNen
+    try {
+        & tar -czf $nen -C $nguon .
+        $ma = $LASTEXITCODE
+        $global:LASTEXITCODE = 0
+        if ($ma -ne 0) { throw "Nén $nguon lỗi (mã $ma)." }
+        Copy-LenMayChu $haTang $nen $tenNen
+        Invoke-MayChu $haTang ("mkdir -p $dich && tar -xzf `$HOME/$tenNen -C $dich --warning=no-unknown-keyword " +
+            "&& rm -f `$HOME/$tenNen")
+    } finally {
+        Remove-Item -LiteralPath $nen -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # Chép thư mục deploy\google-cloud\may-chu sang thư mục tạm, đổi CRLF thành LF (bash trên máy chủ không chạy được CRLF).
