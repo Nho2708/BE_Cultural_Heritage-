@@ -220,6 +220,29 @@ public sealed class SchoolInquiryMailerTests
     }
 
     [Fact]
+    public async Task Local_domain_recipients_are_left_out()
+    {
+        var sender = new CapturingEmailSender();
+
+        var result = await MailerFor(sender, "chung@vh.vn")
+            .SendAsync(Inquiry, ["nho.admin@dsvhvn.local", "lam.admin@dsvhvn.local"]);
+
+        Assert.Equal(new SchoolInquiryDelivery(1, 1), result);
+        Assert.Equal(["chung@vh.vn"], sender.Sent.Select(m => m.To).ToArray());
+    }
+
+    [Fact]
+    public async Task Only_local_domain_admins_means_no_letters()
+    {
+        var sender = new CapturingEmailSender();
+
+        var result = await MailerFor(sender).SendAsync(Inquiry, ["nho.admin@dsvhvn.local"]);
+
+        Assert.Equal(new SchoolInquiryDelivery(0, 0), result);
+        Assert.Empty(sender.Sent);
+    }
+
+    [Fact]
     public async Task A_failure_for_one_recipient_does_not_stop_the_others()
     {
         var sender = new FlakySender("loi@vh.vn");

@@ -164,6 +164,18 @@ public sealed class EmailContentTests
     public void Recipient_is_masked_in_logs(string address, string expected) =>
         Assert.Equal(expected, SmtpEmailSender.MaskAddress(address));
 
+    [Theory]
+    [InlineData("vietnamheritage.id@gmail.com", true)]
+    [InlineData("an@truong.edu.vn", true)]
+    [InlineData("an@localhost.vn", true)]
+    [InlineData("nho.admin@dsvhvn.local", false)]
+    [InlineData(" Minh.Anh@Demo.DSVHVN.LOCAL ", false)]
+    [InlineData("quan.tri@local", false)]
+    [InlineData("khong-phai-email", false)]
+    [InlineData(null, false)]
+    public void Local_domain_addresses_cannot_receive_mail(string? address, bool expected) =>
+        Assert.Equal(expected, EmailAddress.CanReceiveMail(address));
+
     [Fact]
     public async Task Log_mode_writes_the_link_so_developers_need_no_smtp()
     {
@@ -332,6 +344,19 @@ public sealed class SmtpEmailSenderTests
         Assert.Contains("mã 550", ex.Message);
         Assert.DoesNotContain(token, ex.Message);
         Assert.DoesNotContain(logger.Messages, m => m.Contains(token, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Local_domain_recipient_is_skipped_without_connecting()
+    {
+        var logger = new ListLogger<SmtpEmailSender>();
+        var mail = Composer.ResetPasswordLink("nho.admin@dsvhvn.local", "Quản trị", "BiMat_Token-0123456789", DateTime.UtcNow);
+
+        // Cổng 1 không có máy chủ thư: còn kết nối thì phải ném lỗi gửi thư.
+        await Sender(1, logger).SendAsync(mail).WaitAsync(TimeSpan.FromSeconds(15));
+
+        Assert.Contains(logger.Messages, m => m.Contains("Bỏ qua thư tới nh***@dsvhvn.local", StringComparison.Ordinal));
+        Assert.DoesNotContain(logger.Messages, m => m.Contains("Đã gửi thư qua SMTP", StringComparison.Ordinal));
     }
 
     /// <summary>Máy chủ SMTP tối thiểu cho một kết nối: không TLS, không đăng nhập, giữ lại phần DATA.</summary>
