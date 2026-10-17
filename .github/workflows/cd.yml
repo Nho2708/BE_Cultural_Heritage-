@@ -1,7 +1,10 @@
 name: CD
 
-# Triển khai backend lên máy demo: CI trên main đạt thì cập nhật môi trường demo (commit hỏng CI không được triển khai,
+# Triển khai backend: CI trên main đạt thì cập nhật môi trường demo (commit hỏng CI không được triển khai,
 # kể cả khi chủ repo đẩy thẳng hoặc gộp vượt bảo vệ), gắn tag v* thì cập nhật bản phát hành (chủ repo duyệt) và tạo GitHub Release.
+# Hai nơi chạy: máy demo QUANG-NHO (runner tự host, tắt bằng biến repo MAY_DEMO_DEPLOY=false) và máy chủ Google Cloud
+# (bật bằng biến repo GCP_DEPLOY=true do deploy/google-cloud/tao-ha-tang.ps1 đặt; ảnh Docker đẩy lên Artifact Registry,
+# triển khai qua SSH đi qua IAP, đăng nhập Google Cloud bằng Workload Identity Federation, không có khóa JSON).
 on:
   workflow_run:
     workflows: [CI]
@@ -15,6 +18,11 @@ on:
         description: Commit cần triển khai (bỏ trống thì lấy commit mới nhất của nhánh đã chọn)
         required: false
         default: ''
+      noi_trien_khai:
+        description: Nơi triển khai
+        type: choice
+        options: [ca-hai, may-demo, google-cloud]
+        default: ca-hai
 
 permissions:
   contents: read
@@ -77,6 +85,7 @@ jobs:
   trien-khai:
     name: Triển khai lên máy demo
     needs: dong-goi
+    if: vars.MAY_DEMO_DEPLOY != 'false' && inputs.noi_trien_khai != 'google-cloud'
     runs-on: [self-hosted, windows, may-demo]
     environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'phat-hanh' || 'demo' }}
     timeout-minutes: 20
@@ -96,10 +105,97 @@ jobs:
         shell: pwsh
         run: ./scripts/trien-khai/trien-khai-api.ps1 -ThuMucGoi "${{ runner.temp }}/goi"
 
+  anh-google-cloud:
+    name: Dựng ảnh cho Google Cloud
+    if: >-
+      vars.GCP_DEPLOY == 'true' && inputs.noi_trien_khai != 'may-demo' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event != 'pull_request' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      MA_COMMIT: ${{ inputs.ma_commit || github.event.workflow_run.head_sha || github.sha }}
+      GCP_REGISTRY: ${{ vars.GCP_REGISTRY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ma_commit || github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Đăng nhập Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGISTRY%%/*}" --quiet
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Ảnh gắn mã commit; máy chủ ghi mã ảnh đang chạy để trả bản trước khi lần sau hỏng.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ vars.GCP_REGISTRY }}/api:${{ env.MA_COMMIT }}
+          labels: org.opencontainers.image.revision=${{ env.MA_COMMIT }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+  trien-khai-google-cloud:
+    name: Triển khai lên Google Cloud
+    needs: anh-google-cloud
+    runs-on: ubuntu-latest
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'phat-hanh' || 'google-cloud' }}
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      MA_COMMIT: ${{ inputs.ma_commit || github.event.workflow_run.head_sha || github.sha }}
+      GCP_VM: ${{ vars.GCP_VM }}
+      GCP_ZONE: ${{ vars.GCP_ZONE }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ma_commit || github.event.workflow_run.head_sha || github.sha }}
+          sparse-checkout: deploy/google-cloud/may-chu
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT }}
+
+      # Cập nhật compose.yml, Caddyfile, script trên máy chủ theo commit này rồi triển khai API (sao lưu, migration, kiểm sức khỏe,
+      # tự trả bản trước khi hỏng). Khóa SSH sinh cho lượt chạy này, hết hạn sau 30 phút.
+      - name: Triển khai qua SSH
+        run: |
+          set -euo pipefail
+          dich="/tmp/dsvhvn-ha-tang-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          ssh_chung=(--zone "$GCP_ZONE" --tunnel-through-iap --quiet --ssh-key-expire-after=30m --strict-host-key-checking=no)
+          gcloud compute scp --recurse "${ssh_chung[@]}" deploy/google-cloud/may-chu "${GCP_VM}:${dich}"
+          gcloud compute ssh "$GCP_VM" "${ssh_chung[@]}" --command \
+            "sudo bash ${dich}/cap-nhat-ha-tang.sh && sudo /opt/dsvhvn/bin/trien-khai.sh api ${MA_COMMIT}; r=\$?; rm -rf ${dich}; exit \$r"
+
   phat-hanh:
     name: Tạo bản phát hành
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: trien-khai
+    needs: [dong-goi, trien-khai]
+    # Máy demo tắt (MAY_DEMO_DEPLOY=false) thì vẫn phát hành từ gói đã đóng.
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') && !cancelled() &&
+      needs.dong-goi.result == 'success' && needs.trien-khai.result != 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
