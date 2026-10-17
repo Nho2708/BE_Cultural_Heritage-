@@ -1,0 +1,47 @@
+# Cửa vào của máy chủ (dịch vụ edge): HTTPS cho web học tập và web quản trị; /api, /files, /health chuyển sang API để hai web
+# gọi API cùng gốc như trên máy demo. Địa chỉ đặt trong /opt/dsvhvn/.env:
+#   chưa có tên miền  DIA_CHI_HOC_TAP=34.87.10.20         DIA_CHI_QUAN_TRI=34.87.10.20:8443
+#   có tên miền       DIA_CHI_HOC_TAP=vietnamheritage.vn  DIA_CHI_QUAN_TRI=quantri.vietnamheritage.vn
+# Đổi địa chỉ: sửa .env rồi chạy "docker compose up -d edge" trong /opt/dsvhvn (biến môi trường chỉ đọc lúc tạo container).
+
+{
+	# Trình duyệt mở bằng địa chỉ IP không gửi SNI; thiếu dòng này Caddy không biết chọn chứng chỉ nào và từ chối bắt tay TLS.
+	# DIA_CHI_HOC_TAP chỉ gồm IP hoặc tên miền, không có cổng.
+	default_sni {$DIA_CHI_HOC_TAP}
+}
+
+(chung) {
+	# Let's Encrypt chỉ cấp chứng chỉ cho địa chỉ IP theo hồ sơ shortlived (hạn khoảng 6 ngày, Caddy tự gia hạn);
+	# hồ sơ này dùng được cả cho tên miền nên giữ nguyên khi chuyển sang tên miền.
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+	encode zstd gzip
+	# Ảnh và mô hình 3D tải lên tới 100 MB, giống giới hạn của IIS trên máy demo.
+	request_body {
+		max_size 100MB
+	}
+	log {
+		format json
+	}
+	@api path /api/* /files/* /health
+	handle @api {
+		reverse_proxy api:8080
+	}
+}
+
+{$DIA_CHI_HOC_TAP} {
+	import chung
+	handle {
+		reverse_proxy web:8080
+	}
+}
+
+{$DIA_CHI_QUAN_TRI} {
+	import chung
+	handle {
+		reverse_proxy web:8081
+	}
+}

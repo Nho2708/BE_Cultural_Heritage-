@@ -1,0 +1,88 @@
+# Máy chủ Google Cloud của Vietnam Heritage: năm dịch vụ Docker Compose trong /opt/dsvhvn (cài bằng cai-dat-may-chu.sh).
+#   sql   SQL Server 2019 Express, dữ liệu ở volume sql-data, bản sao lưu ở ./sao-luu
+#   api   backend ASP.NET Core (ảnh của repo backend), chỉ mở ở 127.0.0.1:8080 cho script kiểm sức khỏe
+#   ai    Dịch vụ AI (ảnh của repo AI), chỉ mở ở 127.0.0.1:8090
+#   web   hai web đã build (ảnh của repo frontend): 8080 web học tập, 8081 web quản trị, chỉ trong mạng Docker
+#   edge  Caddy: cửa vào duy nhất (80, 443, 8443), tự lấy chứng chỉ HTTPS, chuyển /api, /files, /health sang api
+# Biến lấy từ ./.env (chỉ root đọc được): REGISTRY, API_TAG, AI_TAG, WEB_TAG, MSSQL_SA_PASSWORD, DIA_CHI_HOC_TAP,
+# DIA_CHI_QUAN_TRI. Mã ảnh do bin/trien-khai.sh ghi sau mỗi lần triển khai; đường dẫn tương đối tính từ thư mục chứa tệp này.
+name: dsvhvn
+
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2019-CU32-ubuntu-20.04
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      # Chỉ có tác dụng ở lần khởi động đầu tiên của volume sql-data; đổi về sau phải ALTER LOGIN sa.
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Thiếu MSSQL_SA_PASSWORD trong .env, chạy tao-cau-hinh-may-chu.ps1 -TaiLen}
+      MSSQL_MEMORY_LIMIT_MB: "2048"
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - sql-data:/var/opt/mssql
+      - ./sao-luu:/sao-luu
+    # Ảnh có thể chứa sqlcmd ở tools18 (cần -C) hoặc tools: thử lần lượt.
+    healthcheck:
+      test: ["CMD-SHELL", "for s in /opt/mssql-tools18/bin/sqlcmd /opt/mssql-tools/bin/sqlcmd; do if [ -x $$s ]; then c=; case $$s in *tools18*) c=-C;; esac; $$s $$c -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null && exit 0; fi; done; exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  api:
+    image: ${REGISTRY:?Thiếu REGISTRY trong .env}/api:${API_TAG:-chua-trien-khai}
+    restart: unless-stopped
+    depends_on:
+      sql:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Sau Caddy: nhận địa chỉ người dùng và https từ X-Forwarded-For, X-Forwarded-Proto (giới hạn tần suất theo IP cần địa chỉ thật).
+      # Tin mọi nguồn gửi tiêu đề là an toàn vì API không mở ra ngoài: chỉ Caddy và script trên máy gọi được.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - ./cau-hinh/appsettings.Production.json:/app/appsettings.Production.json:ro
+      - ./du-lieu/storage:/data/storage
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  ai:
+    image: ${REGISTRY}/ai:${AI_TAG:-chua-trien-khai}
+    restart: unless-stopped
+    env_file:
+      - ./cau-hinh/ai.env
+    environment:
+      AI_HOST: 0.0.0.0
+      AI_PORT: "8000"
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "127.0.0.1:8090:8000"
+
+  web:
+    image: ${REGISTRY}/web:${WEB_TAG:-chua-trien-khai}
+    restart: unless-stopped
+
+  edge:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+      - "8443:8443"
+      - "8443:8443/udp"
+    environment:
+      DIA_CHI_HOC_TAP: ${DIA_CHI_HOC_TAP:?Thiếu DIA_CHI_HOC_TAP trong .env}
+      DIA_CHI_QUAN_TRI: ${DIA_CHI_QUAN_TRI:?Thiếu DIA_CHI_QUAN_TRI trong .env}
+    # Gắn cả thư mục (không gắn riêng tệp) để Caddyfile mới chép đè vẫn hiện trong container khi caddy reload.
+    volumes:
+      - ./caddy:/etc/caddy:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  sql-data:
+  caddy-data:
+  caddy-config:
