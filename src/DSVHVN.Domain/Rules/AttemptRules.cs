@@ -193,27 +193,9 @@ public static class AttemptRules
     public static decimal RatePercent(int correct, int answered) =>
         answered <= 0 ? 0m : Math.Round(correct * 100m / answered, 1, MidpointRounding.AwayFromZero);
 
-    /// <summary>Số ngày học liên tiếp (streak) tính từ ngày nộp bài của các lượt làm bài so với hôm nay.</summary>
-    public static int StreakDays(IEnumerable<DateTime> dates, DateTime today)
-    {
-        var days = dates.Select(d => d.Date).Distinct().OrderByDescending(d => d).ToList();
-        if (days.Count == 0) return 0;
-
-        var current = today.Date;
-        if (!days.Contains(current))
-        {
-            current = current.AddDays(-1);
-            if (!days.Contains(current)) return 0;
-        }
-
-        int streak = 0;
-        while (days.Contains(current))
-        {
-            streak++;
-            current = current.AddDays(-1);
-        }
-        return streak;
-    }
+    /// <summary>Số ngày chăm chỉ: đếm tổng số ngày thực tế em đã tham gia học tập/nộp bài (không bị mất ngày khi nghỉ).</summary>
+    public static int StreakDays(IEnumerable<DateTime> dates, DateTime today) =>
+        dates.Select(d => d.Date).Distinct().Count();
 
     /// <summary>Lời cổ vũ vui vẻ của linh vật cho học sinh cấp 1 ở trang chủ.</summary>
     public static string LevelOneCheer(int stars, int streak, bool hasInProgress, bool hasOpenQuizzes)
