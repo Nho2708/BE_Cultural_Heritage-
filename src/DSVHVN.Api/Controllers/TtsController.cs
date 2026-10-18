@@ -12,7 +12,7 @@ public sealed record TtsRequest(string? Text);
 public sealed record TtsResponse(string? AudioUrl);
 
 /// <summary>
-/// Chuyển đổi văn bản thành giọng nói (Text-to-Speech) qua cloud service (FPT.AI).
+/// Chuyển đổi văn bản thành giọng nói (Text-to-Speech) qua cloud service (FPT.AI / Google Cloud TTS fallback).
 /// Cho phép gọi công khai (học sinh, giáo viên, khách tham quan nghe bài học và mô tả di sản).
 /// </summary>
 [Route("api/v1/tts")]
@@ -34,5 +34,21 @@ public sealed class TtsController(ITtsService tts) : ApiControllerBase
 
         var audioUrl = await tts.SynthesizeAsync(request.Text, ct);
         return OkEnvelope(new TtsResponse(audioUrl));
+    }
+
+    /// <summary>
+    /// Tải tệp âm thanh MP3 trực tiếp tạo bởi dịch vụ TTS của máy chủ.
+    /// </summary>
+    [HttpGet("audio/{hash}")]
+    [Produces("audio/mpeg")]
+    public async Task<IActionResult> GetAudio(string hash, CancellationToken ct)
+    {
+        var bytes = await tts.GetAudioBytesAsync(hash, ct);
+        if (bytes == null || bytes.Length == 0)
+        {
+            return NotFound();
+        }
+
+        return File(bytes, "audio/mpeg", enableRangeProcessing: true);
     }
 }
