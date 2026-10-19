@@ -168,14 +168,14 @@ public sealed class AttemptRulesTests
         var today = new DateTime(2026, 10, 16);
         Assert.Equal(0, AttemptRules.StreakDays([], today));
 
-        // Submitted today and yesterday -> streak 2
-        Assert.Equal(2, AttemptRules.StreakDays([today, today.AddDays(-1), today.AddDays(-5)], today));
+        // 3 ngày học khác nhau -> 3 ngày chăm chỉ
+        Assert.Equal(3, AttemptRules.StreakDays([today, today.AddDays(-1), today.AddDays(-5)], today));
 
-        // Submitted yesterday but not today -> streak 1
+        // 1 ngày học hôm qua -> 1 ngày chăm chỉ
         Assert.Equal(1, AttemptRules.StreakDays([today.AddDays(-1)], today));
 
-        // Submitted 2 days ago but neither today nor yesterday -> streak 0
-        Assert.Equal(0, AttemptRules.StreakDays([today.AddDays(-2)], today));
+        // 1 ngày học từ 2 ngày trước -> vẫn giữ 1 ngày (không bị mất khi nghỉ)
+        Assert.Equal(1, AttemptRules.StreakDays([today.AddDays(-2)], today));
 
         // Level 1 cheers
         Assert.Contains("làm dở", AttemptRules.LevelOneCheer(10, 2, hasInProgress: true, hasOpenQuizzes: true));

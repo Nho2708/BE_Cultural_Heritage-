@@ -34,6 +34,7 @@ public sealed class SchoolInquiryMailer(
             .Concat(options.Value.Recipients ?? [])
             .Select(EmailAddress.Normalize)
             .Where(ValidationRules.IsEmail)
+            .Where(EmailAddress.CanReceiveMail)
             .Distinct(StringComparer.Ordinal)
             .ToList();
 

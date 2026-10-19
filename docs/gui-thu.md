@@ -93,10 +93,12 @@ Gmail cá nhân giới hạn khoảng 500 người nhận mỗi ngày, đủ cho
 
 ## 4. Lưu ý
 
-- **Địa chỉ `*.local` không nhận được thư.** 4 tài khoản quản trị hệ thống seed ở Development (`nho.admin@dsvhvn.local`,
-  `lam.admin@dsvhvn.local`, …) có email đuôi `.local` không tồn tại: "Quên mật khẩu" cho các tài khoản này vẫn trả cùng một
-  câu, còn thư thì Gmail nhận rồi gửi lại thư báo không chuyển được vào hộp thư người gửi (hoặc từ chối ngay, khi đó log ghi
-  lỗi gửi thư). Không ai nhận được liên kết. Muốn thử quên mật khẩu với tài khoản quản trị hệ thống thì
+- **Địa chỉ `*.local` bị bỏ qua.** 4 tài khoản quản trị hệ thống seed ở Development (`nho.admin@dsvhvn.local`,
+  `lam.admin@dsvhvn.local`, …) và tài khoản của dữ liệu mẫu có email đuôi `.local` không tồn tại. Chế độ `Smtp` không gửi
+  tới các địa chỉ này (log ghi "Bỏ qua thư tới …"), thư liên hệ của trường cũng không tính họ là người nhận, nên Gmail không
+  phải gửi lại thư báo không chuyển được. Chế độ `Log` vẫn ghi thư như cũ để smoke test đọc token. "Quên mật khẩu" cho các tài
+  khoản này vẫn trả cùng một câu nhưng không ai nhận được liên kết. Máy chủ và máy demo chỉ có một quản trị hệ thống với email
+  thật, khai ở `deploy/quan-tri-he-thong.json`. Muốn thử quên mật khẩu với tài khoản quản trị hệ thống trên máy dev thì
   đổi email của tài khoản đó trong CSDL dev, vd
   `UPDATE users SET email = N'<email-that>' WHERE username = 'admin.nho';` (email lưu chữ thường). Sửa `Seed:Admins` không
   có tác dụng với tài khoản đã seed.
