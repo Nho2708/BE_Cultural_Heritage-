@@ -185,12 +185,14 @@ Dat 'Ads:AdMob:AndroidAdUnitIds' @($android | Select-Object -Unique)
 Dat 'Ads:AdMob:IosAdUnitIds' @($ios | Select-Object -Unique)
 Dat 'Ads:AdManager:AdUnitPaths' @($duongDanQc | Select-Object -Unique)
 
-# Tài khoản quản trị seed: danh sách lấy từ cấu hình Development, mật khẩu chung từ User Secrets.
+# Tài khoản quản trị seed: máy demo như máy chủ chỉ có một quản trị hệ thống, khai ở deploy\quan-tri-he-thong.json
+# (4 tài khoản seed của Development chỉ dùng trên máy dev); mật khẩu chung từ User Secrets.
 # Tài khoản đã có trong CSDL demo thì bỏ qua, không ghi đè mật khẩu.
 $matKhauAdmin = Lay-BiMat 'Seed:AdminPassword'
 if ($matKhauAdmin) {
     Dat 'Seed:AdminPassword' $matKhauAdmin
-    if ($dev.Seed.Admins) { Dat 'Seed:Admins' @($dev.Seed.Admins) }
+    $tepQuanTri = Join-Path $goiRepo 'deploy\quan-tri-he-thong.json'
+    Dat 'Seed:Admins' @(Get-Content -LiteralPath $tepQuanTri -Raw -Encoding UTF8 | ConvertFrom-Json)
 } else {
     Write-Warning 'User Secrets không có Seed:AdminPassword, bỏ qua mục Seed.'
 }
