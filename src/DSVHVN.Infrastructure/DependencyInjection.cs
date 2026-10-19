@@ -209,7 +209,18 @@ public static class DependencyInjection
     /// </summary>
     private static void AddSpeech(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddOptions<FptAiOptions>().Bind(configuration.GetSection(FptAiOptions.Section));
+        services.AddOptions<FptAiOptions>()
+            .Bind(configuration.GetSection(FptAiOptions.Section))
+            .PostConfigure(opt =>
+            {
+                var envKey = Environment.GetEnvironmentVariable("FPT_AI_API_KEY")
+                             ?? Environment.GetEnvironmentVariable("FptAi__ApiKey");
+                if (!string.IsNullOrWhiteSpace(envKey))
+                {
+                    opt.ApiKey = envKey.Trim();
+                }
+            });
+
         services.AddSingleton<ITtsService>(sp =>
         {
             var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
