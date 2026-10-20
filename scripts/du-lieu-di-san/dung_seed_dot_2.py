@@ -332,7 +332,9 @@ def clean_name(raw: str) -> tuple[str, list[str]]:
         rest = name[m.end():]
         notes.append(f"bỏ tiền tố loại hình: '{name}' -> '{cap_first(rest)}'")
         name = cap_first(rest)
-    elif re.match(r"^Di tích\s+[A-ZĐ]", name) and not re.match(r"^Di tích\s+(lịch sử|kiến trúc|khảo cổ|danh)", name, re.I):
+    elif re.match(r"^Di tích\s+[A-ZĐ]", name) and not re.match(r"^Di tích\s+(lịch sử|kiến trúc|khảo cổ|danh)", name, re.I) \
+            and fold(name[len("Di tích "):]).split(" ")[0] in PLACE_WORDS | {"phong", "vam", "con", "plei", "lang"}:
+        # "Di tích Mai Lượng" giữ nguyên (phần còn lại là tên người); "Di tích Làng Cả" -> "Làng Cả".
         rest = name[len("Di tích "):]
         notes.append(f"bỏ tiền tố 'Di tích': '{name}' -> '{rest}'")
         name = rest
