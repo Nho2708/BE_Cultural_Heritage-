@@ -12,7 +12,7 @@ namespace DSVHVN.Infrastructure.Files;
 /// (<c>public id</c>) cố định, nên địa chỉ HTTPS của tệp tính được từ khóa mà không cần hỏi Cloudinary:
 /// <list type="bullet">
 /// <item>Ảnh <c>images/{mã}.jpg|png|webp</c> tải lên loại image với public id <c>{thư mục}/images/{mã}</c>; địa chỉ có đuôi theo định dạng thật của ảnh.</item>
-/// <item>Mô hình <c>models/{mã}.glb</c> tải lên loại raw, public id giữ cả đuôi <c>{thư mục}/models/{mã}.glb</c>.</item>
+/// <item>Mô hình <c>models/{mã}.glb</c> và thuyết minh <c>thuyet-minh/{mã}.mp3</c> tải lên loại raw, public id giữ cả đuôi <c>{thư mục}/models/{mã}.glb</c>.</item>
 /// <item>Ảnh thu nhỏ <c>images/{mã}-thumb.webp</c> <b>không tải thêm tệp</b>: Cloudinary tự sinh bằng địa chỉ biến đổi (<c>c_limit,w_320,q_auto</c> trên ảnh gốc),
 /// nên ghi và xóa ảnh thu nhỏ là việc không làm gì, còn địa chỉ của nó là địa chỉ biến đổi.</item>
 /// </list>
@@ -137,7 +137,7 @@ public sealed class CloudinaryFileStorage : IFileStorage
     private Target Resolve(string key)
     {
         if (!StoredFileRules.IsValidKey(key)) throw new ArgumentException("Khóa tệp không hợp lệ.", nameof(key));
-        if (key.StartsWith(StoredFileRules.ModelFolder + "/", StringComparison.Ordinal))
+        if (StoredFileRules.IsRawKey(key))
             return new Target($"{_folder}/{key}", IsRaw: true, IsThumbnail: false);
 
         var withoutExtension = key[..key.LastIndexOf('.')];

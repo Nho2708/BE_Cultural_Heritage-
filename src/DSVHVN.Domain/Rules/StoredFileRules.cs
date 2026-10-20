@@ -14,6 +14,9 @@ public static partial class StoredFileRules
     /// <summary>Mô hình 3D (.glb) tối đa 15 MB.</summary>
     public const int MaxModelBytes = 15 * 1024 * 1024;
 
+    /// <summary>Tệp MP3 thuyết minh tạo sẵn tối đa 10 MB (bản tóm tắt ngắn ở 64-96 kbps chỉ vài trăm KB).</summary>
+    public const int MaxNarrationBytes = 10 * 1024 * 1024;
+
     /// <summary>Chặn ảnh nén rất mạnh nhưng giải ra chiếm nhiều bộ nhớ: tối đa 30 triệu điểm ảnh (khoảng 5500 x 5500).</summary>
     public const long MaxImagePixels = 30_000_000;
 
@@ -28,11 +31,13 @@ public static partial class StoredFileRules
 
     public const string ImageFolder = "images";
     public const string ModelFolder = "models";
+    public const string NarrationFolder = "thuyet-minh";
 
     public const string Jpeg = "jpg";
     public const string Png = "png";
     public const string Webp = "webp";
     public const string Glb = "glb";
+    public const string Mp3 = "mp3";
 
     /// <summary>Biến đổi của Cloudinary cho ảnh thu nhỏ: giữ tỉ lệ, cạnh dài tối đa 320 điểm ảnh, không phóng to, chất lượng tự chọn.</summary>
     public const string CloudinaryThumbnailTransformation = "c_limit,w_320,q_auto";
@@ -45,8 +50,14 @@ public static partial class StoredFileRules
 
     public static string ModelKey(Guid id) => $"{ModelFolder}/{id:N}.{Glb}";
 
+    public static string NarrationKey(Guid id) => $"{NarrationFolder}/{id:N}.{Mp3}";
+
     /// <summary>Khóa hợp lệ của một tệp trong kho (chỉ các dạng hệ thống sinh ra); dùng để chặn đường dẫn lạ trước khi chạm vào đĩa.</summary>
     public static bool IsValidKey(string? key) => key is not null && KeyPattern().IsMatch(key);
+
+    /// <summary>Tệp lưu ở Cloudinary dưới loại raw (giữ nguyên byte và đuôi tệp): mô hình 3D và thuyết minh MP3; ảnh thì không.</summary>
+    public static bool IsRawKey(string key) =>
+        key.StartsWith(ModelFolder + "/", StringComparison.Ordinal) || key.StartsWith(NarrationFolder + "/", StringComparison.Ordinal);
 
     /// <summary>Đường dẫn tương đối tới tệp trong kho, dạng <c>/files/images/{32 ký tự}.jpg</c>; hợp lệ làm đường dẫn ảnh của di sản.</summary>
     public static bool IsStoredPath(string? url) => url is not null && StoredPathPattern().IsMatch(url.Trim());
@@ -67,10 +78,10 @@ public static partial class StoredFileRules
         return cloud.Success ? $"{cloud.Groups[1].Value}{CloudinaryThumbnailTransformation}/{cloud.Groups[2].Value}.{Webp}" : null;
     }
 
-    [GeneratedRegex(@"^(images/[0-9a-f]{32}(-thumb)?\.(jpg|png|webp)|models/[0-9a-f]{32}\.glb)$")]
+    [GeneratedRegex(@"^(images/[0-9a-f]{32}(-thumb)?\.(jpg|png|webp)|models/[0-9a-f]{32}\.glb|thuyet-minh/[0-9a-f]{32}\.mp3)$")]
     private static partial Regex KeyPattern();
 
-    [GeneratedRegex(@"^/files/(images/[0-9a-f]{32}\.(jpg|png|webp)|models/[0-9a-f]{32}\.glb)$")]
+    [GeneratedRegex(@"^/files/(images/[0-9a-f]{32}\.(jpg|png|webp)|models/[0-9a-f]{32}\.glb|thuyet-minh/[0-9a-f]{32}\.mp3)$")]
     private static partial Regex StoredPathPattern();
 
     [GeneratedRegex(@"^(https://res\.cloudinary\.com/[A-Za-z0-9_-]+/image/upload/)((?:v\d+/)?(?:[A-Za-z0-9_-]+/)*images/[0-9a-f]{32})\.(?:jpg|png|webp)$")]
