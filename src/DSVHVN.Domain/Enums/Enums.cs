@@ -243,6 +243,7 @@ public enum AuditAction
     IPN_REJECTED,
     HERITAGE_MODEL_CHANGED,
     AD_REWARD_REJECTED,
+    HERITAGE_NARRATION_CHANGED,
 }
 
 /// <summary>Cách gom nhóm của biểu đồ tổng quan theo thời gian: theo ngày hoặc theo tháng (giờ Việt Nam).</summary>

@@ -35,6 +35,7 @@ public sealed class CloudinaryFileStorageTests
         Assert.Equal($"https://res.cloudinary.com/demo-cloud/image/upload/c_limit,w_320,q_auto/dsvhvn/images/{Id}.webp",
             storage.PublicUrl($"images/{Id}-thumb.webp"));
         Assert.Equal($"https://res.cloudinary.com/demo-cloud/raw/upload/dsvhvn/models/{Id}.glb", storage.PublicUrl($"models/{Id}.glb"));
+        Assert.Equal($"https://res.cloudinary.com/demo-cloud/raw/upload/dsvhvn/thuyet-minh/{Id}.mp3", storage.PublicUrl($"thuyet-minh/{Id}.mp3"));
         Assert.Empty(handler.Requests);
     }
 
@@ -101,6 +102,20 @@ public sealed class CloudinaryFileStorageTests
         var request = Assert.Single(handler.Requests);
         Assert.Equal("https://api.cloudinary.com/v1_1/demo-cloud/raw/upload", request.Url);
         Assert.Contains($"dsvhvn/models/{Id}.glb", request.Body);
+        Assert.DoesNotContain(Secret, request.Body);
+    }
+
+    [Fact]
+    public async Task A_narration_mp3_is_uploaded_as_raw_like_a_model()
+    {
+        var handler = new FakeCloudinaryHandler();
+        var storage = Create(handler);
+
+        await storage.SaveAsync($"thuyet-minh/{Id}.mp3", Encoding.ASCII.GetBytes("ID3-bytes"), default);
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("https://api.cloudinary.com/v1_1/demo-cloud/raw/upload", request.Url);
+        Assert.Contains($"dsvhvn/thuyet-minh/{Id}.mp3", request.Body);
         Assert.DoesNotContain(Secret, request.Body);
     }
 

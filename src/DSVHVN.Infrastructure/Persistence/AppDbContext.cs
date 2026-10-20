@@ -52,6 +52,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
     public DbSet<EventTranslation> EventTranslations => Set<EventTranslation>();
     public DbSet<MediaTranslation> MediaTranslations => Set<MediaTranslation>();
     public DbSet<HeritageSummary> HeritageSummaries => Set<HeritageSummary>();
+    public DbSet<HeritageNarration> HeritageNarrations => Set<HeritageNarration>();
     public DbSet<HeritageModel> HeritageModels => Set<HeritageModel>();
 
     // 10. Khách tham quan (CSDL v4)

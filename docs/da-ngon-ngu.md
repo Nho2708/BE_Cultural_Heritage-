@@ -68,7 +68,7 @@ năm ngôn ngữ) → tiếng Việt. Có `lang` mà **không thuộc năm ngôn
 | GET | `/heritages/map` | `lang`: ghim và popup theo ngôn ngữ, cùng cách tìm |
 | GET | `/heritages/{slug}` | `lang`: tên, mô tả ngắn, nội dung, tên giai đoạn rút gọn, chú thích ảnh theo ngôn ngữ; thêm `localization` và `hasSummary` |
 | GET | `/heritages/{slug}/timeline` | `lang`: tên di sản, tên và mô tả giai đoạn, tên và mô tả sự kiện, chú thích ảnh sự kiện; thêm `localization` |
-| GET | `/heritages/{slug}/summary` | **Mới.** Tóm tắt theo ngôn ngữ: `{ heritageId, slug, name, localization, shortText, detailedText }`; 404 `SUMMARY_UNAVAILABLE` khi chưa có tóm tắt tiếng Việt đã duyệt |
+| GET | `/heritages/{slug}/summary` | **Mới.** Tóm tắt theo ngôn ngữ: `{ heritageId, slug, name, localization, shortText, detailedText, narration }`; 404 `SUMMARY_UNAVAILABLE` khi chưa có tóm tắt tiếng Việt đã duyệt. `narration` (mục 14) là thuyết minh tạo sẵn `{ audioUrl, durationMs, voice, sentences: [{ text, startMs, endMs }] }` của đúng bản tóm tắt đang trả, hoặc `null` |
 
 Các cờ trả kèm (không có thì giao diện không biết mà gắn nhãn, nên **không bỏ**):
 
@@ -222,3 +222,20 @@ Không có khóa dịch vụ ngoài nào trong mã hay log: bản giả lập kh
 - **Duyệt tiếng Anh dịch lại ngay** bản Hàn, Trung, Nhật trong lời gọi duyệt; đặc tả mô tả "ở lần bấm dịch kế tiếp" và "khi duyệt lại" nên làm cả hai.
 - `address` của bản dịch để trống (AI không dịch địa chỉ), nên trang công khai luôn hiện địa chỉ gốc.
 - Ghi lượt xem, đọc, nghe vào lịch sử của khách và gợi ý theo lịch sử **đã làm** ở luồng Khách tham quan ([khach-tham-quan.md](khach-tham-quan.md): `GET /summary` tự ghi lượt đọc khi có `X-Device-Key`, lượt nghe ghi qua `POST /api/v1/public/guest/activities`); cổng quảng cáo mở khóa tóm tắt thuộc luồng Quảng cáo, **chưa có** ở đây.
+
+## 14. Thuyết minh tạo sẵn (giọng tự host)
+
+Tab "Nghe" phát tệp MP3 tạo sẵn thay cho giọng của thiết bị khi có. Âm thanh tạo trên máy phát triển (tiếng Việt: VieNeu-TTS giọng "Mai Anh"; Anh, Hàn, Trung, Nhật: MeloTTS)
+rồi tải lên qua API quản trị; **máy chủ không tạo giọng**. Thứ được đọc là `heritage_summaries.short_text`.
+
+- Bảng `heritage_narrations` (migration `ThemThuyetMinhTaoSan`, chỉ thêm bảng): `heritage_id` (Restrict), `language_code` (vi, en, ko, zh, ja; CHECK như `heritage_summaries`), `text_hash` char(64)
+  (SHA-256 hex thường của `short_text` đúng như đang lưu, chỉ máy chủ tính), `audio_url` (tệp MP3 trong kho tệp, thư mục `thuyet-minh/`, tên ngẫu nhiên; Cloudinary lưu loại raw như mô hình 3D), `duration_ms` (> 0),
+  `sentences` nvarchar(max) JSON `[{ text, startMs, endMs }]`, `voice` (100), `created_at`, `updated_at`; UNIQUE (`heritage_id`, `language_code`). Tải lên lần nữa thay dòng cũ; tệp cũ vẫn nằm trong kho như mọi tệp bị thay.
+- `GET /api/v1/admin/narrations/missing?language=vi&limit=500` (ADMIN): các tóm tắt **đang hiện công khai** ở ngôn ngữ đó (đúng quy tắc chọn của `GET /public/heritages/{slug}/summary`, cùng mã;
+  bản lùi về tiếng Việt không tính) mà chưa có thuyết minh hoặc băm lệch. 200 `{ items: [{ heritageId, slug, name, language, shortText, textHash }], total }`; `language` của mục là mã ngắn (zh); `limit` 1..1000.
+- `PUT /api/v1/admin/heritages/{heritageId}/narrations/{language}` (multipart: `audio` MP3 ≤ 10 MB kiểm bằng nội dung, `textHash`, `voice` 1..100, `durationMs` 1..1.800.000, `sentences` JSON 1..300 câu,
+  `0 ≤ startMs < endMs ≤ durationMs + 1000`, `startMs` không giảm). 200 `{ heritageId, language, audioUrl, durationMs, voice, textHash, sentenceCount }`; 400; 404 (không có di sản hoặc tóm tắt ngôn ngữ đó);
+  **409 `NARRATION_STALE`** khi băm khác băm của `short_text` hiện tại; 413 quá cỡ. Ghi nhật ký `HERITAGE_NARRATION_CHANGED` (đối tượng `heritage_narrations`, không ghi đường dẫn tệp).
+- Công khai: `narration` chỉ có khi tồn tại thuyết minh cho **đúng ngôn ngữ của bản tóm tắt được trả** (lùi về tiếng Việt thì là bản tiếng Việt) và băm còn khớp `shortText`; không thì `null` và giao diện đọc
+  bằng giọng thiết bị như cũ. Tệp bản Local phục vụ tại `/files/thuyet-minh/{mã}.mp3` (`audio/mpeg`).
+- Kiểm thử: `NarrationRulesTests`, `NarrationServiceTests` (SQLite, kho tệp giả), `NarrationApiTests` (HTTP), `NarrationSqlServerTests` (LocalDB, ràng buộc CSDL).

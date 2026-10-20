@@ -55,5 +55,6 @@ public static class AuditTargets
     public const string HeritageTranslations = "heritage_translations";
     public const string HeritageSummaries = "heritage_summaries";
     public const string HeritageModels = "heritage_models";
+    public const string HeritageNarrations = "heritage_narrations";
     public const string AdUnlocks = "ad_unlocks";
 }

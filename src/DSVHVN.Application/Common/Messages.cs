@@ -48,6 +48,7 @@ public static class MessageCodes
     public const string TranslationRejected = "TRANSLATION_REJECTED";
     public const string TranslationBusy = "TRANSLATION_BUSY";
     public const string ModelUnavailable = "MODEL_UNAVAILABLE";
+    public const string NarrationStale = "NARRATION_STALE";
     public const string QuizPublished = "QUIZ_PUBLISHED";
     public const string QuizClosed = "QUIZ_CLOSED";
     public const string QuizDuplicated = "QUIZ_DUPLICATED";
