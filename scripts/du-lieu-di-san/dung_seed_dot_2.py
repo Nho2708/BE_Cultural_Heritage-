@@ -735,7 +735,8 @@ def to_heritage(r: dict, provinces: Provinces, images: dict, items: dict, report
             credit = f"{artist} · {lic} · Wikimedia Commons"
         desc = re.sub(r"\s+", " ", info.get("description") or "").strip()
         caption = desc if 0 < len(desc) <= 200 else name
-        media.append({"media_type": "IMAGE", "url": info["url"], "caption": caption, "credit": credit, "sort_order": len(media) + 1,
+        # Bỏ tham số theo dõi (utm_...) mà API Commons gắn sau địa chỉ tệp.
+        media.append({"media_type": "IMAGE", "url": info["url"].split("?", 1)[0], "caption": caption, "credit": credit, "sort_order": len(media) + 1,
                       "source_note": src})
     thumbnail = media[0]["url"] if media else None
 
