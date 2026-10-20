@@ -13,8 +13,11 @@ namespace DSVHVN.Api.Common;
 /// duyệt thấy kết nối bị đặt lại). Bộ lọc này chạy trước khi ràng buộc tham số: nhìn Content-Length để từ chối sớm bằng 413 kèm câu
 /// rõ ràng, và đọc sẵn biểu mẫu để đổi lỗi "quá giới hạn" của máy chủ thành cùng câu đó. Dung lượng tệp vẫn do dịch vụ kiểm lại.
 /// </summary>
+/// <param name="fileLabel">Tên tệp trong câu báo, vd "Tệp ảnh".</param>
+/// <param name="maxFileBytes">Dung lượng tối đa của tệp.</param>
+/// <param name="field">Tên trường của tệp trong biểu mẫu để báo lỗi đúng ô (mặc định <c>file</c>).</param>
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class UploadSizeLimitAttribute(string fileLabel, long maxFileBytes) : Attribute, IAsyncResourceFilter
+public sealed class UploadSizeLimitAttribute(string fileLabel, long maxFileBytes, string field = "file") : Attribute, IAsyncResourceFilter
 {
     /// <summary>Phần chừa cho các trường chữ và phần đầu của biểu mẫu multipart, cộng vào dung lượng tệp để ra giới hạn thân yêu cầu.</summary>
     public const long FormHeadroom = 512 * 1024;
@@ -64,7 +67,7 @@ public sealed class UploadSizeLimitAttribute(string fileLabel, long maxFileBytes
     private AppException TooLarge()
     {
         var message = Messages.Invalid(fileLabel, $"tối đa {maxFileBytes / (1024 * 1024)} MB");
-        return new AppException(StatusCodes.Status413PayloadTooLarge, message, new Dictionary<string, string> { ["file"] = message.Text });
+        return new AppException(StatusCodes.Status413PayloadTooLarge, message, new Dictionary<string, string> { [field] = message.Text });
     }
 
     private static async Task DrainAsync(HttpContext http, long length)
