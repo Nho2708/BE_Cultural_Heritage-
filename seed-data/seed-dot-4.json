@@ -14,7 +14,7 @@
   "counts": {
    "provinces": 34,
    "heritages": 52,
-   "media": 57,
+   "media": 61,
    "references": 168,
    "timelines": 0,
    "events": 0
@@ -1629,10 +1629,10 @@
      "recognition_level": "UNESCO",
      "recognized_year": 2021,
      "address": "Tỉnh Gia Lai",
-     "latitude": null,
-     "longitude": null,
+     "latitude": 14.474167,
+     "longitude": 108.540833,
      "place_id": "Q10744306",
-     "map_point_note": "Chưa có tọa độ từ Wikidata hay trang danh sách",
+     "map_point_note": "Tọa độ từ GeoData bài Wikipedia tiếng Việt",
      "thumbnail_url": null,
      "status": "DRAFT",
      "timelines": [],
@@ -2139,10 +2139,27 @@
      "longitude": 107.15,
      "place_id": "Q3895703",
      "map_point_note": "Tọa độ từ Wikidata P625",
-     "thumbnail_url": null,
+     "thumbnail_url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Nomascus-gabriellae.jpg",
      "status": "DRAFT",
      "timelines": [],
-     "media": [],
+     "media": [
+      {
+       "media_type": "IMAGE",
+       "url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Nomascus-gabriellae.jpg",
+       "caption": "Vườn quốc gia Bù Gia Mập",
+       "credit": "Sancassania at English Wikipedia · CC BY-SA 3.0 · Wikimedia Commons",
+       "sort_order": 1,
+       "source_note": "ảnh trong bài Wikipedia"
+      },
+      {
+       "media_type": "IMAGE",
+       "url": "https://upload.wikimedia.org/wikipedia/commons/8/8d/Polyplectron_germaini_-Diergaarde_Blijdorp-8.jpg",
+       "caption": "Germain's Peacock-pheasant at Diergaarde Blijdorp (Foundation Royal Zoo of Rotterdam), The Netherlands.",
+       "credit": "Jeroen Kransen · CC BY-SA 2.0 · Wikimedia Commons",
+       "sort_order": 2,
+       "source_note": "ảnh trong bài Wikipedia"
+      }
+     ],
      "references": [
       {
        "title": "Danh sách vườn quốc gia tại Việt Nam — Wikipedia tiếng Việt (văn bản CC BY-SA 4.0), phiên bản 75634420; truy cập 20/10/2026",
@@ -2439,10 +2456,27 @@
      "longitude": 105.733333,
      "place_id": "Q10779407",
      "map_point_note": "Tọa độ từ Wikidata P625",
-     "thumbnail_url": null,
+     "thumbnail_url": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Dongcongapnuoctheomua.jpg",
      "status": "DRAFT",
      "timelines": [],
-     "media": [],
+     "media": [
+      {
+       "media_type": "IMAGE",
+       "url": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Dongcongapnuoctheomua.jpg",
+       "caption": "Đồng cỏ ngập nước theo mùa",
+       "credit": "Quoilp at Vietnamese Wikipedia · Public domain · Wikimedia Commons",
+       "sort_order": 1,
+       "source_note": "ảnh trong bài Wikipedia"
+      },
+      {
+       "media_type": "IMAGE",
+       "url": "https://upload.wikimedia.org/wikipedia/commons/4/4b/Rungtram_1.jpg",
+       "caption": "Melaleuca in en:Láng Sen Wetland Reserve",
+       "credit": "vi:User:Quoilp · Public domain · Wikimedia Commons",
+       "sort_order": 2,
+       "source_note": "ảnh trong bài Wikipedia"
+      }
+     ],
      "references": [
       {
        "title": "Công ước Ramsar — Wikipedia tiếng Việt (văn bản CC BY-SA 4.0), phiên bản 75303198; truy cập 20/10/2026",
