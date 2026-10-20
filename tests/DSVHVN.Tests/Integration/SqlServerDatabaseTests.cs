@@ -124,6 +124,48 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.Contains("map_point_note", again.IgnoredFields);
     }
 
+    /// <summary>
+    /// Đợt 2 (di tích quốc gia đặc biệt, danh hiệu UNESCO) nạp sau đợt 1 vào cùng database: thêm đúng số di sản ghi ở meta của tệp,
+    /// không di sản nào bị bỏ vì không khớp cột, slug không trùng đợt 1, mọi di sản ở DRAFT; nạp lại không nhân đôi.
+    /// </summary>
+    [LocalDbHeritageDataFact]
+    public async Task Second_heritage_batch_loads_after_first_without_rejects_or_duplicates()
+    {
+        var dataDir = SqlServerApiFactory.HeritageDataDirectory!;
+        var secondFile = Path.Combine(dataDir, "seed-dot-2.json");
+        Assert.True(File.Exists(secondFile), "Thiếu seed-data/seed-dot-2.json");
+        // Database tạm riêng (đã nạp đợt 1 lúc Api khởi động) để không đổi số đếm của test dùng chung fixture.
+        using var own = new SqlServerApiFactory();
+        var factory = own;
+        _ = factory.Server;
+
+        using var doc = System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(secondFile));
+        var counts = doc.RootElement.GetProperty("meta").GetProperty("counts");
+        var expected = (Heritages: counts.GetProperty("heritages").GetInt32(), Media: counts.GetProperty("media").GetInt32(),
+            References: counts.GetProperty("references").GetInt32());
+        Assert.True(expected.Heritages > 100, "Đợt 2 phải có trên 100 di sản");
+
+        var before = await factory.WithDbAsync(db => db.Heritages.CountAsync());
+        var first = await factory.WithDbAsync(db => HeritageDataSeeder.SeedAsync(db,
+            Path.Combine(dataDir, "provinces.json"), secondFile, default));
+        Assert.Empty(first.Rejected);
+        Assert.Equal((0, 34, expected.Heritages, 0, expected.Media, expected.References),
+            (first.ProvincesAdded, first.ProvincesExisting, first.HeritagesAdded, first.HeritagesExisting, first.MediaAdded, first.ReferencesAdded));
+
+        var (total, drafts, withProvince) = await factory.WithDbAsync(async db => (
+            await db.Heritages.CountAsync(),
+            await db.Heritages.CountAsync(h => h.Status == ContentStatus.DRAFT),
+            await db.Heritages.CountAsync(h => h.ProvinceId != null)));
+        Assert.Equal(before + expected.Heritages, total);
+        Assert.Equal(total, drafts);
+        Assert.Equal(total, withProvince);
+
+        var again = await factory.WithDbAsync(db => HeritageDataSeeder.SeedAsync(db,
+            Path.Combine(dataDir, "provinces.json"), secondFile, default));
+        Assert.Equal((0, expected.Heritages), (again.HeritagesAdded, again.HeritagesExisting));
+        Assert.Empty(again.Rejected);
+    }
+
     [LocalDbFact]
     public async Task Admin_web_flow_runs_on_sql_server()
     {
