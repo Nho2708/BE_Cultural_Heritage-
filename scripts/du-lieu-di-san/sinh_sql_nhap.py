@@ -182,7 +182,8 @@ def main() -> int:
     ap.add_argument("--ban-cu", nargs="*", default=[], help="bản seed cũ đã nhập trước đó, để sinh UPDATE cho di sản đổi địa chỉ/nội dung")
     a = ap.parse_args()
     sql, total, rejected, updates = emit([pathlib.Path(s) for s in a.seeds], [pathlib.Path(s) for s in a.ban_cu])
-    pathlib.Path(a.out).write_text(sql, encoding="utf-8-sig")
+    # Ghi LF cả trên Windows: chế độ văn bản đổi xuống dòng thành CRLF, lọt vào nội dung nhiều dòng của di sản (seeder ghi LF).
+    pathlib.Path(a.out).write_text(sql, encoding="utf-8-sig", newline="\n")
     print(f"Sinh {a.out}: {total} di sản trong tệp SQL, {updates} lệnh cập nhật theo bản cũ; bỏ {len(rejected)} vì không khớp cột")
     for r in rejected:
         print("  -", r)
