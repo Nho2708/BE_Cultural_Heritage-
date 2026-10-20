@@ -73,33 +73,54 @@ public static class DatabaseInitializer
     }
 
     /// <summary>
-    /// <c>Seed:HeritageData:ProvincesFile</c> và <c>Seed:HeritageData:HeritagesFile</c>: đường dẫn tệp JSON (tương đối theo
-    /// thư mục gốc của Api). Không cấu hình thì bỏ qua; cấu hình mà thiếu tệp thì ghi cảnh báo và bỏ qua.
+    /// <c>Seed:HeritageData:ProvincesFile</c> và các tệp di sản (<c>HeritagesFiles</c> là danh sách, nạp theo thứ tự; khóa cũ
+    /// <c>HeritagesFile</c> một tệp vẫn đọc được): đường dẫn tệp JSON tương đối theo thư mục gốc của Api. Không cấu hình thì bỏ qua;
+    /// cấu hình mà thiếu tệp thì ghi cảnh báo và bỏ qua tệp đó. Mỗi tệp nạp riêng, di sản đã có slug thì bỏ qua nên nạp lại không nhân đôi.
     /// </summary>
     private static async Task SeedHeritageDataAsync(AppDbContext db, IConfiguration config, string? contentRoot, ILogger logger,
         CancellationToken ct)
     {
         var section = config.GetSection("Seed:HeritageData");
         var provincesFile = Resolve(section["ProvincesFile"], contentRoot);
-        var heritagesFile = Resolve(section["HeritagesFile"], contentRoot);
-        if (provincesFile is null || heritagesFile is null) return;
-        if (!File.Exists(provincesFile) || !File.Exists(heritagesFile))
+        var heritagesFiles = HeritageFiles(section).Select(f => Resolve(f, contentRoot)!).ToList();
+        if (provincesFile is null || heritagesFiles.Count == 0) return;
+        if (!File.Exists(provincesFile))
         {
-            logger.LogWarning("Không thấy tệp dữ liệu di sản ({Provinces}, {Heritages}), bỏ qua bước nạp di sản",
-                provincesFile, heritagesFile);
+            logger.LogWarning("Không thấy tệp tỉnh/thành {Provinces}, bỏ qua bước nạp di sản", provincesFile);
             return;
         }
 
-        var result = await HeritageDataSeeder.SeedAsync(db, provincesFile, heritagesFile, ct);
-        logger.LogInformation(
-            "Nạp dữ liệu di sản: thêm {Provinces} tỉnh (đã có {ProvincesExisting}), {Heritages} di sản (đã có {HeritagesExisting}), " +
-            "{Timelines} giai đoạn, {Events} sự kiện, {Media} ảnh, {References} nguồn",
-            result.ProvincesAdded, result.ProvincesExisting, result.HeritagesAdded, result.HeritagesExisting,
-            result.TimelinesAdded, result.EventsAdded, result.MediaAdded, result.ReferencesAdded);
-        if (result.IgnoredFields.Count > 0)
-            logger.LogInformation("Trường trong tệp không có cột tương ứng, không lưu: {Fields}", string.Join(", ", result.IgnoredFields));
-        foreach (var rejected in result.Rejected)
-            logger.LogWarning("Bỏ qua vì không khớp cột: {Reason}", rejected);
+        foreach (var heritagesFile in heritagesFiles)
+        {
+            if (!File.Exists(heritagesFile))
+            {
+                logger.LogWarning("Không thấy tệp dữ liệu di sản {Heritages}, bỏ qua tệp này", heritagesFile);
+                continue;
+            }
+
+            var result = await HeritageDataSeeder.SeedAsync(db, provincesFile, heritagesFile, ct);
+            logger.LogInformation(
+                "Nạp dữ liệu di sản từ {File}: thêm {Provinces} tỉnh (đã có {ProvincesExisting}), {Heritages} di sản (đã có {HeritagesExisting}), " +
+                "{Timelines} giai đoạn, {Events} sự kiện, {Media} ảnh, {References} nguồn",
+                Path.GetFileName(heritagesFile), result.ProvincesAdded, result.ProvincesExisting, result.HeritagesAdded, result.HeritagesExisting,
+                result.TimelinesAdded, result.EventsAdded, result.MediaAdded, result.ReferencesAdded);
+            if (result.IgnoredFields.Count > 0)
+                logger.LogInformation("Trường trong tệp không có cột tương ứng, không lưu: {Fields}", string.Join(", ", result.IgnoredFields));
+            foreach (var rejected in result.Rejected)
+                logger.LogWarning("Bỏ qua vì không khớp cột: {Reason}", rejected);
+        }
+    }
+
+    /// <summary>
+    /// Danh sách tệp di sản từ cấu hình: <c>HeritagesFiles</c> (mảng) nối sau <c>HeritagesFile</c> (một tệp, khóa cũ), bỏ trống và trùng.
+    /// </summary>
+    public static IReadOnlyList<string> HeritageFiles(IConfiguration section)
+    {
+        var files = new List<string>();
+        if (!string.IsNullOrWhiteSpace(section["HeritagesFile"])) files.Add(section["HeritagesFile"]!);
+        files.AddRange(section.GetSection("HeritagesFiles").GetChildren().Select(c => c.Value)
+            .Where(v => !string.IsNullOrWhiteSpace(v))!);
+        return files.Distinct(StringComparer.Ordinal).ToList();
     }
 
     private static string? Resolve(string? path, string? contentRoot)
