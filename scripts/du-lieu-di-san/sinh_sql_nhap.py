@@ -7,11 +7,14 @@ Dùng cho máy không chạy seeder lúc khởi động (máy chủ): chạy t�
     `updated_at`/`deleted_at` để trống, hai cột tìm kiếm không dấu `search_name`/`search_text` tính như `SearchText` của backend,
     ảnh vào `media` (gắn di sản), nguồn vào `heritage_references` (loại GOV_WEBSITE/UNESCO quy về WEBSITE);
   - một giao dịch, `SET QUOTED_IDENTIFIER ON; SET ANSI_NULLS ON; SET XACT_ABORT ON;` để lỗi bất kỳ thì hủy toàn bộ;
-  - không nhập giai đoạn/sự kiện (các đợt sinh bằng script không có).
+  - không nhập giai đoạn/sự kiện (các đợt sinh bằng script không có);
+  - `--ban-cu <seed cũ>`: với di sản đã nhập từ bản seed cũ mà bản mới sửa địa chỉ/nội dung/mô tả ngắn (ví dụ thêm "(nay thuộc
+    <tỉnh mới>)" sau tên tỉnh cũ), sinh thêm UPDATE theo slug, chỉ khi di sản còn DRAFT và ba cột đang đúng bằng bản cũ do seed
+    tạo — quản trị đã sửa tay thì không đè; tính lại `search_text`.
 
 Cách chạy:
-  python -I -X utf8 scripts/du-lieu-di-san/sinh_sql_nhap.py seed-data/seed-dot-2.json --out nhap-seed-dot-2.sql
-  sqlcmd -S . -E -I -f 65001 -d <csdl> -i nhap-seed-dot-2.sql
+  python -I -X utf8 scripts/du-lieu-di-san/sinh_sql_nhap.py seed-data/seed-dot-2.json seed-data/seed-dot-3.json --ban-cu seed-dot-2-cu.json --out nhap-seed-dot-2-3.sql
+  sqlcmd -S . -E -I -f 65001 -d <csdl> -i nhap-seed-dot-2-3.sql
 """
 from __future__ import annotations
 
@@ -97,11 +100,43 @@ def source_type(value: str | None) -> str | None:
     return value if value in SOURCE_TYPES else value
 
 
-def emit(seeds: list[pathlib.Path]) -> tuple[str, int, list[str]]:
+def heritages_of(seed: pathlib.Path) -> dict[str, dict]:
+    data = json.loads(seed.read_text(encoding="utf-8"))
+    return {h["slug"]: h for province in data["provinces"] for h in province["heritages"]}
+
+
+def emit_updates(old_seeds: list[pathlib.Path], new: dict[str, dict]) -> tuple[list[str], int]:
+    """UPDATE cho di sản có trong bản cũ mà bản mới đổi địa chỉ/nội dung/mô tả ngắn; điều kiện ba cột đang bằng bản cũ và DRAFT."""
+    lines: list[str] = []
+    count = 0
+    for old_seed in old_seeds:
+        for slug, old in heritages_of(old_seed).items():
+            h = new.get(slug)
+            if h is None:
+                continue
+            fields = ("address", "content", "short_description")
+            if all(old.get(f) == h.get(f) for f in fields):
+                continue
+
+            def same(f: str) -> str:
+                return f"{f} IS NULL" if old.get(f) is None else f"{f} = {lit(old.get(f))}"
+
+            lines += [f"-- cập nhật {h['name']}",
+                      "UPDATE heritages SET " + ", ".join(f"{f} = {lit(h.get(f))}" for f in fields)
+                      + f", search_text = {lit(search_text(h.get('name'), h.get('short_description'), h.get('address'), h.get('content')))}",
+                      f"WHERE slug = {lit(slug)} AND status = N'DRAFT' AND " + " AND ".join(same(f) for f in fields) + ";",
+                      "SET @cap_nhat += @@ROWCOUNT;", ""]
+            count += 1
+    return lines, count
+
+
+def emit(seeds: list[pathlib.Path], old_seeds: list[pathlib.Path] | None = None) -> tuple[str, int, list[str], int]:
     lines = ["SET QUOTED_IDENTIFIER ON;", "SET ANSI_NULLS ON;", "SET XACT_ABORT ON;", "SET NOCOUNT ON;", "",
-             "BEGIN TRANSACTION;", "DECLARE @id bigint, @them int = 0, @bo_qua int = 0, @tinh int;",
+             "BEGIN TRANSACTION;", "DECLARE @id bigint, @them int = 0, @bo_qua int = 0, @cap_nhat int = 0, @tinh int;",
              "DECLARE @luc datetime2(3) = CAST(SYSUTCDATETIME() AS datetime2(3));", ""]
     total, rejected = 0, []
+    update_lines, updates = emit_updates(old_seeds or [], {s: h for seed in seeds for s, h in heritages_of(seed).items()})
+    lines += update_lines
     for seed in seeds:
         data = json.loads(seed.read_text(encoding="utf-8"))
         for province in data["provinces"]:
@@ -135,18 +170,20 @@ def emit(seeds: list[pathlib.Path]) -> tuple[str, int, list[str]]:
                 lines += ["    SET @them += 1;", "END", "ELSE SET @bo_qua += 1;", ""]
                 total += 1
     lines += ["COMMIT TRANSACTION;",
-              "PRINT N'Đã thêm ' + CAST(@them AS nvarchar(10)) + N' di sản, bỏ qua ' + CAST(@bo_qua AS nvarchar(10)) + N' di sản đã có slug.';", ""]
-    return "\n".join(lines), total, rejected
+              "PRINT N'Đã thêm ' + CAST(@them AS nvarchar(10)) + N' di sản, bỏ qua ' + CAST(@bo_qua AS nvarchar(10)) + N' di sản đã có slug, "
+              "cập nhật địa chỉ/nội dung ' + CAST(@cap_nhat AS nvarchar(10)) + N' di sản còn bản cũ.';", ""]
+    return "\n".join(lines), total, rejected, updates
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("seeds", nargs="+", help="tệp seed JSON (nạp theo thứ tự)")
     ap.add_argument("--out", required=True, help="tệp SQL sinh ra (UTF-8 có BOM để sqlcmd -f 65001 đọc đúng)")
+    ap.add_argument("--ban-cu", nargs="*", default=[], help="bản seed cũ đã nhập trước đó, để sinh UPDATE cho di sản đổi địa chỉ/nội dung")
     a = ap.parse_args()
-    sql, total, rejected = emit([pathlib.Path(s) for s in a.seeds])
+    sql, total, rejected, updates = emit([pathlib.Path(s) for s in a.seeds], [pathlib.Path(s) for s in a.ban_cu])
     pathlib.Path(a.out).write_text(sql, encoding="utf-8-sig")
-    print(f"Sinh {a.out}: {total} di sản trong tệp SQL; bỏ {len(rejected)} vì không khớp cột")
+    print(f"Sinh {a.out}: {total} di sản trong tệp SQL, {updates} lệnh cập nhật theo bản cũ; bỏ {len(rejected)} vì không khớp cột")
     for r in rejected:
         print("  -", r)
     return 1 if rejected else 0
