@@ -123,7 +123,8 @@ public sealed class PublicHeritagesController(
 
     /// <summary>
     /// Tóm tắt của di sản theo ngôn ngữ (nút "Tóm tắt" và "Nghe"): <c>detailedText</c> để đọc, <c>shortText</c> để nghe bằng giọng đọc của thiết bị hoặc trình duyệt. Lấy từ bản đã lưu, không gọi AI.
-    /// Ngôn ngữ chưa có bản hiện hành thì trả tóm tắt tiếng Việt kèm cờ <c>isFallback</c> (nghe bằng giọng tiếng Việt). Di sản chưa có tóm tắt tiếng Việt đã duyệt thì 404 kèm mã
+    /// Ngôn ngữ chưa có bản hiện hành thì trả tóm tắt tiếng Việt kèm cờ <c>isFallback</c> (nghe bằng giọng tiếng Việt). <c>narration</c> là thuyết minh tạo sẵn (MP3 giọng tự host:
+    /// <c>audioUrl</c>, <c>durationMs</c>, <c>voice</c>, <c>sentences[]</c> với mốc mili giây) của đúng bản tóm tắt đang trả, null khi chưa có hoặc chữ đã đổi. Di sản chưa có tóm tắt tiếng Việt đã duyệt thì 404 kèm mã
     /// SUMMARY_UNAVAILABLE ("Di sản này chưa có tóm tắt"): không hiện cổng quảng cáo, không tính lượt. Khách gửi kèm <c>X-Device-Key</c> thì lượt đọc tóm tắt được ghi vào lịch sử (chỉ khi có tóm tắt).
     /// <para>
     /// <b>Cổng quảng cáo:</b> khi cổng đang hoạt động, khách chưa mở khóa di sản này trên thiết bị của mình (xem quảng cáo có thưởng của Google, hiệu lực 24 giờ) nhận 403 kèm mã

@@ -23,6 +23,7 @@ using DSVHVN.Application.StudentAuth;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Teachers;
 using DSVHVN.Application.Models;
+using DSVHVN.Application.Narrations;
 using DSVHVN.Application.Translations;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,6 +66,7 @@ public static class DependencyInjection
         services.AddScoped<PublicModelService>();
         services.AddScoped<HeritageTranslationService>();
         services.AddScoped<PublicSummaryService>();
+        services.AddScoped<NarrationService>();
         services.AddScoped<DiscoveryService>();
         services.AddScoped<HeritagePreviewService>();
         services.AddSingleton<IStudentCredentialGenerator, RandomStudentCredentialGenerator>();
