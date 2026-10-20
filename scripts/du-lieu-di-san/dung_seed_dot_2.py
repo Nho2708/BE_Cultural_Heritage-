@@ -9,6 +9,8 @@ Ba bước, mỗi bước ghi kết quả ra thư mục làm việc để chạy
             Commons (giấy phép, tác giả, mô tả ảnh). Phản hồi lưu cache; ghi `lam-viec/lam-giau.json`.
   dung      Quy tỉnh về 34 đơn vị, đặt tên, slug, loại, cấp, năm, tọa độ (kiểm trong lãnh thổ và gần tỉnh), ảnh (chỉ giấy phép mở),
             nội dung, nguồn; loại trùng với đợt 1 và giữa các nguồn; xuất seed và báo cáo chất lượng `BAO-CAO.md`.
+            Nội dung lấy văn xuôi nguyên văn của bài (mở đầu + các mục đầu, đúng phiên bản đã dẫn, khoảng 250–400 từ) qua
+            `van_xuoi_wiki.py`; wikitext tải lần đầu rồi đọc từ `lam-viec/van-xuoi.json`.
 
 Cách chạy (từ gốc repo):
   python -I -X utf8 scripts/du-lieu-di-san/dung_seed_dot_2.py --lam-viec <thư mục làm việc> --buoc tat-ca --nguon qgdb,unesco --dot 2
@@ -40,6 +42,7 @@ import unicodedata
 from collections import Counter, defaultdict
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import van_xuoi_wiki as V  # noqa: E402
 import wikitext as W  # noqa: E402
 from nguon_wiki import COMMONS_API, VI_API, WIKIDATA_API, WikiClient, chunks  # noqa: E402
 
@@ -739,10 +742,13 @@ def build(work: pathlib.Path, rows: list[dict], enriched: dict, provinces: Provi
         used.add(s)
         r["slug"] = s
 
+    # Văn xuôi của bài (đúng phiên bản đã dẫn) để nội dung đủ dài; tải một lần, lần sau đọc từ lam-viec/van-xuoi.json.
+    prose = V.load(work, WikiClient(work / "cache" / "api"), [(r["page"]["title"], r["page"].get("revid")) for r in merged if r.get("page")])
+
     out_provinces = {p["code"]: {"code": p["code"], "name": p["name"], "region": p["region"], "heritages": []} for p in provinces.rows}
     counts = Counter()
     for r in merged:
-        h = to_heritage(r, provinces, images, items, report)
+        h = to_heritage(r, provinces, images, items, report, prose)
         out_provinces[r["province_code"]]["heritages"].append(h)
         counts["heritages"] += 1
         counts["media"] += len(h["media"])
@@ -758,9 +764,9 @@ def build(work: pathlib.Path, rows: list[dict], enriched: dict, provinces: Provi
                  "accessed": NGAY_TRUY_CAP} for k, v in PAGES.items() if k in chosen or (k == "unesco-pvt" and "unesco" in chosen)
             ] + [{"title": "Wikidata (tọa độ P625, ảnh P18)", "url": "https://www.wikidata.org", "license": "CC0", "accessed": NGAY_TRUY_CAP},
                  {"title": "Wikimedia Commons (ảnh; giấy phép từng ảnh ghi ở media.credit)", "url": "https://commons.wikimedia.org", "license": "theo từng tệp", "accessed": NGAY_TRUY_CAP}],
-            "note": "Sinh bởi scripts/du-lieu-di-san/dung_seed_dot_2.py. Đoạn giới thiệu rút gọn từ đoạn mở đầu bài Wikipedia tiếng Việt (CC BY-SA 4.0), "
-                    "không thêm ý; tọa độ chỉ từ Wikidata hoặc {{coord}} của trang danh sách; ảnh chỉ từ Wikidata P18, ảnh chính bài hoặc ảnh trong hàng của trang danh sách, "
-                    "giấy phép CC0/CC BY/CC BY-SA/phạm vi công cộng. Tỉnh theo 34 đơn vị (QĐ 19/2025/QĐ-TTg).",
+            "note": "Sinh bởi scripts/du-lieu-di-san/dung_seed_dot_2.py. Nội dung trích nguyên văn các đoạn văn xuôi đầu bài Wikipedia tiếng Việt (CC BY-SA 4.0, "
+                    "đúng phiên bản dẫn trong nguồn), có lược bớt, không thêm ý; tọa độ chỉ từ Wikidata hoặc {{coord}} của trang danh sách; ảnh chỉ từ Wikidata P18, "
+                    "ảnh chính bài hoặc ảnh trong hàng của trang danh sách, giấy phép CC0/CC BY/CC BY-SA/phạm vi công cộng. Tỉnh theo 34 đơn vị (QĐ 19/2025/QĐ-TTg).",
         },
         "provinces": [p for p in out_provinces.values() if p["heritages"]],
     }
@@ -770,15 +776,12 @@ def build(work: pathlib.Path, rows: list[dict], enriched: dict, provinces: Provi
     return report
 
 
-def to_heritage(r: dict, provinces: Provinces, images: dict, items: dict, report: dict) -> dict:
+def pick_coord(r: dict, item: dict, provinces: Provinces, report: dict, name: str) -> tuple[float | None, float | None, str | None]:
+    """Tọa độ: Wikidata P625, không có thì {{coord}} của trang danh sách; phải trong lãnh thổ và cách tâm tỉnh không quá giới hạn.
+    Di sản phi vật thể/tư liệu không ghim."""
     code = r["province_code"]
-    page = r.get("page") or {}
-    item = items.get(r.get("qid") or "", {})
-    name = r["name_display"]
-
-    # Tọa độ: Wikidata P625, không có thì {{coord}} của trang danh sách; phải trong lãnh thổ và cách tâm tỉnh không quá 200 km.
-    lat = lon = None
-    coord_src = None
+    if r["type"] in ("INTANGIBLE", "DOCUMENTARY"):
+        return None, None, None
     for src, c in (("Wikidata P625", item.get("coord")), ("{{coord}} trang danh sách", r.get("coord"))):
         if not c:
             continue
@@ -790,13 +793,13 @@ def to_heritage(r: dict, provinces: Provinces, images: dict, items: dict, report
         if d > MAX_KM_FROM_CENTER:
             report["toa_do_bo"].append((name, src, f"cách tâm {provinces.short_name(code)} {d:.0f} km: {la:.4f}, {lo:.4f}"))
             continue
-        lat, lon, coord_src = round(la, 6), round(lo, 6), src
-        break
-    if r["type"] in ("INTANGIBLE", "DOCUMENTARY"):
-        lat = lon = coord_src = None
+        return round(la, 6), round(lo, 6), src
+    return None, None, None
 
-    # Ảnh: Wikidata P18, ảnh chính của bài, ảnh trong hàng của trang danh sách; chỉ giấy phép mở.
-    media = []
+
+def pick_media(r: dict, page: dict, item: dict, images: dict, report: dict, name: str) -> list[dict]:
+    """Ảnh: Wikidata P18, ảnh chính của bài, ảnh trong hàng của trang danh sách; chỉ giấy phép mở."""
+    media: list[dict] = []
     seen = set()
     for src, fname in (("Wikidata P18", item.get("image")), ("ảnh chính bài Wikipedia", page.get("pageimage_name")), ("ảnh trong hàng của trang danh sách", r.get("list_image"))):
         if not fname:
@@ -829,6 +832,46 @@ def to_heritage(r: dict, provinces: Provinces, images: dict, items: dict, report
         # Bỏ tham số theo dõi (utm_...) mà API Commons gắn sau địa chỉ tệp.
         media.append({"media_type": "IMAGE", "url": info["url"].split("?", 1)[0], "caption": caption, "credit": credit, "sort_order": len(media) + 1,
                       "source_note": src})
+    return media
+
+
+def intro_of(page: dict) -> str:
+    """Đoạn mở đầu rút gọn từ extract của bài (bỏ phần phát âm trong ngoặc)."""
+    extract = re.sub(r"\s+", " ", (page.get("extract") or "")).strip()
+    extract = re.sub(r"\s*\((?:[^()]*?(?:phát âm|IPA|nghe|tiếng [A-Z][^()]*?:)[^()]*)\)", "", extract)
+    return shorten(extract, MAX_CONTENT_WORDS) if extract else ""
+
+
+def compose_content(page: dict, prose: dict, built: str, intro: str, rank_lines: list[str]) -> str:
+    """Nội dung: văn xuôi nguyên văn của bài (mở đầu + các mục đầu, đúng phiên bản đã dẫn) nếu có; không thì đoạn mở đầu rút gọn;
+    không có bài thì câu dựng từ dữ liệu có cấu trúc. Luôn kết bằng mục Xếp hạng và dòng ghi nguồn."""
+    entry = prose.get(V.key_of(page["title"], page.get("revid"))) if page else None
+    chosen = V.choose(entry["sections"]) if entry and entry.get("sections") else []
+    if chosen:
+        if chosen[0][0]:
+            # Bài không có đoạn mở đầu đủ dài: mở bằng đoạn rút gọn (hoặc câu dựng), rồi tới các mục của bài.
+            body = "## Giới thiệu\n" + (intro or built)
+        else:
+            body = "## Giới thiệu\n" + chosen.pop(0)[1]
+        for heading, text in chosen:
+            body += f"\n\n## {heading}\n{text}"
+        footer = f"\n\nNội dung trích nguyên văn từ bài \"{page['title']}\" trên Wikipedia tiếng Việt (CC BY-SA 4.0), phiên bản {page.get('revid')}, có lược bớt."
+    elif intro:
+        body = "## Giới thiệu\n" + intro
+        footer = f"\n\nĐoạn giới thiệu rút gọn từ bài \"{page['title']}\" trên Wikipedia tiếng Việt (CC BY-SA 4.0)."
+    else:
+        body = "## Giới thiệu\n" + built
+        footer = ""
+    return body + "\n\n## Xếp hạng\n" + "\n".join(rank_lines) + footer
+
+
+def to_heritage(r: dict, provinces: Provinces, images: dict, items: dict, report: dict, prose: dict) -> dict:
+    code = r["province_code"]
+    page = r.get("page") or {}
+    item = items.get(r.get("qid") or "", {})
+    name = r["name_display"]
+    lat, lon, coord_src = pick_coord(r, item, provinces, report, name)
+    media = pick_media(r, page, item, images, report, name)
     thumbnail = media[0]["url"] if media else None
 
     # Nội dung.
@@ -862,9 +905,7 @@ def to_heritage(r: dict, provinces: Provinces, images: dict, items: dict, report
     year = r.get("year")
     built = f"{r['name']} là {kind} tại {place_text}" + (f", được công nhận {level_label.lower()} năm {year}." if year else ".")
 
-    extract = re.sub(r"\s+", " ", (page.get("extract") or "")).strip()
-    extract = re.sub(r"\s*\((?:[^()]*?(?:phát âm|IPA|nghe|tiếng [A-Z][^()]*?:)[^()]*)\)", "", extract)
-    intro = shorten(extract, MAX_CONTENT_WORDS) if extract else ""
+    intro = intro_of(page)
     short = first_sentence(intro) if intro else built
     if len(short) > 300 or words(short) < 4:
         short = built if len(built) <= 300 else built[:297] + "…"
@@ -880,9 +921,7 @@ def to_heritage(r: dict, provinces: Provinces, images: dict, items: dict, report
     if r.get("decision"):
         rank_lines.append(f"- Quyết định: số {r['decision']}")
     rank_lines.append(f"- Địa bàn theo nguồn: {place_text}")
-    content = "## Giới thiệu\n" + (intro if intro else built) + "\n\n## Xếp hạng\n" + "\n".join(rank_lines)
-    if intro:
-        content += f"\n\nĐoạn giới thiệu rút gọn từ bài \"{page['title']}\" trên Wikipedia tiếng Việt (CC BY-SA 4.0)."
+    content = compose_content(page, prose, built, intro, rank_lines)
 
     # Nguồn tham chiếu.
     refs = [{"title": f"{r['list_page']} — Wikipedia tiếng Việt (văn bản CC BY-SA 4.0), phiên bản {r.get('list_revid')}; truy cập {NGAY_TRUY_CAP}",
@@ -944,14 +983,16 @@ def write_report(work: pathlib.Path, rows: list[dict], report: dict, provinces: 
         lines.append(f"| {code} | {provinces.full_name(code)} | {len(hp)} | {sum(1 for h in hp if h['latitude'] is not None)} | {sum(1 for h in hp if h['media'])} |")
     with_coord = sum(1 for h in hs if h["latitude"] is not None)
     with_img = sum(1 for h in hs if h["media"])
-    with_intro = sum(1 for h in hs if "Đoạn giới thiệu rút gọn" in h["content"])
+    with_intro = sum(1 for h in hs if "từ bài \"" in h["content"])
+    with_prose = sum(1 for h in hs if "Nội dung trích nguyên văn" in h["content"])
     with_qid = sum(1 for h in hs if h["place_id"])
     with_year = sum(1 for h in hs if h["recognized_year"])
     tangible = [h for h in hs if h["heritage_type"] not in ("INTANGIBLE", "DOCUMENTARY")]
     lines += ["", "## 2. Độ đầy", "", "| Chỉ số | Số | Tỷ lệ |", "|---|---:|---:|",
               f"| Có tọa độ (trên di sản vật thể/thiên nhiên/hỗn hợp) | {with_coord} / {len(tangible)} | {100.0 * with_coord / max(1, len(tangible)):.1f}% |",
               f"| Có ảnh (giấy phép mở) | {with_img} | {pct(with_img)} |",
-              f"| Có đoạn giới thiệu từ bài Wikipedia | {with_intro} | {pct(with_intro)} |",
+              f"| Có nội dung từ bài Wikipedia | {with_intro} | {pct(with_intro)} |",
+              f"| Trong đó trích văn xuôi nguyên văn (mở đầu + các mục đầu, {V.MIN_WORDS}–{V.MAX_WORDS} từ) | {with_prose} | {pct(with_prose)} |",
               f"| Có mã Wikidata | {with_qid} | {pct(with_qid)} |",
               f"| Có năm xếp hạng/ghi danh | {with_year} | {pct(with_year)} |",
               f"| Nội dung đủ 200 từ (điều kiện xuất bản) | {sum(1 for h in hs if words(h['content']) >= 200)} | {pct(sum(1 for h in hs if words(h['content']) >= 200))} |", ""]
