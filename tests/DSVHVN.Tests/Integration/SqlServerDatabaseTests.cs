@@ -126,7 +126,8 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
 
     /// <summary>
     /// Các đợt sau đợt 1 (đợt 2: di tích quốc gia đặc biệt, danh hiệu UNESCO; đợt 3: di sản văn hóa phi vật thể quốc gia, di tích
-    /// quốc gia) nạp lần lượt vào cùng database: mỗi tệp thêm đúng số di sản ghi ở meta của nó, không di sản nào bị bỏ vì không khớp
+    /// quốc gia; đợt 4: vườn quốc gia, khu dự trữ sinh quyển, công viên địa chất, khu Ramsar, vườn di sản ASEAN, di sản tư liệu)
+    /// nạp lần lượt vào cùng database: mỗi tệp thêm đúng số di sản ghi ở meta của nó, không di sản nào bị bỏ vì không khớp
     /// cột, slug không trùng các đợt trước, mọi di sản ở DRAFT; nạp lại từng tệp không nhân đôi.
     /// </summary>
     [LocalDbHeritageDataFact]
@@ -151,7 +152,8 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
             var counts = doc.RootElement.GetProperty("meta").GetProperty("counts");
             var expected = (Heritages: counts.GetProperty("heritages").GetInt32(), Media: counts.GetProperty("media").GetInt32(),
                 References: counts.GetProperty("references").GetInt32());
-            Assert.True(expected.Heritages > 100, $"{Path.GetFileName(file)} phải có trên 100 di sản");
+            // Mỗi đợt là một kho thật, không phải tệp thử: đợt nhỏ nhất (đợt 4, di sản thiên nhiên) có 52 di sản.
+            Assert.True(expected.Heritages >= 10, $"{Path.GetFileName(file)} phải có ít nhất 10 di sản");
 
             var first = await factory.WithDbAsync(db => HeritageDataSeeder.SeedAsync(db,
                 Path.Combine(dataDir, "provinces.json"), file, default));
