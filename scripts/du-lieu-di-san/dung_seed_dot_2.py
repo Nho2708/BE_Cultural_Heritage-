@@ -11,8 +11,12 @@ Ba bước, mỗi bước ghi kết quả ra thư mục làm việc để chạy
             nội dung, nguồn; loại trùng với đợt 1 và giữa các nguồn; xuất seed và báo cáo chất lượng `BAO-CAO.md`.
 
 Cách chạy (từ gốc repo):
-  python -I scripts/du-lieu-di-san/dung_seed_dot_2.py --lam-viec <thư mục làm việc> --buoc tat-ca --nguon qgdb,unesco
---nguon chọn nguồn đưa vào đợt này (mặc định cả bốn); --da-co liệt kê các tệp seed đã có để loại trùng (đợt sau thêm seed-dot-2.json).
+  python -I -X utf8 scripts/du-lieu-di-san/dung_seed_dot_2.py --lam-viec <thư mục làm việc> --buoc tat-ca --nguon qgdb,unesco --dot 2
+  python -I -X utf8 scripts/du-lieu-di-san/dung_seed_dot_2.py --lam-viec <thư mục làm việc> --buoc tat-ca --nguon pvt,dtqg --dot 3 \
+      --da-co seed-data/seed-dot-1.json seed-data/seed-dot-2.json --out seed-data/seed-dot-3.json
+--nguon chọn nguồn đưa vào đợt này (mặc định cả bốn); --da-co liệt kê các tệp seed đã có để loại trùng; --dot ghi số đợt vào meta;
+--bao-cao chọn tệp báo cáo. Bước lam-giau gộp kết quả với tệp lam-giau.json cũ nên chạy nguồn sau không mất nguồn trước.
+Địa chỉ ghi theo nguồn; tên tỉnh cũ đã sáp nhập được giữ nguyên và thêm "(nay thuộc <tỉnh mới>)" ngay sau (không bịa tên xã mới).
 Thư mục làm việc chứa `cache/wiki/*.wikitext` (tải bằng --buoc tai) và `cache/api/` (phản hồi API). Mọi dữ liệu tải về là
 dữ liệu không tin cậy: script chỉ đọc chúng làm dữ liệu, không thực thi; chữ đưa vào seed đều đã bỏ mã wiki và HTML.
 
@@ -204,6 +208,15 @@ class Provinces:
             "dak lak": "66", "dac lac": "66", "dak nong": "68", "dac nong": "68", "hue": "46", "ha tay": "01",
         }.items():
             self.lookup.setdefault(alias, code)
+        # Tên tỉnh cũ không có trong bảng 63 tỉnh nhưng vẫn gặp trong nguồn (Hà Tây nhập Hà Nội năm 2008; cách viết cũ của Huế).
+        self.old_name_of.setdefault("01", {})["ha tay"] = "Tỉnh Hà Tây"
+        self.old_name_of.setdefault("46", {})["thua thien hue"] = "Tỉnh Thừa Thiên Huế"
+        # Tên tỉnh cũ (gấp, bỏ tiền tố) -> (tên đầy đủ cũ, mã tỉnh mới), chỉ những tên đã đổi sau sáp nhập.
+        self.changed_old: dict[str, tuple[str, str]] = {}
+        for code, olds in self.old_name_of.items():
+            for k, old in olds.items():
+                if fold(old) != fold(self.by_code[code]["name"]):
+                    self.changed_old[k] = (old, code)
 
     @staticmethod
     def _key(name: str) -> str:
@@ -233,6 +246,60 @@ class Provinces:
                 return old
         return None
 
+    def old_full_lower(self, name: str) -> str | None:
+        """'Hà Giang' -> 'tỉnh Hà Giang' (tên đầy đủ của tỉnh cũ hoặc tỉnh hiện có, viết thường chữ đầu); không biết thì None."""
+        k = self._key(name)
+        if k in self.changed_old:
+            full = self.changed_old[k][0]
+        elif k in self.lookup:
+            full = self.by_code[self.lookup[k]]["name"]
+        else:
+            return None
+        return full[:1].lower() + full[1:]
+
+    # Từ chỉ đơn vị nhỏ hơn tỉnh đứng ngay trước tên: "thành phố Nam Định", "xã Hòa Bình" không phải tỉnh cũ.
+    _UNIT_BEFORE = re.compile(r"(?:^|\s)(xa|phuong|thi tran|huyen|thi xa|thanh pho|tp|quan|lang|thon|xom|ap|song|nui|ho|cau|cho|ga)\s*$")
+
+    def annotate_old(self, text: str, codes: list[str]) -> str:
+        """Thêm "(nay thuộc <tỉnh mới>)" sau tên tỉnh cũ đã sáp nhập có trong chữ, chỉ với tỉnh cũ thuộc các mã `codes`.
+
+        Bỏ qua khi tên tỉnh mới đã có ngay gần đó (nguồn đã ghi "trước là", "cũ", "nay thuộc") hoặc tên đứng sau từ chỉ
+        đơn vị nhỏ hơn (xã Hòa Bình không phải tỉnh Hòa Bình). Không bịa địa danh: chỉ chèn thêm cụm chú thích."""
+        if not text:
+            return text
+        folded: list[str] = []
+        index: list[int] = []
+        pending = False
+        for i, ch in enumerate(unicodedata.normalize("NFC", text)):
+            base = "".join(c for c in unicodedata.normalize("NFD", ch) if unicodedata.category(c) != "Mn")
+            c = "d" if ch in "đĐ" else base.lower()
+            if c.isalnum():
+                if pending and folded:
+                    folded.append(" ")
+                    index.append(i)
+                pending = False
+                folded.append(c)
+                index.append(i)
+            else:
+                pending = True
+        ftext = "".join(folded)
+        inserts: list[tuple[int, str]] = []
+        for k, (old, code) in self.changed_old.items():
+            if code not in codes:
+                continue
+            new_short = fold(self.short_name(code))
+            for m in re.finditer(r"(?<![a-z0-9])" + re.escape(k) + r"(?![a-z0-9])", ftext):
+                if self._UNIT_BEFORE.search(ftext[max(0, m.start() - 12):m.start()]):
+                    continue
+                window = ftext[max(0, m.start() - 30):m.end() + 30]
+                if new_short in window:
+                    continue
+                end = index[m.end() - 1] + 1
+                inserts.append((end, f" (nay thuộc {self.lower_name(code)})"))
+        for pos, extra in sorted(inserts, reverse=True):
+            text = text[:pos] + extra + text[pos:]
+        return text
+
 
 # ---------------------------------------------------------------- bước thu thập
 
@@ -240,6 +307,10 @@ def clean_name(raw: str) -> tuple[str, list[str]]:
     """Tên đầy đủ: bỏ viết tắt và tiền tố loại hình thừa; trả (tên, ghi chú về việc đã sửa)."""
     notes: list[str] = []
     name = raw.strip()
+    if "[[" in name or "]]" in name:
+        new = re.sub(r"\[\[|\]\]", "", name).strip()
+        notes.append(f"bỏ mã wiki thừa của nguồn: '{name}' -> '{new}'")
+        name = new
     if name in SUA_TEN:
         notes.append(f"sửa lỗi chính tả của nguồn: '{name}' -> '{SUA_TEN[name]}'")
         name = SUA_TEN[name]
@@ -261,7 +332,9 @@ def clean_name(raw: str) -> tuple[str, list[str]]:
         rest = name[m.end():]
         notes.append(f"bỏ tiền tố loại hình: '{name}' -> '{cap_first(rest)}'")
         name = cap_first(rest)
-    elif re.match(r"^Di tích\s+[A-ZĐ]", name) and not re.match(r"^Di tích\s+(lịch sử|kiến trúc|khảo cổ|danh)", name, re.I):
+    elif re.match(r"^Di tích\s+[A-ZĐ]", name) and not re.match(r"^Di tích\s+(lịch sử|kiến trúc|khảo cổ|danh)", name, re.I) \
+            and fold(name[len("Di tích "):]).split(" ")[0] in PLACE_WORDS | {"phong", "vam", "con", "plei", "lang"}:
+        # "Di tích Mai Lượng" giữ nguyên (phần còn lại là tên người); "Di tích Làng Cả" -> "Làng Cả".
         rest = name[len("Di tích "):]
         notes.append(f"bỏ tiền tố 'Di tích': '{name}' -> '{rest}'")
         name = rest
@@ -408,38 +481,46 @@ def collect(work: pathlib.Path, provinces: Provinces) -> list[dict]:
                       "decision": decision_in(" ".join(r.ref_texts)), "notes": ""})
             rows.append(d)
 
-    # Nguồn 4: di tích quốc gia theo tỉnh (đề mục cấp 3 là tỉnh mới).
+    # Nguồn 4: di tích quốc gia theo tỉnh (đề mục cuối bao bảng là tỉnh mới; riêng Hà Nội chỉ có một cấp đề mục).
+    # Bảng chuẩn có 5 cột [tên, địa bàn, phân loại, năm, ghi chú]; hàng thiếu cột hoặc hàng rác (Vườn Di sản ASEAN, Khu Ramsar...)
+    # bị bỏ và ghi vào báo cáo (cờ "bo"), không đoán lại cột.
     w = (cache / f"{PAGES['dtqg'][0]}.wikitext").read_text(encoding="utf-8")
     for t in W.tables(w):
-        if len(t.headings) != 2:
+        code = provinces.code_of(t.headings[-1]) if t.headings else None
+        if not code or not t.header or "Di tích" not in t.header[0]:
             continue
-        code = provinces.code_of(t.headings[1])
         for r in t.rows:
-            if len(r.cells) < 3 or not r.cells[0] or "|" in r.cells[0] or re.match(r"^\d", r.cells[0]):
+            if not r.cells or not r.cells[0].strip():
                 continue
-            category = r.cells[2].strip("| ") if len(r.cells) > 2 else ""
-            year_text = r.cells[3] if len(r.cells) > 3 else ""
-            notes = r.cells[4] if len(r.cells) > 4 else ""
-            if len(r.cells) == 4 and not re.search(r"\d{4}", year_text) and re.search(r"\d{4}", category):
-                # Hàng thiếu cột địa bàn: [tên, phân loại, năm, ghi chú]
-                notes, year_text, category = year_text, category, r.cells[1]
+            d = base("dtqg", r.cells[0], r)
+            d.update({"province_code": code, "province_text": t.headings[-1], "level": "NATIONAL", "type": "TANGIBLE"})
+            if len(r.cells) != 5 or "|" in r.cells[0] or re.match(r"^\d", r.cells[0]):
+                d.update({"bo": f"hàng có {len(r.cells)} ô thay vì 5 (thiếu cột hoặc hàng rác)", "location": r.cells[1] if len(r.cells) > 1 else "",
+                          "category": "", "year": None, "decision": None, "notes": " | ".join(c[:60] for c in r.cells[1:])})
+                rows.append(d)
+                continue
+            category = r.cells[2].strip("| ")
+            year_text, notes = r.cells[3], r.cells[4]
             special = "dac biet" in fold(category + " " + notes)
             years = parse_years(year_text + " " + notes)
-            d = base("dtqg", r.cells[0], r)
-            d.update({"province_code": code, "province_text": t.headings[1], "location": r.cells[1] if len(r.cells) > 3 else "",
-                      "category": category, "year": (max(years) if special else min(years)) if years else None,
+            d.update({"location": r.cells[1], "category": category, "year": (max(years) if special else min(years)) if years else None,
                       "level": "NATIONAL_SPECIAL" if special else "NATIONAL", "type": type_from_category(category, d["name"]),
                       "decision": decision_in(notes) or decision_in(" ".join(r.ref_texts)), "notes": notes})
+            if not category and not years:
+                d["bo"] = "không có phân loại lẫn năm xếp hạng theo nguồn, không xác minh được là di tích quốc gia"
             rows.append(d)
     return rows
 
 
 # ---------------------------------------------------------------- bước làm giàu
 
-def enrich(work: pathlib.Path, rows: list[dict]) -> dict:
+def enrich(work: pathlib.Path, rows: list[dict], previous: dict | None = None) -> dict:
+    """Làm giàu các hàng (bỏ qua hàng đã bị loại ở bước thu thập). Kết quả gộp với `previous` (tệp lam-giau.json cũ) để
+    chạy nguồn sau không mất dữ liệu của nguồn trước; phản hồi API có cache nên lặp lại không tốn lượt gọi."""
     client = WikiClient(work / "cache" / "api")
+    rows = [r for r in rows if not r.get("bo")]
     titles = sorted({r["article"] for r in rows if r.get("article")})
-    pages: dict[str, dict] = {}
+    pages: dict[str, dict] = dict((previous or {}).get("pages", {}))
     # Wikipedia: đoạn mở đầu, mã Wikidata, ảnh chính, phiên bản. exlimit tối đa 20 khi lấy nhiều đoạn.
     for group in chunks(titles, 20):
         d = client.get(VI_API, {"action": "query", "titles": "|".join(group), "redirects": 1,
@@ -464,8 +545,8 @@ def enrich(work: pathlib.Path, rows: list[dict]) -> dict:
         print(f"  Wikipedia {len(pages)}/{len(titles)}", end="\r", flush=True)
     print()
     # Wikidata: tọa độ, ảnh, loại thực thể, mô tả.
-    qids = sorted({p["qid"] for p in pages.values() if p.get("qid")})
-    items: dict[str, dict] = {}
+    qids = sorted({pages[t]["qid"] for t in titles if pages.get(t, {}).get("qid")})
+    items: dict[str, dict] = dict((previous or {}).get("items", {}))
     for group in chunks(qids, 50):
         d = client.get(WIKIDATA_API, {"action": "wbgetentities", "ids": "|".join(group), "props": "claims|descriptions|labels",
                                       "languages": "vi|en"})["data"]
@@ -502,7 +583,7 @@ def enrich(work: pathlib.Path, rows: list[dict]) -> dict:
         if it.get("image"):
             files.add(it["image"].replace("_", " "))
     files = {f for f in files if not f.lower().endswith(BAD_IMAGE_EXT)}
-    images: dict[str, dict] = {}
+    images: dict[str, dict] = dict((previous or {}).get("images", {}))
     for group in chunks(sorted(files), 50):
         d = client.get(COMMONS_API, {"action": "query", "titles": "|".join("File:" + f for f in group), "prop": "imageinfo",
                                      "iiprop": "url|extmetadata|mime|size",
@@ -534,6 +615,9 @@ def article_ok(page: dict, item: dict, row: dict) -> tuple[bool, str]:
         return False, "bài định hướng"
     if "Q5" in (item.get("instance_of") or []):
         return False, "bài về người"
+    # Bài về một dân tộc (Người Tày, Người Dao...) không phải bài về di sản của dân tộc đó.
+    if re.match(r"^Người\b", page.get("title") or "") or "Q41710" in (item.get("instance_of") or []):
+        return False, "bài về dân tộc"
     desc = " ".join(x for x in (item.get("desc_vi"), item.get("desc_en")) if x)
     if BAD_ITEM_DESC.search(desc):
         return False, f"bài về đơn vị hành chính/người ({desc[:60]})"
@@ -549,9 +633,12 @@ def article_ok(page: dict, item: dict, row: dict) -> tuple[bool, str]:
 
 
 def build(work: pathlib.Path, rows: list[dict], enriched: dict, provinces: Provinces, existing: list[dict], out_file: pathlib.Path,
-          chosen: list[str]) -> dict:
+          chosen: list[str], dot: int = 2) -> dict:
     pages, items, images = enriched["pages"], enriched["items"], enriched["images"]
-    report: dict = {"loai": [], "trung": [], "nghi_van": [], "toa_do_bo": [], "anh_bo": Counter(), "sua_ten": [], "ten_trung_them_tinh": []}
+    report: dict = {"loai": [], "trung": [], "nghi_van": [], "toa_do_bo": [], "anh_bo": Counter(), "sua_ten": [], "ten_trung_them_tinh": [],
+                    "bo_hang": [(r["name_raw"], r["source"], provinces.short_name(r["province_code"]) if r.get("province_code") else "", r["bo"], r.get("notes", ""))
+                                for r in rows if r.get("bo")]}
+    rows = [r for r in rows if not r.get("bo")]
 
     # Khóa của di sản đã có trong các đợt trước (mã Wikidata, slug, tên gấp + tỉnh).
     seed1_qids, seed1_slugs, seed1_names = set(), set(), set()
@@ -565,10 +652,14 @@ def build(work: pathlib.Path, rows: list[dict], enriched: dict, provinces: Provi
 
     # Hai hàng của cùng một trang danh sách trỏ tới cùng một bài (ví dụ hai an toàn khu cùng trỏ "ATK"): bài đó không riêng về
     # di tích nào, không dùng để lấy nội dung/mã Wikidata; hai hàng vẫn là hai di sản riêng.
-    shared = Counter((r["source"], r["article"]) for r in rows if r.get("article"))
+    # So theo tên bài sau khi đi theo đổi hướng ("Cao Lan" và "Sán Chay" cùng về "Người Cao Lan").
+    def resolved(r: dict) -> str | None:
+        return (pages.get(r["article"]) or {}).get("title") or r["article"] if r.get("article") else None
+
+    shared = Counter((r["source"], resolved(r)) for r in rows if r.get("article"))
     for r in rows:
-        if r.get("article") and shared[(r["source"], r["article"])] > 1:
-            report["nghi_van"].append((r["name"], r["source"], f"bài '{r['article']}' dùng chung cho {shared[(r['source'], r['article'])]} hàng: giữ di sản, không lấy nội dung từ bài"))
+        if r.get("article") and shared[(r["source"], resolved(r))] > 1:
+            report["nghi_van"].append((r["name"], r["source"], f"bài '{resolved(r)}' dùng chung cho {shared[(r['source'], resolved(r))]} hàng: giữ di sản, không lấy nội dung từ bài"))
             r["article"] = None
 
     # Lọc hàng thiếu tỉnh và gán khóa trùng.
@@ -659,7 +750,7 @@ def build(work: pathlib.Path, rows: list[dict], enriched: dict, provinces: Provi
 
     seed = {
         "meta": {
-            "dot": 2, "generated_at": dt.date.today().isoformat(), "status": "DRAFT (mọi di sản chờ quản trị duyệt)",
+            "dot": dot, "generated_at": dt.date.today().isoformat(), "status": "DRAFT (mọi di sản chờ quản trị duyệt)",
             "nguon": chosen,
             "counts": {"provinces": len(out_provinces), **counts, "timelines": 0, "events": 0},
             "sources": [
@@ -744,22 +835,30 @@ def to_heritage(r: dict, provinces: Provinces, images: dict, items: dict, report
     level_label = {"UNESCO": "Di sản được UNESCO ghi danh", "NATIONAL_SPECIAL": "Di tích quốc gia đặc biệt",
                    "NATIONAL": "Di sản văn hóa phi vật thể quốc gia" if r["type"] == "INTANGIBLE" else "Di tích quốc gia"}[r["level"]]
     province_lower = provinces.lower_name(code)
-    old = provinces.old_name(code, r.get("province_text") or "") or provinces.old_name(code, r.get("location") or "")
     if r["type"] == "INTANGIBLE":
         kind = f"di sản văn hóa phi vật thể (loại hình {r['category'].lower()})" if r.get("category") and r["source"] == "pvt" else "di sản văn hóa phi vật thể"
     elif r["type"] == "DOCUMENTARY":
         kind = "di sản tư liệu"
     else:
         kind = category_label(r.get("category") or "")
-    place = r.get("location") or ""
-    if r["source"] == "dtqg" and place:
-        place_text = f"{place}, {province_lower}"
+
+    # Địa chỉ: theo nguồn, địa phương có di sản; tên tỉnh cũ đã sáp nhập giữ nguyên và thêm "(nay thuộc <tỉnh mới>)" ngay sau.
+    place = re.sub(r"\s+", " ", r.get("location") or "").strip()
+    if r["source"] == "dtqg":
+        address = f"{place}, {province_lower}" if place else provinces.full_name(code)
     elif r["source"] == "pvt":
-        place_text = f"{province_lower}" + (f" (trước 01/7/2025: {old})" if old else "")
-    elif r["source"] == "unesco":
-        place_text = place
+        # Ô địa bàn dạng "Tỉnh cũ (xã, huyện)" hoặc danh sách nhiều tỉnh; đưa phần trong ngoặc lên trước và ghi tỉnh đầy đủ.
+        m = re.match(r"^([^()]+?)\s*\((.+)\)\s*$", place, re.S)
+        head, detail = (m.group(1).strip(), m.group(2).strip()) if m else (place, "")
+        full = provinces.old_full_lower(head) if head and not re.search(r",| và |;", head) else None
+        if full:
+            address = f"{detail}, {full}" if detail else full
+        else:
+            address = f"{detail}, {head}" if detail else (head or provinces.full_name(code))
     else:
-        place_text = place
+        address = place or provinces.full_name(code)
+    place_text = provinces.annotate_old(address, r.get("province_codes") or [code]).strip(" ,;")
+    address = cap_first(place_text)[:500]
     year = r.get("year")
     built = f"{r['name']} là {kind} tại {place_text}" + (f", được công nhận {level_label.lower()} năm {year}." if year else ".")
 
@@ -784,15 +883,6 @@ def to_heritage(r: dict, provinces: Provinces, images: dict, items: dict, report
     content = "## Giới thiệu\n" + (intro if intro else built) + "\n\n## Xếp hạng\n" + "\n".join(rank_lines)
     if intro:
         content += f"\n\nĐoạn giới thiệu rút gọn từ bài \"{page['title']}\" trên Wikipedia tiếng Việt (CC BY-SA 4.0)."
-
-    # Địa chỉ.
-    if r["source"] == "dtqg":
-        address = f"{place}, {province_lower}" if place else provinces.full_name(code)
-    elif r["source"] == "pvt":
-        address = (f"{place}" if place else provinces.full_name(code)) + (f" — nay thuộc {province_lower}" if old else "")
-    else:
-        address = place or provinces.full_name(code)
-    address = cap_first(address)[:500]
 
     # Nguồn tham chiếu.
     refs = [{"title": f"{r['list_page']} — Wikipedia tiếng Việt (văn bản CC BY-SA 4.0), phiên bản {r.get('list_revid')}; truy cập {NGAY_TRUY_CAP}",
@@ -827,7 +917,8 @@ def to_heritage(r: dict, provinces: Provinces, images: dict, items: dict, report
 
 # ---------------------------------------------------------------- báo cáo
 
-def write_report(work: pathlib.Path, rows: list[dict], report: dict, provinces: Provinces, out_file: pathlib.Path) -> None:
+def write_report(work: pathlib.Path, rows: list[dict], report: dict, provinces: Provinces, out_file: pathlib.Path,
+                 report_file: pathlib.Path, dot: int = 2) -> None:
     merged = report["merged"]
     seed = json.loads(out_file.read_text(encoding="utf-8"))
     hs = [h for p in seed["provinces"] for h in p["heritages"]]
@@ -836,12 +927,13 @@ def write_report(work: pathlib.Path, rows: list[dict], report: dict, provinces: 
     def pct(k):
         return f"{100.0 * k / n:.1f}%" if n else "0%"
 
-    lines = [f"# Báo cáo chất lượng kho di sản đợt 2 ({dt.date.today().strftime('%d/%m/%Y')})", "",
+    lines = [f"# Báo cáo chất lượng kho di sản đợt {dot} ({dt.date.today().strftime('%d/%m/%Y')})", "",
              f"Tệp: `{out_file}` ({out_file.stat().st_size / 1024 / 1024:.1f} MB). Mọi di sản ở trạng thái DRAFT.", "",
              "## 1. Số lượng", "",
              f"- Hàng thô đọc từ nguồn: {len(rows)} (" + ", ".join(f"{k}: {v}" for k, v in Counter(r['source'] for r in rows).items()) + ")",
              f"- Di sản xuất ra: **{n}**; ảnh: {report['counts']['media']}; nguồn tham chiếu: {report['counts']['references']}",
-             f"- Loại trùng với đợt 1 hoặc giữa các nguồn: {len(report['trung'])}; loại vì không quy được tỉnh: {len(report['loai'])}; nghi vấn bỏ: {len(report['nghi_van'])}", ""]
+             f"- Hàng bỏ ngay khi đọc nguồn (thiếu cột, hàng rác, không có phân loại lẫn năm): {len(report['bo_hang'])}",
+             f"- Loại trùng với đợt trước hoặc giữa các nguồn: {len(report['trung'])}; loại vì không quy được tỉnh: {len(report['loai'])}; nghi vấn bỏ/không dùng bài: {len(report['nghi_van'])}", ""]
     for title, key in (("Theo nguồn", "source_list"), ("Theo cấp", "recognition_level"), ("Theo loại", "heritage_type")):
         c = Counter(h[key] for h in hs)
         lines += [f"### {title}", "", "| Giá trị | Số |", "|---|---:|"] + [f"| {k} | {v} |" for k, v in c.most_common()] + [""]
@@ -868,6 +960,9 @@ def write_report(work: pathlib.Path, rows: list[dict], report: dict, provinces: 
     lines += ["## 5. Trùng (đã loại hoặc gộp)", "", "| Tên | Nguồn | Lý do |", "|---|---|---|"] + [f"| {a} | {b} | {c} |" for a, b, c in report["trung"]] + [""]
     lines += ["## 6. Nghi vấn (bỏ, hoặc giữ nhưng không dùng bài liên kết; xem cột lý do)", "", "| Tên | Nguồn | Lý do |", "|---|---|---|"] + [f"| {a} | {b} | {c} |" for a, b, c in report["nghi_van"]] + [""]
     lines += ["## 7. Không quy được tỉnh, đã bỏ", "", "| Tên | Nguồn | Lý do |", "|---|---|---|"] + [f"| {a} | {b} | {c} |" for a, b, c in report["loai"]] + [""]
+    lines += ["## 7b. Hàng bỏ ngay khi đọc nguồn (thiếu cột, hàng rác, không có phân loại lẫn năm) — để người duyệt bổ sung tay nếu cần", "",
+              "| Tên theo nguồn | Nguồn | Tỉnh | Lý do | Các ô còn lại |", "|---|---|---|---|---|"] + \
+             [f"| {a} | {b} | {c} | {d} | {e.replace('|', '/')[:120]} |" for a, b, c, d, e in report["bo_hang"]] + [""]
     lines += ["## 8. Tên đã sửa (bỏ viết tắt, tiền tố, lỗi chính tả của nguồn)", "", "| Tên gốc | Tên dùng | Ghi chú |", "|---|---|---|"] + [f"| {a} | {b} | {c} |" for a, b, c in report["sua_ten"]] + [""]
     lines += ["## 9. Tên trùng nhau ở tỉnh khác nhau (đã thêm tên tỉnh)", ""] + [f"- {x}" for x in report["ten_trung_them_tinh"]] + [""]
     reasons = Counter(r.get("article_reason") for r in merged if not r.get("page"))
@@ -884,7 +979,7 @@ def write_report(work: pathlib.Path, rows: list[dict], report: dict, provinces: 
                   f"- Mô tả ngắn: {h['short_description']}",
                   f"- Ảnh: " + ("; ".join(f"{m['url']} [{m['credit']}]" for m in h["media"]) if h["media"] else "không"),
                   f"- Nguồn: " + "; ".join(x["url"] for x in h["references"]), ""]
-    (work / "BAO-CAO.md").write_text("\n".join(lines), encoding="utf-8")
+    report_file.write_text("\n".join(lines), encoding="utf-8")
 
 
 # ---------------------------------------------------------------- main
@@ -899,6 +994,8 @@ def main() -> int:
     ap.add_argument("--da-co", nargs="+", default=[str(REPO / "seed-data" / "seed-dot-1.json")],
                     help="các tệp seed đã có (loại trùng theo mã Wikidata, slug, tên + tỉnh)")
     ap.add_argument("--nguon", default="qgdb,unesco,pvt,dtqg", help="nguồn đưa vào đợt này, cách nhau bằng dấu phẩy")
+    ap.add_argument("--dot", type=int, default=2, help="số thứ tự đợt ghi vào meta của tệp seed và tiêu đề báo cáo")
+    ap.add_argument("--bao-cao", default=None, help="tệp báo cáo chất lượng (mặc định BAO-CAO.md trong thư mục làm việc)")
     a = ap.parse_args()
     chosen = [x.strip() for x in a.nguon.split(",") if x.strip()]
     unknown = [x for x in chosen if x not in PAGES and x != "unesco"]
@@ -935,7 +1032,8 @@ def main() -> int:
 
     enriched_file = work / "lam-viec" / "lam-giau.json"
     if a.buoc in ("lam-giau", "tat-ca"):
-        enriched = enrich(work, rows)
+        previous = json.loads(enriched_file.read_text(encoding="utf-8")) if enriched_file.exists() else None
+        enriched = enrich(work, rows, previous)
         enriched_file.write_text(json.dumps(enriched, ensure_ascii=False), encoding="utf-8")
         print(f"Làm giàu: {len(enriched['pages'])} bài, {len(enriched['items'])} mục Wikidata, {len(enriched['images'])} ảnh -> {enriched_file}")
     elif a.buoc == "dung":
@@ -944,9 +1042,10 @@ def main() -> int:
     if a.buoc in ("dung", "tat-ca"):
         existing = [json.loads(pathlib.Path(f).read_text(encoding="utf-8")) for f in a.da_co]
         out_file = pathlib.Path(a.out)
-        report = build(work, rows, enriched, provinces, existing, out_file, chosen)
-        write_report(work, rows, report, provinces, out_file)
-        print(f"Dựng: {report['counts']['heritages']} di sản, {report['counts']['media']} ảnh -> {out_file}; báo cáo {work / 'BAO-CAO.md'}")
+        report_file = pathlib.Path(a.bao_cao) if a.bao_cao else work / "BAO-CAO.md"
+        report = build(work, rows, enriched, provinces, existing, out_file, chosen, a.dot)
+        write_report(work, rows, report, provinces, out_file, report_file, a.dot)
+        print(f"Dựng: {report['counts']['heritages']} di sản, {report['counts']['media']} ảnh -> {out_file}; báo cáo {report_file}")
     return 0
 
 
