@@ -44,7 +44,7 @@ builder.Services.AddSwaggerGen(o =>
         Title = "Vietnam Heritage API",
         Version = "v1",
         Description = "Nền tảng giáo dục di sản văn hóa cho trường học — nền tảng: đăng nhập, đặt mật khẩu qua email, hồ sơ, " +
-            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác, kho di sản (ADMIN), khám phá di sản công khai (/api/v1/public, không cần đăng nhập), lớp học và học sinh của giáo viên (/api/v1/teacher), bài học cho lớp theo cấp với AI soạn nội dung và mã bài học (/api/v1/teacher/lessons), đăng nhập và học của học sinh, mở bài học bằng mã, làm bài kiểm tra theo cấp và xem kết quả (/api/v1/student), ngân hàng câu hỏi 8 dạng và bài kiểm tra của bài học với phát hành, đóng, nhân bản (/api/v1/teacher/quizzes), thống kê theo lớp và gợi ý, kiểm duyệt ngân hàng câu hỏi và tổng quan hệ thống của quản trị, tải ảnh và mô hình 3D lên kho tệp, phục vụ tệp tại /files, quản lý gói dịch vụ (/api/v1/admin/plans), mua, gia hạn, nâng cấp, hủy gói và hóa đơn của trường qua VNPay sandbox (/api/v1/org/billing, /api/v1/org/invoices), IPN và trang trả về của VNPay (/api/v1/payments/vnpay), khách tham quan không tài khoản: thiết bị ẩn danh, lịch sử, gợi ý cho bạn và gần bạn (/api/v1/public/guest), quảng cáo Google có thưởng mở tóm tắt và nghe thuyết minh: cấu hình, trạng thái mở khóa và báo thưởng của web (/api/v1/public/ads), xác minh phía máy chủ của AdMob (/api/v1/ads/admob/ssv), thống kê cho quản trị hệ thống (/api/v1/admin/ads/stats), biểu mẫu liên hệ của trường gửi email tới quản trị hệ thống (/api/v1/public/school-inquiries). CSDL v3 đủ 27 bảng cộng các bảng của v4 thêm dần theo từng luồng.",
+            "quản lý trường (ADMIN), quản lý giáo viên (ORG_ADMIN), nhật ký thao tác, kho di sản (ADMIN), khám phá di sản công khai (/api/v1/public, không cần đăng nhập), lớp học và học sinh của giáo viên (/api/v1/teacher), bài học cho lớp theo cấp với AI soạn nội dung và mã bài học (/api/v1/teacher/lessons), đăng nhập và học của học sinh, mở bài học bằng mã, làm bài kiểm tra theo cấp và xem kết quả (/api/v1/student), ngân hàng câu hỏi 8 dạng và bài kiểm tra của bài học với phát hành, đóng, nhân bản (/api/v1/teacher/quizzes), thống kê theo lớp và gợi ý, kiểm duyệt ngân hàng câu hỏi và tổng quan hệ thống của quản trị, tải ảnh và mô hình 3D lên kho tệp, phục vụ tệp tại /files, thuyết minh tạo sẵn (MP3 giọng tự host) của tóm tắt di sản: danh sách còn thiếu và tải lên (/api/v1/admin/narrations, /api/v1/admin/heritages/{id}/narrations/{language}), trả kèm tóm tắt công khai, quản lý gói dịch vụ (/api/v1/admin/plans), mua, gia hạn, nâng cấp, hủy gói và hóa đơn của trường qua VNPay sandbox (/api/v1/org/billing, /api/v1/org/invoices), IPN và trang trả về của VNPay (/api/v1/payments/vnpay), khách tham quan không tài khoản: thiết bị ẩn danh, lịch sử, gợi ý cho bạn và gần bạn (/api/v1/public/guest), quảng cáo Google có thưởng mở tóm tắt và nghe thuyết minh: cấu hình, trạng thái mở khóa và báo thưởng của web (/api/v1/public/ads), xác minh phía máy chủ của AdMob (/api/v1/ads/admob/ssv), thống kê cho quản trị hệ thống (/api/v1/admin/ads/stats), biểu mẫu liên hệ của trường gửi email tới quản trị hệ thống (/api/v1/public/school-inquiries). CSDL v3 đủ 27 bảng cộng các bảng của v4 thêm dần theo từng luồng.",
     });
     o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -105,8 +105,8 @@ app.MapHealthChecks("/health").AllowAnonymous();
 app.Run();
 
 /// <summary>
-/// Phục vụ tệp tải lên (ảnh, mô hình 3D) từ kho tệp trên đĩa qua đường dẫn <c>/files/...</c> khi dùng nhà cung cấp Local. Có kiểm soát: chỉ các đuôi
-/// jpg, png, webp, glb; không liệt kê thư mục; tệp lạ không được phục vụ; tên tệp là mã ngẫu nhiên không đổi nội dung nên cho trình duyệt giữ lâu.
+/// Phục vụ tệp tải lên (ảnh, mô hình 3D, thuyết minh MP3) từ kho tệp trên đĩa qua đường dẫn <c>/files/...</c> khi dùng nhà cung cấp Local. Có kiểm soát: chỉ các đuôi
+/// jpg, png, webp, glb, mp3; không liệt kê thư mục; tệp lạ không được phục vụ; tên tệp là mã ngẫu nhiên không đổi nội dung nên cho trình duyệt giữ lâu.
 /// </summary>
 internal static class StoredFilesExtensions
 {
@@ -120,6 +120,7 @@ internal static class StoredFilesExtensions
             [".png"] = "image/png",
             [".webp"] = "image/webp",
             [".glb"] = "model/gltf-binary",
+            [".mp3"] = NarrationRules.AudioContentType,
         });
         app.UseStaticFiles(new StaticFileOptions
         {

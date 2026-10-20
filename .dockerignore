@@ -1,0 +1,18 @@
+# Chỉ gửi vào Docker những gì Dockerfile cần (mã nguồn src/ trừ kiểm thử, tệp dựng ở gốc).
+**/bin/
+**/obj/
+**/TestResults/
+**/*.user
+**/appsettings.*.local.json
+**/.env
+**/*.pfx
+.git/
+.github/
+.vs/
+.vscode/
+.idea/
+deploy/
+docs/
+scripts/
+seed-data/
+src/DSVHVN.Tests/

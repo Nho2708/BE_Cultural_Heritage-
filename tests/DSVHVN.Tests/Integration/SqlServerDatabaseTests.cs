@@ -14,7 +14,7 @@ namespace DSVHVN.Tests.Integration;
 
 /// <summary>
 /// Kiểm trên SQL Server thật: database tạm tạo bằng migration khởi tạo (khi Api khởi động) và tự xóa khi xong.
-/// Lược đồ phải đúng CSDL v3 cộng phần v4 đã làm (38 bảng, 60 khóa ngoại, 49 CHECK, 10 UNIQUE có lọc, collation Vietnamese_CI_AI);
+/// Lược đồ phải đúng CSDL v3 cộng phần v4 đã làm (39 bảng, 61 khóa ngoại, 51 CHECK, 10 UNIQUE có lọc, collation Vietnamese_CI_AI);
 /// dữ liệu tỉnh/thành và di sản nạp được; luồng web quản trị chạy được; ràng buộc tài khoản học sinh đúng thiết kế.
 /// </summary>
 public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClassFixture<SqlServerApiFactory>
@@ -41,13 +41,13 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.True(LocalDb.Exists(factory.DatabaseName));
         Assert.Equal("Vietnamese_CI_AI",
             (await SqlAsync<string>($"SELECT CAST(DATABASEPROPERTYEX(DB_NAME(), 'Collation') AS nvarchar(128)) AS [Value]")).Single());
-        Assert.Equal(38, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(354, (await SqlAsync<int>(   // 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 17 cột của heritage_models (luồng mô hình 3D) + 9 cột của attempt_answer_parts và 2 cột parts_total, parts_correct của attempt_answers (luồng học tập) + 9 cột của ad_unlocks (luồng quảng cáo Google)
+        Assert.Equal(39, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
+        Assert.Equal(364, (await SqlAsync<int>(   // 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 17 cột của heritage_models (luồng mô hình 3D) + 9 cột của attempt_answer_parts và 2 cột parts_total, parts_correct của attempt_answers (luồng học tập) + 9 cột của ad_unlocks (luồng quảng cáo Google) + 10 cột của heritage_narrations (thuyết minh tạo sẵn)
             $"SELECT COUNT(*) AS [Value] FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id WHERE t.name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(60, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());
+        Assert.Equal(61, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());
         Assert.Equal(["fk_event_translations_event_id", "fk_media_translations_media_id", "fk_password_reset_tokens_user_id", "fk_timeline_translations_timeline_id"],
             await SqlAsync<string>($"SELECT name AS [Value] FROM sys.foreign_keys WHERE delete_referential_action_desc = 'CASCADE' ORDER BY name"));
-        Assert.Equal(49, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());
+        Assert.Equal(51, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());
 
         var filtered = await SqlAsync<string>(
             $"SELECT i.name + ' ' + i.filter_definition AS [Value] FROM sys.indexes i WHERE i.is_unique = 1 AND i.has_filter = 1 ORDER BY i.name");
@@ -64,7 +64,7 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
             "UX_users_email ([email] IS NOT NULL AND [deleted_at] IS NULL)",
             "UX_users_username ([deleted_at] IS NULL)",
         ], filtered);
-        Assert.Equal(17, (await SqlAsync<int>(   // 10 + năm khóa không trùng (bản gốc, ngôn ngữ) của các bảng đa ngôn ngữ + mã thiết bị của khách + (mạng quảng cáo, mã giao dịch) của lượt mở khóa
+        Assert.Equal(18, (await SqlAsync<int>(   // 10 + năm khóa không trùng (bản gốc, ngôn ngữ) của các bảng đa ngôn ngữ + mã thiết bị của khách + (mạng quảng cáo, mã giao dịch) của lượt mở khóa + (di sản, ngôn ngữ) của thuyết minh
             $"SELECT COUNT(*) AS [Value] FROM sys.indexes i JOIN sys.tables t ON t.object_id = i.object_id WHERE i.is_unique = 1 AND i.has_filter = 0 AND i.is_primary_key = 0 AND t.name <> '__EFMigrationsHistory'")).Single());
 
         // 18 khóa ngoại được NULL; 42 khóa ngoại bắt buộc là NOT NULL.
@@ -77,7 +77,7 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.Equal(NullableForeignKeys, nullableFks);
 
         // Cột enum là nvarchar(20); DEFAULT của cột bit đúng thiết kế.
-        Assert.Equal(33, (await SqlAsync<int>($"""
+        Assert.Equal(34, (await SqlAsync<int>($"""
             SELECT COUNT(*) AS [Value] FROM sys.columns c
             WHERE TYPE_NAME(c.user_type_id) = 'nvarchar' AND c.max_length = 40
               AND EXISTS (SELECT 1 FROM sys.check_constraints k
@@ -122,6 +122,61 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.Equal((0, 34, 0, 20), (again.ProvincesAdded, again.ProvincesExisting, again.HeritagesAdded, again.HeritagesExisting));
         Assert.Empty(again.Rejected);
         Assert.Contains("map_point_note", again.IgnoredFields);
+    }
+
+    /// <summary>
+    /// Các đợt sau đợt 1 (đợt 2: di tích quốc gia đặc biệt, danh hiệu UNESCO; đợt 3: di sản văn hóa phi vật thể quốc gia, di tích
+    /// quốc gia; đợt 4: vườn quốc gia, khu dự trữ sinh quyển, công viên địa chất, khu Ramsar, vườn di sản ASEAN, di sản tư liệu)
+    /// nạp lần lượt vào cùng database: mỗi tệp thêm đúng số di sản ghi ở meta của nó, không di sản nào bị bỏ vì không khớp
+    /// cột, slug không trùng các đợt trước, mọi di sản ở DRAFT; nạp lại từng tệp không nhân đôi.
+    /// </summary>
+    [LocalDbHeritageDataFact]
+    public async Task Later_heritage_batches_load_in_order_without_rejects_or_duplicates()
+    {
+        var dataDir = SqlServerApiFactory.HeritageDataDirectory!;
+        var laterFiles = Directory.GetFiles(dataDir, "seed-dot-*.json")
+            .Where(f => !Path.GetFileName(f).Equals("seed-dot-1.json", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(f => f, StringComparer.Ordinal).ToList();
+        Assert.Contains(laterFiles, f => Path.GetFileName(f) == "seed-dot-2.json");
+        Assert.Contains(laterFiles, f => Path.GetFileName(f).StartsWith("seed-dot-3", StringComparison.Ordinal));
+        // Database tạm riêng (đã nạp đợt 1 lúc Api khởi động) để không đổi số đếm của test dùng chung fixture.
+        using var own = new SqlServerApiFactory();
+        var factory = own;
+        _ = factory.Server;
+
+        var before = await factory.WithDbAsync(db => db.Heritages.CountAsync());
+        var loaded = 0;
+        foreach (var file in laterFiles)
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(file));
+            var counts = doc.RootElement.GetProperty("meta").GetProperty("counts");
+            var expected = (Heritages: counts.GetProperty("heritages").GetInt32(), Media: counts.GetProperty("media").GetInt32(),
+                References: counts.GetProperty("references").GetInt32());
+            // Mỗi đợt là một kho thật, không phải tệp thử: đợt nhỏ nhất (đợt 4, di sản thiên nhiên) có 52 di sản.
+            Assert.True(expected.Heritages >= 10, $"{Path.GetFileName(file)} phải có ít nhất 10 di sản");
+
+            var first = await factory.WithDbAsync(db => HeritageDataSeeder.SeedAsync(db,
+                Path.Combine(dataDir, "provinces.json"), file, default));
+            Assert.Empty(first.Rejected);
+            Assert.Equal((0, 34, expected.Heritages, 0, expected.Media, expected.References),
+                (first.ProvincesAdded, first.ProvincesExisting, first.HeritagesAdded, first.HeritagesExisting, first.MediaAdded, first.ReferencesAdded));
+            loaded += expected.Heritages;
+
+            var again = await factory.WithDbAsync(db => HeritageDataSeeder.SeedAsync(db,
+                Path.Combine(dataDir, "provinces.json"), file, default));
+            Assert.Equal((0, expected.Heritages), (again.HeritagesAdded, again.HeritagesExisting));
+            Assert.Empty(again.Rejected);
+        }
+
+        var (total, drafts, withProvince, distinctSlugs) = await factory.WithDbAsync(async db => (
+            await db.Heritages.CountAsync(),
+            await db.Heritages.CountAsync(h => h.Status == ContentStatus.DRAFT),
+            await db.Heritages.CountAsync(h => h.ProvinceId != null),
+            await db.Heritages.Select(h => h.Slug).Distinct().CountAsync()));
+        Assert.Equal(before + loaded, total);
+        Assert.Equal(total, drafts);
+        Assert.Equal(total, withProvince);
+        Assert.Equal(total, distinctSlugs);
     }
 
     [LocalDbFact]

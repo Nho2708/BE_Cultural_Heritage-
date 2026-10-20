@@ -972,6 +972,80 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageNarration", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AudioUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("audio_url");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("int")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<long>("HeritageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("heritage_id");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("language_code");
+
+                    b.Property<string>("Sentences")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("sentences");
+
+                    b.Property<string>("TextHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("text_hash")
+                        .IsFixedLength();
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Voice")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("voice");
+
+                    b.HasKey("Id")
+                        .HasName("PK_heritage_narrations");
+
+                    b.HasIndex("HeritageId", "LanguageCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_heritage_narrations_heritage_language");
+
+                    b.ToTable("heritage_narrations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_heritage_narrations_duration", "[duration_ms] > 0");
+
+                            t.HasCheckConstraint("CK_heritage_narrations_language_code", "[language_code] IN ('vi', 'en', 'ko', 'zh', 'ja')");
+                        });
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageReference", b =>
                 {
                     b.Property<long>("Id")
@@ -2686,6 +2760,18 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_heritage_models_heritage_id");
+
+                    b.Navigation("Heritage");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Heritages.HeritageNarration", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Heritages.Heritage", "Heritage")
+                        .WithMany()
+                        .HasForeignKey("HeritageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_heritage_narrations_heritage_id");
 
                     b.Navigation("Heritage");
                 });

@@ -7,6 +7,7 @@ using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Recommendations;
 using DSVHVN.Application.SchoolInquiries;
+using DSVHVN.Application.Speech;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Translations;
 using DSVHVN.Infrastructure.Ads;
@@ -17,7 +18,9 @@ using DSVHVN.Infrastructure.Email;
 using DSVHVN.Infrastructure.Payments;
 using DSVHVN.Infrastructure.Persistence;
 using DSVHVN.Infrastructure.Security;
+using DSVHVN.Infrastructure.Speech;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -55,6 +58,7 @@ public static class DependencyInjection
         services.AddFileStorage(configuration);
         services.AddBilling(configuration);
         services.AddAds(configuration);
+        services.AddSpeech(configuration);
 
         // Liên kết xem trước bản nháp di sản: mã ký bằng khóa của máy chủ, hạn Preview:CodeMinutes (mặc định 30 phút), không có bảng.
         services.AddOptions<PreviewOptions>().Bind(configuration.GetSection(PreviewOptions.Section)).ValidateOnStart();
@@ -199,4 +203,34 @@ public static class DependencyInjection
         services.AddOptions<SchoolInquiryOptions>().Bind(configuration.GetSection(SchoolInquiryOptions.Section));
         services.AddScoped<ISchoolInquiryMailer, SchoolInquiryMailer>();
     }
+
+    /// <summary>
+    /// Chuyển văn bản thành giọng nói (TTS) qua FPT.AI (giọng Ban Mai): <c>FptAi</c> (ApiKey, Voice, Speed).
+    /// </summary>
+    private static void AddSpeech(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<FptAiOptions>()
+            .Bind(configuration.GetSection(FptAiOptions.Section))
+            .PostConfigure(opt =>
+            {
+                var envKey = Environment.GetEnvironmentVariable("FPT_AI_API_KEY")
+                             ?? Environment.GetEnvironmentVariable("FptAi__ApiKey");
+                if (!string.IsNullOrWhiteSpace(envKey))
+                {
+                    opt.ApiKey = envKey.Trim();
+                }
+            });
+
+        services.AddSingleton<ITtsService>(sp =>
+        {
+            var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+            var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+            return new FptAiTtsService(
+                http,
+                sp.GetRequiredService<IOptions<FptAiOptions>>(),
+                sp.GetRequiredService<IMemoryCache>(),
+                sp.GetRequiredService<ILogger<FptAiTtsService>>());
+        });
+    }
 }
+
