@@ -45,7 +45,7 @@ public sealed class SchoolInquiryApiTests(SchoolInquiryApiFactory factory) : ICl
         Assert.Equal("Đã gửi. Nhóm sẽ liên hệ lại qua email.", body.Message);
 
         var toAdmin = factory.Mail.Sent.Last(m => m.To == ApiFactory.AdminEmail && m.Subject.Contains(school));
-        Assert.Equal($"Vietnam Heritage – Trường liên hệ: {school}", toAdmin.Subject);
+        Assert.Equal($"DiViet – Trường liên hệ: {school}", toAdmin.Subject);
         Assert.Equal(sender, toAdmin.ReplyTo);
         Assert.Contains(sender, toAdmin.TextBody);
         Assert.Contains(factory.Mail.Sent, m => m.To == SchoolInquiryApiFactory.ExtraRecipient && m.Subject.Contains(school));

@@ -16,7 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-USER_AGENT = "VietnamHeritageCapstone/1.0 (student project; quangnho278@gmail.com)"
+USER_AGENT = "DiVietCapstone/1.0 (student project; quangnho278@gmail.com)"
 VI_API = "https://vi.wikipedia.org/w/api.php"
 WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
