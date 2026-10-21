@@ -1,11 +1,11 @@
-# Máy chủ Google Cloud của Vietnam Heritage: năm dịch vụ Docker Compose trong /opt/dsvhvn (cài bằng cai-dat-may-chu.sh).
+# Máy chủ Google Cloud của DiViet: năm dịch vụ Docker Compose trong /opt/dsvhvn (cài bằng cai-dat-may-chu.sh).
 #   sql   SQL Server 2019 Express, dữ liệu ở volume sql-data, bản sao lưu ở ./sao-luu
 #   api   backend ASP.NET Core (ảnh của repo backend), chỉ mở ở 127.0.0.1:8080 cho script kiểm sức khỏe
 #   ai    Dịch vụ AI (ảnh của repo AI), chỉ mở ở 127.0.0.1:8090
 #   web   hai web đã build (ảnh của repo frontend): 8080 web học tập, 8081 web quản trị, chỉ trong mạng Docker
 #   edge  Caddy: cửa vào duy nhất (80, 443, 8443), tự lấy chứng chỉ HTTPS, chuyển /api, /files, /health sang api
 # Biến lấy từ ./.env (chỉ root đọc được): REGISTRY, API_TAG, AI_TAG, WEB_TAG, MSSQL_SA_PASSWORD, DIA_CHI_HOC_TAP,
-# DIA_CHI_QUAN_TRI. Mã ảnh do bin/trien-khai.sh ghi sau mỗi lần triển khai; đường dẫn tương đối tính từ thư mục chứa tệp này.
+# DIA_CHI_QUAN_TRI, tùy chọn DIA_CHI_HOC_TAP_PHU, DIA_CHI_QUAN_TRI_PHU, DIA_CHI_IP (xem caddy/Caddyfile). Mã ảnh do bin/trien-khai.sh ghi sau mỗi lần triển khai; đường dẫn tương đối tính từ thư mục chứa tệp này.
 name: dsvhvn
 
 services:
@@ -76,6 +76,9 @@ services:
     environment:
       DIA_CHI_HOC_TAP: ${DIA_CHI_HOC_TAP:?Thiếu DIA_CHI_HOC_TAP trong .env}
       DIA_CHI_QUAN_TRI: ${DIA_CHI_QUAN_TRI:?Thiếu DIA_CHI_QUAN_TRI trong .env}
+      DIA_CHI_HOC_TAP_PHU: ${DIA_CHI_HOC_TAP_PHU:-}
+      DIA_CHI_QUAN_TRI_PHU: ${DIA_CHI_QUAN_TRI_PHU:-}
+      DIA_CHI_IP: ${DIA_CHI_IP:-${DIA_CHI_HOC_TAP}}
     # Gắn cả thư mục (không gắn riêng tệp) để Caddyfile mới chép đè vẫn hiện trong container khi caddy reload.
     volumes:
       - ./caddy:/etc/caddy:ro
