@@ -103,6 +103,25 @@ public static class FileSamples
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// Tệp MP3 mẫu: thẻ <c>ID3v2</c> rỗng (10 byte) rồi các khung MPEG giả (mỗi khung mở đầu bằng 0xFF 0xFB), đủ để kiểm nhận dạng bằng nội dung;
+    /// <paramref name="withTag"/> false thì bắt đầu thẳng bằng khung MPEG. <paramref name="frames"/> là số khung 417 byte để dựng tệp cỡ mong muốn.
+    /// </summary>
+    public static byte[] Mp3(bool withTag = true, int frames = 4)
+    {
+        using var stream = new MemoryStream();
+        if (withTag) stream.Write([(byte)'I', (byte)'D', (byte)'3', 4, 0, 0, 0, 0, 0, 0]);
+        for (var i = 0; i < frames; i++)
+        {
+            var frame = new byte[417];
+            frame[0] = 0xFF;
+            frame[1] = 0xFB;
+            frame[2] = 0x90;
+            stream.Write(frame);
+        }
+        return stream.ToArray();
+    }
+
     private static void WriteUInt(Stream stream, uint value)
     {
         Span<byte> buffer = stackalloc byte[4];

@@ -1,3 +1,4 @@
+using DSVHVN.Application.Narrations;
 using DSVHVN.Domain.Enums;
 
 namespace DSVHVN.Application.Translations;
@@ -20,8 +21,10 @@ public sealed record LanguageOptionDto(string Code, string NativeName, string Sp
 /// <summary>
 /// Tóm tắt của một di sản ở ngôn ngữ yêu cầu (lấy từ bản đã lưu, không gọi AI): <c>ShortText</c> để nghe thuyết minh, <c>DetailedText</c> để đọc.
 /// Ngôn ngữ chưa có tóm tắt hiện hành thì trả tóm tắt tiếng Việt đã duyệt và <c>Localization.IsFallback</c> bật.
+/// <c>Narration</c> là thuyết minh tạo sẵn (MP3 giọng tự host) của đúng bản tóm tắt đang trả, null khi chưa có hoặc chữ đã đổi sau khi tạo giọng: giao diện đọc bằng giọng thiết bị.
 /// </summary>
-public sealed record PublicSummaryDto(long HeritageId, string Slug, string Name, LocalizationDto Localization, string ShortText, string DetailedText);
+public sealed record PublicSummaryDto(
+    long HeritageId, string Slug, string Name, LocalizationDto Localization, string ShortText, string DetailedText, PublicNarrationDto? Narration);
 
 // ---- Quản trị: tổng quan, hàng chờ ----
 

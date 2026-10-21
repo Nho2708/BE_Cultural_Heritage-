@@ -214,10 +214,14 @@ jobs:
           for f in deploy/google-cloud/may-chu/*.sh deploy/google-cloud/may-chu/bin/*.sh; do bash -n "$f"; done
           shellcheck -x -S warning deploy/google-cloud/may-chu/*.sh deploy/google-cloud/may-chu/bin/*.sh
           anh_caddy=$(sed -n 's/^ *image: \(caddy:.*\)$/\1/p' deploy/google-cloud/may-chu/compose.yml)
-          for dia_chi in '203.0.113.7 203.0.113.7:8443' 'vietnamheritage.vn quantri.vietnamheritage.vn'; do
-            read -r hoc_tap quan_tri <<< "$dia_chi"
+          # Mỗi bộ: học tập|quản trị|IP|địa chỉ phụ học tập|địa chỉ phụ quản trị (địa chỉ phụ cách nhau bằng dấu cách).
+          for bo in '203.0.113.7|203.0.113.7:8443|203.0.113.7||' \
+                    'diviet.id.vn|quantri.diviet.id.vn|203.0.113.7||' \
+                    'diviet.id.vn|quantri.diviet.id.vn|203.0.113.7|www.diviet.id.vn 203.0.113.7|203.0.113.7:8443'; do
+            IFS='|' read -r hoc_tap quan_tri ip phu_hoc_tap phu_quan_tri <<< "$bo"
             docker run --rm -v "$PWD/deploy/google-cloud/may-chu:/etc/caddy:ro" \
-              -e DIA_CHI_HOC_TAP="$hoc_tap" -e DIA_CHI_QUAN_TRI="$quan_tri" \
+              -e DIA_CHI_HOC_TAP="$hoc_tap" -e DIA_CHI_QUAN_TRI="$quan_tri" -e DIA_CHI_IP="$ip" \
+              -e DIA_CHI_HOC_TAP_PHU="$phu_hoc_tap" -e DIA_CHI_QUAN_TRI_PHU="$phu_quan_tri" \
               "$anh_caddy" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
           done
 

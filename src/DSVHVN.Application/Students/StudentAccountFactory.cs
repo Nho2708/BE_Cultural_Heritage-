@@ -161,8 +161,8 @@ public sealed class LoginSheetBuilder(IOptions<StudentSheetOptions> options)
         {
             $"Mở trang học tập: {loginUrl}",
             appUrl is null
-                ? "Hoặc cài ứng dụng Vietnam Heritage trên điện thoại, mở ứng dụng và chọn chế độ \"Học sinh\" (không chọn \"Khách tham quan\")."
-                : $"Hoặc cài ứng dụng Vietnam Heritage trên điện thoại (tải tại {appUrl}), mở ứng dụng và chọn chế độ \"Học sinh\" (không chọn \"Khách tham quan\").",
+                ? "Hoặc cài ứng dụng DiViet trên điện thoại, mở ứng dụng và chọn chế độ \"Học sinh\" (không chọn \"Khách tham quan\")."
+                : $"Hoặc cài ứng dụng DiViet trên điện thoại (tải tại {appUrl}), mở ứng dụng và chọn chế độ \"Học sinh\" (không chọn \"Khách tham quan\").",
             "Đăng nhập bằng mã học sinh và mật khẩu tạm ghi trên phiếu.",
         };
         return new LoginSheetDto(className, loginUrl, appUrl, instructions, FirstLoginReminder, Notice, entries.ToList());

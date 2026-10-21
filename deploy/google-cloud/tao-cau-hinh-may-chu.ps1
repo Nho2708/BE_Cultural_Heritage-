@@ -19,7 +19,7 @@
 .PARAMETER TatCongQuangCao
   Tắt cổng quảng cáo (Ads:GateEnabled = false).
 .PARAMETER DiaChiTaiApp
-  Địa chỉ tải APK in trên phiếu đăng nhập học sinh (App:MobileAppDownloadUrl). Mặc định là tệp vietnam-heritage.apk của
+  Địa chỉ tải APK in trên phiếu đăng nhập học sinh (App:MobileAppDownloadUrl). Mặc định là tệp diviet.apk của
   bản phát hành mới nhất trong repo frontend; truyền chuỗi rỗng để phiếu không ghi địa chỉ tải.
 #>
 #Requires -Version 7.0
@@ -28,7 +28,7 @@ param(
     [switch]$TaiLen,
     [string]$TepKhoaAi = (Join-Path $env:APPDATA 'DSVHVN\ai-service.env'),
     [switch]$TatCongQuangCao,
-    [string]$DiaChiTaiApp = 'https://github.com/Nho2708/FE_Cultural_Heritage-/releases/latest/download/vietnam-heritage.apk'
+    [string]$DiaChiTaiApp = 'https://github.com/Nho2708/FE_Cultural_Heritage-/releases/latest/download/diviet.apk'
 )
 
 . (Join-Path $PSScriptRoot 'chung.ps1')
@@ -139,10 +139,11 @@ Dat 'App:LearningWebBaseUrl' $diaChiHocTap
 if ($DiaChiTaiApp) { Dat 'App:MobileAppDownloadUrl' $DiaChiTaiApp }
 Dat 'Cors:AllowedOrigins' @($diaChiQuanTri, $diaChiHocTap)
 
-$android = @(); if ($dev.Ads.AdMob.AndroidAdUnitIds) { $android += @($dev.Ads.AdMob.AndroidAdUnitIds) }
-$android += Lay-DanhSach 'Ads:AdMob:AndroidAdUnitIds'
-$ios = @(); if ($dev.Ads.AdMob.IosAdUnitIds) { $ios += @($dev.Ads.AdMob.IosAdUnitIds) }
-$ios += Lay-DanhSach 'Ads:AdMob:IosAdUnitIds'
+# Đơn vị AdMob thật của nhóm (User Secrets) đứng trước đơn vị thử của Google (appsettings.Development.json): API đưa cho app đơn vị đầu danh sách,
+# và chỉ đơn vị thật mới có lời gọi xác minh phía máy chủ về địa chỉ đã khai trong AdMob (đơn vị thử của Google không gọi về máy chủ của nhóm,
+# nên khách xem hết quảng cáo mà tóm tắt vẫn không mở). User Secrets không có đơn vị thật thì danh sách chỉ còn đơn vị thử như trước.
+$android = @(); $android += Lay-DanhSach 'Ads:AdMob:AndroidAdUnitIds'; if ($dev.Ads.AdMob.AndroidAdUnitIds) { $android += @($dev.Ads.AdMob.AndroidAdUnitIds) }
+$ios = @(); $ios += Lay-DanhSach 'Ads:AdMob:IosAdUnitIds'; if ($dev.Ads.AdMob.IosAdUnitIds) { $ios += @($dev.Ads.AdMob.IosAdUnitIds) }
 $duongDanQc = @(); if ($dev.Ads.AdManager.AdUnitPaths) { $duongDanQc += @($dev.Ads.AdManager.AdUnitPaths) }
 $duongDanQc += Lay-DanhSach 'Ads:AdManager:AdUnitPaths'
 Dat 'Ads:GateEnabled' (-not $TatCongQuangCao)
