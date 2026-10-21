@@ -90,4 +90,12 @@ public static class RecommendationRules
 
     /// <summary>Phần nên ôn thay bằng lời khen khi em làm đúng hết.</summary>
     public const string ReviewPraise = "Em làm đúng hết rồi, giỏi quá! Em hãy thử bài mới nhé.";
+
+    /// <summary>Lời khen phù hợp với từng cấp học (Cấp 1 vui vẻ khích lệ, Cấp 2-3 chuẩn mực học đường).</summary>
+    public static string ReviewPraiseForLevel(int level) => level switch
+    {
+        1 => ReviewPraise,
+        2 => "Em đã hoàn thành tốt các câu hỏi, không có phần cần ôn lại. Hãy tiếp tục làm bài mới nhé.",
+        _ => "Đã nắm vững toàn bộ kiến thức di sản trong bài kiểm tra. Không có nội dung cần ôn tập thêm.",
+    };
 }
