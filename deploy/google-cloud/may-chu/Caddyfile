@@ -1,8 +1,8 @@
 # Cửa vào của máy chủ (dịch vụ edge): HTTPS cho web học tập và web quản trị; /api, /files, /health chuyển sang API để hai web
 # gọi API cùng gốc như trên máy demo. Địa chỉ đặt trong /opt/dsvhvn/.env:
 #   chưa có tên miền  DIA_CHI_HOC_TAP=34.87.10.20         DIA_CHI_QUAN_TRI=34.87.10.20:8443
-#   có tên miền       DIA_CHI_HOC_TAP=vietnamheritage.vn  DIA_CHI_QUAN_TRI=quantri.vietnamheritage.vn
-#                     DIA_CHI_HOC_TAP_PHU=www.vietnamheritage.vn 34.87.10.20
+#   có tên miền       DIA_CHI_HOC_TAP=diviet.id.vn  DIA_CHI_QUAN_TRI=quantri.diviet.id.vn
+#                     DIA_CHI_HOC_TAP_PHU=www.diviet.id.vn 34.87.10.20
 #                     DIA_CHI_QUAN_TRI_PHU=34.87.10.20:8443
 #                     DIA_CHI_IP=34.87.10.20
 # Địa chỉ phụ (tùy chọn, cách nhau bằng dấu cách) phục vụ cùng nội dung với địa chỉ chính: giữ IP chạy song song sau khi chuyển

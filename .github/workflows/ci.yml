@@ -216,8 +216,8 @@ jobs:
           anh_caddy=$(sed -n 's/^ *image: \(caddy:.*\)$/\1/p' deploy/google-cloud/may-chu/compose.yml)
           # Mỗi bộ: học tập|quản trị|IP|địa chỉ phụ học tập|địa chỉ phụ quản trị (địa chỉ phụ cách nhau bằng dấu cách).
           for bo in '203.0.113.7|203.0.113.7:8443|203.0.113.7||' \
-                    'vietnamheritage.vn|quantri.vietnamheritage.vn|203.0.113.7||' \
-                    'vietnamheritage.vn|quantri.vietnamheritage.vn|203.0.113.7|www.vietnamheritage.vn 203.0.113.7|203.0.113.7:8443'; do
+                    'diviet.id.vn|quantri.diviet.id.vn|203.0.113.7||' \
+                    'diviet.id.vn|quantri.diviet.id.vn|203.0.113.7|www.diviet.id.vn 203.0.113.7|203.0.113.7:8443'; do
             IFS='|' read -r hoc_tap quan_tri ip phu_hoc_tap phu_quan_tri <<< "$bo"
             docker run --rm -v "$PWD/deploy/google-cloud/may-chu:/etc/caddy:ro" \
               -e DIA_CHI_HOC_TAP="$hoc_tap" -e DIA_CHI_QUAN_TRI="$quan_tri" -e DIA_CHI_IP="$ip" \

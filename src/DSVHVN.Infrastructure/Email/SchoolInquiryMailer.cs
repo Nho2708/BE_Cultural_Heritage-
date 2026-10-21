@@ -64,7 +64,7 @@ public static class SchoolInquiryEmailComposer
 {
     private static readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
 
-    private const string ProductName = "Vietnam Heritage";
+    private const string ProductName = "DiViet";
 
     public static EmailMessage Compose(SchoolInquiry inquiry, string recipient, DateTime receivedAtUtc)
     {

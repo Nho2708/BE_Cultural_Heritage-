@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Tạo hạ tầng Google Cloud cho Vietnam Heritage và cài máy chủ (chạy trên máy dev đã cài gcloud và "gcloud auth login").
+  Tạo hạ tầng Google Cloud cho DiViet và cài máy chủ (chạy trên máy dev đã cài gcloud và "gcloud auth login").
 
 .DESCRIPTION
   Mỗi bước kiểm tài nguyên đã có chưa rồi mới tạo, nên chạy lại sau khi hỏng giữa chừng vẫn đúng.
@@ -82,7 +82,7 @@ Write-Host 'Đã bật.'
 Write-Buoc "Kho ảnh Docker $tenKho ($Vung)"
 if (-not (Test-Gcloud artifacts repositories describe $tenKho "--location=$Vung" $p)) {
     Invoke-Gcloud artifacts repositories create $tenKho '--repository-format=docker' "--location=$Vung" `
-        '--description=Vietnam Heritage images (api, ai, web)' $p | Out-Null
+        '--description=DiViet images (api, ai, web)' $p | Out-Null
     Write-Host 'Đã tạo.'
 } else { Write-Host 'Đã có.' }
 $chinhSach = Write-TepTam 'don-dep-anh.json' @'
@@ -138,8 +138,8 @@ Invoke-Gcloud storage buckets update "gs://$bucket" "--lifecycle-file=$vongDoi" 
 # ---------------------------------------------------------------- 5. tài khoản dịch vụ
 Write-Buoc 'Tài khoản dịch vụ'
 foreach ($sa in @(
-        @{ Ten = 'dsvhvn-may-chu'; Email = $saMay; Hien = 'Vietnam Heritage server' },
-        @{ Ten = 'dsvhvn-trien-khai'; Email = $saTrienKhai; Hien = 'Vietnam Heritage GitHub deploy' })) {
+        @{ Ten = 'dsvhvn-may-chu'; Email = $saMay; Hien = 'DiViet server' },
+        @{ Ten = 'dsvhvn-trien-khai'; Email = $saTrienKhai; Hien = 'DiViet GitHub deploy' })) {
     if (-not (Test-Gcloud iam service-accounts describe $sa.Email $p)) {
         Invoke-Gcloud iam service-accounts create $sa.Ten "--display-name=$($sa.Hien)" $p | Out-Null
         Write-Host "Đã tạo $($sa.Email)."
