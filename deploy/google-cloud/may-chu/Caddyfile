@@ -2,12 +2,17 @@
 # gọi API cùng gốc như trên máy demo. Địa chỉ đặt trong /opt/dsvhvn/.env:
 #   chưa có tên miền  DIA_CHI_HOC_TAP=34.87.10.20         DIA_CHI_QUAN_TRI=34.87.10.20:8443
 #   có tên miền       DIA_CHI_HOC_TAP=vietnamheritage.vn  DIA_CHI_QUAN_TRI=quantri.vietnamheritage.vn
+#                     DIA_CHI_HOC_TAP_PHU=www.vietnamheritage.vn 34.87.10.20
+#                     DIA_CHI_QUAN_TRI_PHU=34.87.10.20:8443
+#                     DIA_CHI_IP=34.87.10.20
+# Địa chỉ phụ (tùy chọn, cách nhau bằng dấu cách) phục vụ cùng nội dung với địa chỉ chính: giữ IP chạy song song sau khi chuyển
+# sang tên miền để APK cũ và phiếu đăng nhập đã in vẫn dùng được; riêng www chuyển về tên miền chính.
 # Đổi địa chỉ: sửa .env rồi chạy "docker compose up -d edge" trong /opt/dsvhvn (biến môi trường chỉ đọc lúc tạo container).
 
 {
 	# Trình duyệt mở bằng địa chỉ IP không gửi SNI; thiếu dòng này Caddy không biết chọn chứng chỉ nào và từ chối bắt tay TLS.
-	# DIA_CHI_HOC_TAP chỉ gồm IP hoặc tên miền, không có cổng.
-	default_sni {$DIA_CHI_HOC_TAP}
+	# DIA_CHI_IP là IP của máy (không có cổng); compose.yml lấy DIA_CHI_HOC_TAP khi chưa đặt.
+	default_sni {$DIA_CHI_IP}
 }
 
 (chung) {
@@ -32,14 +37,17 @@
 	}
 }
 
-{$DIA_CHI_HOC_TAP} {
+{$DIA_CHI_HOC_TAP} {$DIA_CHI_HOC_TAP_PHU} {
 	import chung
+	# Khi chưa có tên miền (địa chỉ chính là IP) thì không yêu cầu nào khớp.
+	@www host www.{$DIA_CHI_HOC_TAP}
+	redir @www https://{$DIA_CHI_HOC_TAP}{uri} permanent
 	handle {
 		reverse_proxy web:8080
 	}
 }
 
-{$DIA_CHI_QUAN_TRI} {
+{$DIA_CHI_QUAN_TRI} {$DIA_CHI_QUAN_TRI_PHU} {
 	import chung
 	handle {
 		reverse_proxy web:8081
