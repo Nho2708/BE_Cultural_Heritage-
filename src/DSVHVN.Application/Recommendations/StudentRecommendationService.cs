@@ -124,7 +124,7 @@ public sealed class StudentRecommendationService(IAppDbContext db, AttemptLifecy
             .Take(RecommendationRules.StudentSectionLimit)
             .Select(x => catalog.Card(x.HeritageId, RecommendationRules.StudentReviewReason(student.Level, x.Wrong))!)
             .ToList();
-        var praise = scope.Count > 0 && scope.All(f => f.IsCorrect) ? RecommendationRules.ReviewPraise : null;
+        var praise = scope.Count > 0 && scope.All(f => f.IsCorrect) ? RecommendationRules.ReviewPraiseForLevel(student.Level) : null;
 
         // (4) Di sản liên quan và (5) bài học mới: một lần xếp hạng chung cho cả hai.
         var newLessons = lessons.Where(l => !attemptedLessons.Contains(l.Id)).ToList();

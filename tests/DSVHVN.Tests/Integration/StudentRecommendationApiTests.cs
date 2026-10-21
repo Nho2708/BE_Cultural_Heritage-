@@ -146,7 +146,7 @@ public sealed class StudentRecommendationApiTests : IClassFixture<ApiFactory>
 
         Assert.Empty(recs.HeritagesToReview);
         Assert.Empty(recs.LessonsToReview);
-        Assert.Equal(RecommendationRules.ReviewPraise, recs.ReviewPraise);
+        Assert.Equal(RecommendationRules.ReviewPraiseForLevel(2), recs.ReviewPraise);
         Assert.Equal(DifficultyLevel.HARD, recs.TargetDifficulty);
     }
 
