@@ -1,4 +1,4 @@
-# Máy chủ Google Cloud của Vietnam Heritage: năm dịch vụ Docker Compose trong /opt/dsvhvn (cài bằng cai-dat-may-chu.sh).
+# Máy chủ Google Cloud của DiViet: năm dịch vụ Docker Compose trong /opt/dsvhvn (cài bằng cai-dat-may-chu.sh).
 #   sql   SQL Server 2019 Express, dữ liệu ở volume sql-data, bản sao lưu ở ./sao-luu
 #   api   backend ASP.NET Core (ảnh của repo backend), chỉ mở ở 127.0.0.1:8080 cho script kiểm sức khỏe
 #   ai    Dịch vụ AI (ảnh của repo AI), chỉ mở ở 127.0.0.1:8090

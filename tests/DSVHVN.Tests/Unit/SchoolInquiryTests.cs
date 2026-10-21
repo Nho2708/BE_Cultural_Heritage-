@@ -185,7 +185,7 @@ public sealed class SchoolInquiryMailerTests
         var mail = SchoolInquiryEmailComposer.Compose(Inquiry, "admin@vh.vn", new DateTime(2026, 10, 1, 2, 0, 0, DateTimeKind.Utc));
 
         Assert.Equal("admin@vh.vn", mail.To);
-        Assert.Equal("Vietnam Heritage – Trường liên hệ: Trường <b>A</b> & \"B\"", mail.Subject);
+        Assert.Equal("DiViet – Trường liên hệ: Trường <b>A</b> & \"B\"", mail.Subject);
         Assert.Equal("hanh@truong.edu.vn", mail.ReplyTo);
         Assert.Contains("nhận lúc 09:00 ngày 01/10/2026", mail.TextBody);
         Assert.Contains("Tên trường: Trường <b>A</b> & \"B\"", mail.TextBody);

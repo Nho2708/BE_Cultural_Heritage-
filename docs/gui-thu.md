@@ -41,7 +41,7 @@ Quên mật khẩu gửi lỗi thì câu trả lời vẫn như cũ (không đ�
 | `Email:Smtp:Username` | trống | Để trống nếu máy chủ không yêu cầu đăng nhập |
 | `Email:Smtp:Password` | — | **Không ghi vào appsettings.** Chỉ đặt bằng User Secrets hoặc biến môi trường `Email__Smtp__Password`. Bắt buộc khi có `Username` |
 | `Email:Smtp:FromAddress` | trống | Bắt buộc khi `Smtp`, phải là địa chỉ email hợp lệ |
-| `Email:Smtp:FromName` | `Vietnam Heritage` | Tên người gửi hiện trong hộp thư |
+| `Email:Smtp:FromName` | `DiViet` | Tên người gửi hiện trong hộp thư |
 | `Email:Smtp:TimeoutSeconds` | `30` | Thời gian chờ tối đa mỗi bước kết nối, đăng nhập, gửi |
 | `App:FrontendBaseUrl`, `App:SetPasswordPath` | `http://localhost:5173`, `/dat-mat-khau` | Đường dẫn trong thư |
 
@@ -122,7 +122,7 @@ qua cùng `IEmailSender` (cùng `Email:Mode`, cùng cấu hình SMTP).
 | Người nhận | Email của mọi tài khoản **quản trị hệ thống** đang hoạt động (chưa bị khóa, chưa xóa) cộng các địa chỉ khai ở `SchoolInquiry:Recipients` (mảng, vd biến môi trường `SchoolInquiry__Recipients__0`); bỏ trùng, bỏ địa chỉ sai định dạng |
 | Giới hạn tần suất | 5 lần mỗi 10 phút mỗi IP, cửa sổ cố định, đổi bằng `RateLimiting:SchoolInquiryPermits` và `RateLimiting:SchoolInquiryWindowMinutes` |
 
-Tiêu đề thư: `Vietnam Heritage – Trường liên hệ: <tên trường>`. Mỗi người nhận một thư riêng, có địa chỉ trả lời là email người nhập để quản trị
+Tiêu đề thư: `DiViet – Trường liên hệ: <tên trường>`. Mỗi người nhận một thư riêng, có địa chỉ trả lời là email người nhập để quản trị
 trả lời thẳng. Mọi chữ người dùng nhập được mã hóa HTML ở bản HTML; giá trị một dòng được gộp khoảng trắng và bỏ ký tự điều khiển. Hệ thống
 **không gửi thư xác nhận** về địa chỉ người nhập. Một người nhận lỗi chỉ ghi log (địa chỉ đã che bớt) và không chặn người khác. Máy demo dùng
 `Email:Mode=Log` thì nội dung thư chỉ hiện trong log.
