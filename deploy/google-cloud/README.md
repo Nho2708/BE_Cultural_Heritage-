@@ -1,6 +1,6 @@
 # Máy chủ Google Cloud
 
-Chạy cả hệ thống Vietnam Heritage trên một máy ảo Google Cloud bằng Docker Compose, thay cho máy demo QUANG-NHO
+Chạy cả hệ thống DiViet trên một máy ảo Google Cloud bằng Docker Compose, thay cho máy demo QUANG-NHO
 (IIS + ngrok). Máy demo vẫn giữ làm dự phòng: CD triển khai lên cả hai nơi, tắt máy demo bằng biến repo `MAY_DEMO_DEPLOY=false`.
 
 ## Kiến trúc
@@ -50,7 +50,7 @@ Các lệnh chạy trên máy chủ (`gcloud compute ssh dsvhvn-may-chu --zone a
 | Sao lưu ngay | `sudo /opt/dsvhvn/bin/sao-luu-csdl.sh hang-dem` |
 | Khôi phục CSDL | `sudo /opt/dsvhvn/bin/khoi-phuc-csdl.sh --ghi-de /opt/dsvhvn/sao-luu/truoc-trien-khai/<tệp>.bak` |
 | Đổi khóa (Gmail, Gemini, VNPay...) | sửa User Secrets hoặc `ai-service.env` trên máy dev, chạy lại `tao-cau-hinh-may-chu.ps1 -TaiLen` |
-| App Android | dựng bằng `scripts\dung-apk.ps1 -ApiBaseUrl https://<địa chỉ>/api/v1 -WebBaseUrl https://<địa chỉ>` của repo frontend, đăng bản phát hành mới (tag `android-<phiên bản>-<ngày>`, tệp `vietnam-heritage.apk`, đặt Latest): web học tập (biến repo `GCP_ANDROID_APP_URL`) và phiếu đăng nhập học sinh trỏ `releases/latest/download/vietnam-heritage.apk` nên không phải sửa link |
+| App Android | dựng bằng `scripts\dung-apk.ps1 -ApiBaseUrl https://<địa chỉ>/api/v1 -WebBaseUrl https://<địa chỉ>` của repo frontend, đăng bản phát hành mới (tag `android-<phiên bản>-<ngày>`, tệp `diviet.apk` kèm bản cùng nội dung tên cũ `vietnam-heritage.apk` cho phiếu đã in trước khi đổi tên, đặt Latest): web học tập (biến repo `GCP_ANDROID_APP_URL`) và phiếu đăng nhập học sinh trỏ `releases/latest/download/diviet.apk` nên không phải sửa link |
 | Chuyển sang tên miền | tạo bản ghi A cho `@`, `www`, `quantri` trỏ về IP; trong `/opt/dsvhvn/.env` đặt `DIA_CHI_HOC_TAP=<tên miền>`, `DIA_CHI_QUAN_TRI=quantri.<tên miền>`, `DIA_CHI_IP=<IP>`, giữ IP chạy song song bằng `DIA_CHI_HOC_TAP_PHU=www.<tên miền> <IP>`, `DIA_CHI_QUAN_TRI_PHU=<IP>:8443`, rồi `sudo docker compose up -d edge`; đổi địa chỉ trong `ha-tang.json`, chạy lại `tao-cau-hinh-may-chu.ps1 -TaiLen`; đổi biến repo `GCP_LEARNING_WEB_URL`, `GCP_ADMIN_WEB_URL` của frontend rồi chạy lại CD frontend |
 
 Triển khai hỏng (không khỏe sau 90 giây) thì script tự chạy lại ảnh trước. CSDL không tự khôi phục: migration của dự án chỉ thêm
