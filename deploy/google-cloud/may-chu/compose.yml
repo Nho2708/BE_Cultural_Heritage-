@@ -8,10 +8,19 @@
 # DIA_CHI_QUAN_TRI, tùy chọn DIA_CHI_HOC_TAP_PHU, DIA_CHI_QUAN_TRI_PHU, DIA_CHI_IP (xem caddy/Caddyfile). Mã ảnh do bin/trien-khai.sh ghi sau mỗi lần triển khai; đường dẫn tương đối tính từ thư mục chứa tệp này.
 name: dsvhvn
 
+# Nhật ký của mọi dịch vụ (kể cả nhật ký truy cập của Caddy, có địa chỉ IP) ghi vào journald của máy thay vì tệp json riêng của
+# Docker: journald tự xóa nhật ký quá 30 ngày (journald/dsvhvn.conf), đúng thời hạn ghi trên trang Chính sách quyền riêng tư.
+# "docker compose logs" vẫn đọc được.
+x-nhat-ky: &nhat-ky
+  driver: journald
+  options:
+    tag: "{{.Name}}"
+
 services:
   sql:
     image: mcr.microsoft.com/mssql/server:2019-CU32-ubuntu-20.04
     restart: unless-stopped
+    logging: *nhat-ky
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Express
@@ -33,6 +42,7 @@ services:
   api:
     image: ${REGISTRY:?Thiếu REGISTRY trong .env}/api:${API_TAG:-chua-trien-khai}
     restart: unless-stopped
+    logging: *nhat-ky
     depends_on:
       sql:
         condition: service_healthy
@@ -51,6 +61,7 @@ services:
   ai:
     image: ${REGISTRY}/ai:${AI_TAG:-chua-trien-khai}
     restart: unless-stopped
+    logging: *nhat-ky
     env_file:
       - ./cau-hinh/ai.env
     environment:
@@ -63,10 +74,12 @@ services:
   web:
     image: ${REGISTRY}/web:${WEB_TAG:-chua-trien-khai}
     restart: unless-stopped
+    logging: *nhat-ky
 
   edge:
     image: caddy:2.11.4-alpine
     restart: unless-stopped
+    logging: *nhat-ky
     ports:
       - "80:80"
       - "443:443"

@@ -45,7 +45,7 @@ Các lệnh chạy trên máy chủ (`gcloud compute ssh dsvhvn-may-chu --zone a
 
 | Việc | Lệnh |
 |---|---|
-| Trạng thái, nhật ký | `cd /opt/dsvhvn && sudo docker compose ps`, `sudo docker compose logs -f --tail 100 api` |
+| Trạng thái, nhật ký | `cd /opt/dsvhvn && sudo docker compose ps`, `sudo docker compose logs -f --tail 100 api`; nhật ký của mọi dịch vụ nằm trong journald và tự xóa sau 30 ngày (`may-chu/journald/dsvhvn.conf`), đọc theo thời gian bằng `sudo journalctl CONTAINER_NAME=dsvhvn-edge-1 --since "1 hour ago"` |
 | Triển khai lại một bản | `sudo /opt/dsvhvn/bin/trien-khai.sh api <mã commit>` (ảnh phải có trong Artifact Registry) |
 | Sao lưu ngay | `sudo /opt/dsvhvn/bin/sao-luu-csdl.sh hang-dem` |
 | Khôi phục CSDL | `sudo /opt/dsvhvn/bin/khoi-phuc-csdl.sh --ghi-de /opt/dsvhvn/sao-luu/truoc-trien-khai/<tệp>.bak` |

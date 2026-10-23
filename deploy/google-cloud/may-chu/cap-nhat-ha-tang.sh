@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Chép tệp hạ tầng (compose.yml, Caddyfile, script trong bin/, lịch sao lưu) từ thư mục chứa script này vào /opt/dsvhvn.
+# Chép tệp hạ tầng (compose.yml, Caddyfile, script trong bin/, lịch sao lưu, thời hạn giữ nhật ký) từ thư mục chứa script này vào /opt/dsvhvn.
 # cai-dat-may-chu.sh gọi ở lần cài đầu; CD của backend gọi trước mỗi lần triển khai API để máy chủ luôn theo repo.
 #   sudo bash cap-nhat-ha-tang.sh [--khong-systemd]
 # Dịch vụ đang chạy mà định nghĩa trong compose.yml đổi thì được tạo lại; Caddyfile đổi thì Caddy nạp lại, không ngắt kết nối.
@@ -13,7 +13,7 @@ systemd=1
 [[ -d $GOC ]] || loi "Chưa có $GOC (chạy cai-dat-may-chu.sh trước)."
 
 # Bỏ ký tự CR nếu tệp đi qua máy Windows.
-sed -i 's/\r$//' "$nguon/compose.yml" "$nguon/Caddyfile" "$nguon"/bin/*.sh "$nguon"/systemd/* 2> /dev/null || true
+sed -i 's/\r$//' "$nguon/compose.yml" "$nguon/Caddyfile" "$nguon"/bin/*.sh "$nguon"/systemd/* "$nguon"/journald/* 2> /dev/null || true
 
 caddy_cu=$(cat "$GOC/caddy/Caddyfile" 2> /dev/null || true)
 install -d -m 755 "$GOC/bin" "$GOC/caddy"
@@ -27,6 +27,15 @@ if [[ $systemd == 1 ]]; then
     systemctl daemon-reload
     systemctl enable --now dsvhvn-sao-luu.timer > /dev/null 2>&1
     echo "Lịch sao lưu hằng đêm: $(systemctl list-timers dsvhvn-sao-luu.timer --no-legend | awk '{print $1, $2, $3}')"
+
+    # Thời hạn giữ nhật ký của journald (nơi compose.yml ghi nhật ký các dịch vụ); chỉ khởi động lại journald khi tệp đổi.
+    tep_journald=/etc/systemd/journald.conf.d/dsvhvn.conf
+    if ! cmp -s "$nguon/journald/dsvhvn.conf" "$tep_journald"; then
+        install -d -m 755 /etc/systemd/journald.conf.d
+        install -m 644 "$nguon/journald/dsvhvn.conf" "$tep_journald"
+        systemctl restart systemd-journald
+        echo "journald: giữ nhật ký tối đa 30 ngày."
+    fi
 fi
 
 da_cau_hinh || { echo "Chưa có cấu hình bí mật: bỏ qua bước cập nhật dịch vụ đang chạy."; exit 0; }
