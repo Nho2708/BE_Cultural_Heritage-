@@ -9,7 +9,7 @@
 name: dsvhvn
 
 # Nhật ký của mọi dịch vụ (kể cả nhật ký truy cập của Caddy, có địa chỉ IP) ghi vào journald của máy thay vì tệp json riêng của
-# Docker: journald tự xóa nhật ký quá 30 ngày (journald/dsvhvn.conf), đúng thời hạn ghi trên trang Chính sách quyền riêng tư.
+# Docker: journald tự xóa nhật ký quá 30 ngày (journald/zz-dsvhvn.conf), đúng thời hạn ghi trên trang Chính sách quyền riêng tư.
 # "docker compose logs" vẫn đọc được.
 x-nhat-ky: &nhat-ky
   driver: journald
