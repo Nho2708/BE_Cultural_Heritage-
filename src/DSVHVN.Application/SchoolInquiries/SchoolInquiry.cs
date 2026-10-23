@@ -37,7 +37,7 @@ public sealed record SchoolInquiryDelivery(int Recipients, int Delivered);
 /// <summary>Gửi thông tin liên hệ của trường tới quản trị hệ thống. Thư lỗi từng người nhận được ghi log, không ném ngoại lệ.</summary>
 public interface ISchoolInquiryMailer
 {
-    /// <param name="adminEmails">Email của các tài khoản quản trị hệ thống đang hoạt động; bản cài đặt gộp thêm danh sách khai trong cấu hình.</param>
+    /// <param name="adminEmails">Email của các tài khoản quản trị hệ thống đang hoạt động; bản cài đặt chỉ dùng khi cấu hình chưa khai hộp thư nhận riêng.</param>
     Task<SchoolInquiryDelivery> SendAsync(SchoolInquiry inquiry, IReadOnlyCollection<string> adminEmails, CancellationToken cancellationToken = default);
 }
 
@@ -113,7 +113,7 @@ public sealed class SchoolInquiryService(
 
         if (delivery.Recipients == 0)
         {
-            logger.LogWarning("Không có người nhận thư liên hệ của trường: chưa có quản trị hệ thống nào có email và danh sách SchoolInquiry:Recipients để trống");
+            logger.LogWarning("Không có người nhận thư liên hệ của trường: danh sách SchoolInquiry:Recipients để trống và chưa có quản trị hệ thống nào có email");
             throw new AppException(Unavailable, Messages.SchoolInquiryUnavailable);
         }
 

@@ -199,7 +199,7 @@ public static class DependencyInjection
                 : ActivatorUtilities.CreateInstance<LogEmailSender>(sp));
         services.AddScoped<IAccountMailer, AccountMailer>();
 
-        // Liên hệ của trường (trang Dành cho nhà trường): gửi tới quản trị hệ thống và các địa chỉ khai ở SchoolInquiry:Recipients.
+        // Liên hệ của trường (trang Dành cho nhà trường): gửi tới các địa chỉ khai ở SchoolInquiry:Recipients, chưa khai thì tới quản trị hệ thống.
         services.AddOptions<SchoolInquiryOptions>().Bind(configuration.GetSection(SchoolInquiryOptions.Section));
         services.AddScoped<ISchoolInquiryMailer, SchoolInquiryMailer>();
     }
