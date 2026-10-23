@@ -29,12 +29,15 @@ if [[ $systemd == 1 ]]; then
     echo "Lịch sao lưu hằng đêm: $(systemctl list-timers dsvhvn-sao-luu.timer --no-legend | awk '{print $1, $2, $3}')"
 
     # Thời hạn giữ nhật ký của journald (nơi compose.yml ghi nhật ký các dịch vụ); chỉ khởi động lại journald khi tệp đổi.
-    tep_journald=/etc/systemd/journald.conf.d/dsvhvn.conf
-    if ! cmp -s "$nguon/journald/dsvhvn.conf" "$tep_journald"; then
+    # Tên cũ dsvhvn.conf xếp trước syslog.conf của rsyslog nên không tắt được việc chuyển nhật ký sang /var/log/syslog.
+    tep_journald=/etc/systemd/journald.conf.d/zz-dsvhvn.conf
+    tep_journald_cu=/etc/systemd/journald.conf.d/dsvhvn.conf
+    if ! cmp -s "$nguon/journald/zz-dsvhvn.conf" "$tep_journald" || [[ -e $tep_journald_cu ]]; then
         install -d -m 755 /etc/systemd/journald.conf.d
-        install -m 644 "$nguon/journald/dsvhvn.conf" "$tep_journald"
+        install -m 644 "$nguon/journald/zz-dsvhvn.conf" "$tep_journald"
+        rm -f "$tep_journald_cu"
         systemctl restart systemd-journald
-        echo "journald: giữ nhật ký tối đa 30 ngày."
+        echo "journald: giữ nhật ký tối đa 30 ngày, không chuyển sang rsyslog."
     fi
 fi
 
