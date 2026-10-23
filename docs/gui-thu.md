@@ -91,6 +91,11 @@ tài liệu. Môi trường không phải Development (máy chủ UAT) đặt b�
 `Email__Smtp__Host=smtp.gmail.com`, `Email__Smtp__Username=…`, `Email__Smtp__Password=…`, `Email__Smtp__FromAddress=…`.
 Gmail cá nhân giới hạn khoảng 500 người nhận mỗi ngày, đủ cho kiểm thử và demo.
 
+**Hộp thư theo tên miền (Mắt Bão).** Hộp thư `support@diviet.id.vn` nằm trên máy chủ thư của Mắt Bão (bản ghi MX của tên miền).
+Gửi bằng hộp thư này: `Email:Smtp:Host` = `s129d209.emailserver.vn` (tên trong chứng chỉ TLS `*.emailserver.vn`; `mail.diviet.id.vn`
+trỏ về cùng máy nhưng không khớp chứng chỉ), cổng `587` với STARTTLS (mặc định), `Username` và `FromAddress` đều là địa chỉ đầy đủ,
+`Password` là mật khẩu của hộp thư. Máy Google Cloud mở được cổng 587 và 465 tới máy chủ này (Google chặn cổng 25).
+
 ## 4. Lưu ý
 
 - **Địa chỉ `*.local` bị bỏ qua.** 4 tài khoản quản trị hệ thống seed ở Development (`nho.admin@dsvhvn.local`,
@@ -119,7 +124,7 @@ qua cùng `IEmailSender` (cùng `Email:Mode`, cùng cấu hình SMTP).
 | Dữ liệu | `schoolName` (bắt buộc, <= 200), `province` (<= 100), `contactName` (bắt buộc, <= 100), `position` (<= 100), `email` (bắt buộc, đúng định dạng), `phone` (8-20 ký tự), `message` (bắt buộc, <= 2000), `website` (ô bẫy ẩn) |
 | Thành công | `202` và câu "Đã gửi. Nhóm sẽ liên hệ lại qua email." Ô bẫy `website` có giá trị thì vẫn `202` nhưng **không gửi thư** |
 | Lỗi | `400` theo khuôn lỗi chung (lỗi theo trường, tiếng Việt); `429` khi vượt giới hạn; `503` "Chưa gửi được, vui lòng thử lại sau." khi không có người nhận hoặc không thư nào gửi đi được |
-| Người nhận | Email của mọi tài khoản **quản trị hệ thống** đang hoạt động (chưa bị khóa, chưa xóa) cộng các địa chỉ khai ở `SchoolInquiry:Recipients` (mảng, vd biến môi trường `SchoolInquiry__Recipients__0`); bỏ trùng, bỏ địa chỉ sai định dạng |
+| Người nhận | Các địa chỉ khai ở `SchoolInquiry:Recipients` (mảng, vd biến môi trường `SchoolInquiry__Recipients__0`), vd hộp thư chung của nhóm. Danh sách này trống (hoặc không còn địa chỉ dùng được) thì gửi tới email của mọi tài khoản **quản trị hệ thống** đang hoạt động (chưa bị khóa, chưa xóa). Bỏ trùng, bỏ địa chỉ sai định dạng và đuôi `.local` |
 | Giới hạn tần suất | 5 lần mỗi 10 phút mỗi IP, cửa sổ cố định, đổi bằng `RateLimiting:SchoolInquiryPermits` và `RateLimiting:SchoolInquiryWindowMinutes` |
 
 Tiêu đề thư: `DiViet – Trường liên hệ: <tên trường>`. Mỗi người nhận một thư riêng, có địa chỉ trả lời là email người nhập để quản trị
@@ -127,6 +132,6 @@ trả lời thẳng. Mọi chữ người dùng nhập được mã hóa HTML �
 **không gửi thư xác nhận** về địa chỉ người nhập. Một người nhận lỗi chỉ ghi log (địa chỉ đã che bớt) và không chặn người khác. Máy demo dùng
 `Email:Mode=Log` thì nội dung thư chỉ hiện trong log.
 
-Máy demo: các tài khoản quản trị hệ thống mẫu có email đuôi `.local` nên không nhận được thư. Khai người nhận thật trong User Secrets của
+Máy demo: các tài khoản quản trị hệ thống mẫu có email đuôi `.local` nên không nhận được thư. Khai hộp thư nhận thật trong User Secrets của
 `src/DSVHVN.Api` (`dotnet user-secrets set "SchoolInquiry:Recipients:0" "<email>"`); `scripts/trien-khai/tao-cau-hinh-may-demo.ps1` chép mảng này
 vào `appsettings.Production.json` của máy demo.

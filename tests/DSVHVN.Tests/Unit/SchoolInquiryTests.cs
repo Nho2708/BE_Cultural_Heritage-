@@ -207,28 +207,40 @@ public sealed class SchoolInquiryMailerTests
     }
 
     [Fact]
-    public async Task Each_distinct_valid_recipient_gets_one_letter_and_nothing_goes_back_to_the_sender()
+    public async Task Configured_addresses_replace_the_admins_and_each_gets_one_letter()
     {
         var sender = new CapturingEmailSender();
 
-        var result = await MailerFor(sender, "Chung@VH.vn", "khong-hop-le", "admin@vh.vn")
+        var result = await MailerFor(sender, "Chung@VH.vn", "khong-hop-le", "chung@vh.vn")
             .SendAsync(Inquiry, ["admin@vh.vn", "Quan.Tri@vh.vn"]);
 
-        Assert.Equal(new SchoolInquiryDelivery(3, 3), result);
-        Assert.Equal(["admin@vh.vn", "chung@vh.vn", "quan.tri@vh.vn"], sender.Sent.Select(m => m.To).Order().ToArray());
+        Assert.Equal(new SchoolInquiryDelivery(1, 1), result);
+        Assert.Equal(["chung@vh.vn"], sender.Sent.Select(m => m.To).ToArray());
         Assert.Equal(0, sender.CountTo("hanh@truong.edu.vn"));
     }
 
     [Fact]
-    public async Task Local_domain_recipients_are_left_out()
+    public async Task Without_configured_addresses_each_distinct_admin_gets_one_letter_and_nothing_goes_back_to_the_sender()
     {
         var sender = new CapturingEmailSender();
 
-        var result = await MailerFor(sender, "chung@vh.vn")
-            .SendAsync(Inquiry, ["nho.admin@dsvhvn.local", "lam.admin@dsvhvn.local"]);
+        var result = await MailerFor(sender).SendAsync(Inquiry, ["admin@vh.vn", "Quan.Tri@vh.vn", "quan.tri@vh.vn"]);
+
+        Assert.Equal(new SchoolInquiryDelivery(2, 2), result);
+        Assert.Equal(["admin@vh.vn", "quan.tri@vh.vn"], sender.Sent.Select(m => m.To).Order().ToArray());
+        Assert.Equal(0, sender.CountTo("hanh@truong.edu.vn"));
+    }
+
+    [Fact]
+    public async Task Local_domain_recipients_are_left_out_and_unusable_configured_addresses_fall_back_to_the_admins()
+    {
+        var sender = new CapturingEmailSender();
+
+        var result = await MailerFor(sender, "nhom@dsvhvn.local")
+            .SendAsync(Inquiry, ["nho.admin@dsvhvn.local", "quan.tri@vh.vn"]);
 
         Assert.Equal(new SchoolInquiryDelivery(1, 1), result);
-        Assert.Equal(["chung@vh.vn"], sender.Sent.Select(m => m.To).ToArray());
+        Assert.Equal(["quan.tri@vh.vn"], sender.Sent.Select(m => m.To).ToArray());
     }
 
     [Fact]

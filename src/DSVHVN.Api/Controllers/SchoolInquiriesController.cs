@@ -9,8 +9,8 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace DSVHVN.Api.Controllers;
 
 /// <summary>
-/// Biểu mẫu liên hệ của trang Dành cho nhà trường (web học tập), không cần đăng nhập. Thông tin được gửi qua email tới mọi quản trị hệ thống đang hoạt động
-/// và các địa chỉ khai ở <c>SchoolInquiry:Recipients</c>; không lưu CSDL và không gửi thư xác nhận về địa chỉ người nhập.
+/// Biểu mẫu liên hệ của trang Dành cho nhà trường (web học tập), không cần đăng nhập. Thông tin được gửi qua email tới các địa chỉ khai ở
+/// <c>SchoolInquiry:Recipients</c>, chưa khai thì tới mọi quản trị hệ thống đang hoạt động; không lưu CSDL và không gửi thư xác nhận về địa chỉ người nhập.
 /// Giới hạn 5 lần mỗi 10 phút mỗi IP (vượt thì 429).
 /// </summary>
 [Route("api/v1/public/school-inquiries")]

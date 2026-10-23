@@ -8,17 +8,18 @@ using Microsoft.Extensions.Options;
 
 namespace DSVHVN.Infrastructure.Email;
 
-/// <summary>Cấu hình mục <c>SchoolInquiry</c>: người nhận thêm ngoài các quản trị hệ thống (vd hộp thư chung của nhóm).</summary>
+/// <summary>Cấu hình mục <c>SchoolInquiry</c>: hộp thư nhận thư liên hệ của trường (vd hộp thư chung của nhóm).</summary>
 public sealed class SchoolInquiryOptions
 {
     public const string Section = "SchoolInquiry";
 
-    /// <summary>Địa chỉ email nhận thêm thư liên hệ của trường; có thể để trống.</summary>
+    /// <summary>Địa chỉ email nhận thư liên hệ của trường, thay cho email của quản trị hệ thống; để trống thì thư tới quản trị hệ thống.</summary>
     public string[] Recipients { get; set; } = [];
 }
 
 /// <summary>
-/// Gửi thư liên hệ của trường tới quản trị hệ thống: mỗi người nhận một thư riêng (không lộ địa chỉ cho nhau), qua <see cref="IEmailSender"/>.
+/// Gửi thư liên hệ của trường: có địa chỉ dùng được ở <c>SchoolInquiry:Recipients</c> thì chỉ gửi tới các địa chỉ đó, không có thì gửi tới
+/// quản trị hệ thống. Mỗi người nhận một thư riêng (không lộ địa chỉ cho nhau), qua <see cref="IEmailSender"/>.
 /// Lỗi của từng người nhận được ghi log (chỉ ghi địa chỉ đã che bớt) và không chặn những người còn lại.
 /// </summary>
 public sealed class SchoolInquiryMailer(
@@ -30,13 +31,8 @@ public sealed class SchoolInquiryMailer(
     public async Task<SchoolInquiryDelivery> SendAsync(SchoolInquiry inquiry, IReadOnlyCollection<string> adminEmails,
         CancellationToken cancellationToken = default)
     {
-        var recipients = adminEmails
-            .Concat(options.Value.Recipients ?? [])
-            .Select(EmailAddress.Normalize)
-            .Where(ValidationRules.IsEmail)
-            .Where(EmailAddress.CanReceiveMail)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        var configured = Usable(options.Value.Recipients ?? []);
+        var recipients = configured.Count > 0 ? configured : Usable(adminEmails);
 
         var delivered = 0;
         foreach (var recipient in recipients)
@@ -54,6 +50,14 @@ public sealed class SchoolInquiryMailer(
 
         return new SchoolInquiryDelivery(recipients.Count, delivered);
     }
+
+    /// <summary>Chuẩn hóa, bỏ địa chỉ sai định dạng, bỏ tên miền <c>.local</c> không nhận thư, bỏ trùng.</summary>
+    private static List<string> Usable(IEnumerable<string> addresses) => addresses
+        .Select(EmailAddress.Normalize)
+        .Where(ValidationRules.IsEmail)
+        .Where(EmailAddress.CanReceiveMail)
+        .Distinct(StringComparer.Ordinal)
+        .ToList();
 }
 
 /// <summary>

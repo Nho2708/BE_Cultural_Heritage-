@@ -2,7 +2,7 @@ using System.Net;
 
 namespace DSVHVN.Tests.Integration;
 
-/// <summary>Api có giới hạn rộng và một địa chỉ nhận thêm, để các test không chạm giới hạn 5 lần mỗi 10 phút.</summary>
+/// <summary>Api có giới hạn rộng (để các test không chạm giới hạn 5 lần mỗi 10 phút) và một hộp thư nhận riêng thay cho quản trị hệ thống.</summary>
 public sealed class SchoolInquiryApiFactory : ApiFactory
 {
     public const string ExtraRecipient = "nhom.vh@example.vn";
@@ -14,7 +14,7 @@ public sealed class SchoolInquiryApiFactory : ApiFactory
     ];
 }
 
-/// <summary>Liên hệ của trường qua HTTP: không cần đăng nhập, gửi tới quản trị hệ thống, kiểm hợp lệ, ô bẫy, lỗi thư.</summary>
+/// <summary>Liên hệ của trường qua HTTP: không cần đăng nhập, gửi tới hộp thư khai trong cấu hình, kiểm hợp lệ, ô bẫy, lỗi thư.</summary>
 public sealed class SchoolInquiryApiTests(SchoolInquiryApiFactory factory) : IClassFixture<SchoolInquiryApiFactory>
 {
     private const string Url = "/api/v1/public/school-inquiries";
@@ -33,7 +33,7 @@ public sealed class SchoolInquiryApiTests(SchoolInquiryApiFactory factory) : ICl
     };
 
     [Fact]
-    public async Task Anonymous_submit_returns_202_and_mails_the_admin_and_the_configured_address_but_not_the_sender()
+    public async Task Anonymous_submit_returns_202_and_mails_only_the_configured_address_not_the_admin_or_the_sender()
     {
         var school = "Trường Thử " + Guid.NewGuid().ToString("N")[..6];
         var sender = $"nguoi.gui.{Guid.NewGuid():N}@truong.edu.vn";
@@ -44,11 +44,11 @@ public sealed class SchoolInquiryApiTests(SchoolInquiryApiFactory factory) : ICl
         Assert.True(body.Success);
         Assert.Equal("Đã gửi. Nhóm sẽ liên hệ lại qua email.", body.Message);
 
-        var toAdmin = factory.Mail.Sent.Last(m => m.To == ApiFactory.AdminEmail && m.Subject.Contains(school));
-        Assert.Equal($"DiViet – Trường liên hệ: {school}", toAdmin.Subject);
-        Assert.Equal(sender, toAdmin.ReplyTo);
-        Assert.Contains(sender, toAdmin.TextBody);
-        Assert.Contains(factory.Mail.Sent, m => m.To == SchoolInquiryApiFactory.ExtraRecipient && m.Subject.Contains(school));
+        var letter = Assert.Single(factory.Mail.Sent, m => m.Subject.Contains(school));
+        Assert.Equal(SchoolInquiryApiFactory.ExtraRecipient, letter.To);
+        Assert.Equal($"DiViet – Trường liên hệ: {school}", letter.Subject);
+        Assert.Equal(sender, letter.ReplyTo);
+        Assert.Contains(sender, letter.TextBody);
         Assert.Equal(0, factory.Mail.CountTo(sender));
     }
 
