@@ -205,7 +205,7 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Chuyển văn bản thành giọng nói (TTS) qua FPT.AI (giọng Ban Mai): <c>FptAi</c> (ApiKey, Voice, Speed).
+    /// Chuyển văn bản thành giọng nói (TTS) qua FPT.AI (giọng Ban Mai): <c>FptAi</c> (ApiKey, Voice, Speed). Không có ApiKey thì dịch vụ trả null và không gọi ra ngoài.
     /// </summary>
     private static void AddSpeech(this IServiceCollection services, IConfiguration configuration)
     {
