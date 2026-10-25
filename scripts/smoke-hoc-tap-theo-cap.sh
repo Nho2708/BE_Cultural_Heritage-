@@ -228,7 +228,7 @@ for C in "$C1" "$C2" "$C3"; do
   code=$(val "40-hs-them-$n.json" sheet.entries.0.studentCode); tmp=$(val "40-hs-them-$n.json" sheet.entries.0.temporaryPassword)
   json "hs-login-$n.json" "{\"studentCode\":\"$code\",\"password\":\"$tmp\"}"
   step "41-hs-login-$n"    200 POST /api/v1/student/auth/login "hs-login-$n.json"
-  json "hs-pw-$n.json" "{\"newPassword\":\"$NEWPW\",\"confirmNewPassword\":\"$NEWPW\"}"
+  json "hs-pw-$n.json" "{\"currentPassword\":\"$tmp\",\"newPassword\":\"$NEWPW\",\"confirmNewPassword\":\"$NEWPW\"}"   # lớp cấp 1 tự đổi (có mật khẩu hiện tại); cấp 2, 3 bị buộc đổi và bỏ qua trường này
   step "42-hs-doi-mk-$n"   200 PUT /api/v1/student/me/password "hs-pw-$n.json" "$(val "41-hs-login-$n.json" accessToken)"
   HS+=("$(val "42-hs-doi-mk-$n.json" accessToken)")
 done

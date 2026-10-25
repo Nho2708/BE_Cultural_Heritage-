@@ -169,7 +169,7 @@ for C in "$C1" "$C2" "$C3"; do
   json "hs-login-$n.json" "{\"studentCode\":\"$SC\",\"password\":\"$ST\"}"
   step "4$n-hs-login-$n"       200 POST /api/v1/student/auth/login "hs-login-$n.json"
   HS1=$(val "4$n-hs-login-$n.json" accessToken)
-  json "hs-pw-$n.json" "{\"newPassword\":\"$NEWPW\",\"confirmNewPassword\":\"$NEWPW\"}"
+  json "hs-pw-$n.json" "{\"currentPassword\":\"$ST\",\"newPassword\":\"$NEWPW\",\"confirmNewPassword\":\"$NEWPW\"}"   # lớp cấp 1 tự đổi (có mật khẩu hiện tại); cấp 2, 3 bị buộc đổi và bỏ qua trường này
   step "4$n-hs-doi-mk-$n"      200 PUT /api/v1/student/me/password "hs-pw-$n.json" "$HS1"
   STUDENT_TOKENS+=("$(val "4$n-hs-doi-mk-$n.json" accessToken)")
 done

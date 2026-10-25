@@ -68,6 +68,7 @@ internal sealed class AttemptAnswerConfiguration : IEntityTypeConfiguration<Atte
         b.Property(x => x.PartsTotal).IsRequired().HasDefaultValue((short)1).ValueGeneratedNever();
         b.Property(x => x.PartsCorrect).IsRequired().HasDefaultValue((short)0).ValueGeneratedNever();
         b.Property(x => x.PointEarned).HasPrecision(5, 2);
+        b.Property(x => x.TryCount).IsRequired().HasDefaultValue((byte)0).ValueGeneratedNever();
 
         // Mỗi câu một dòng trong mỗi lượt; chặn ghi trùng khi nộp hai lần.
         b.HasIndex(x => new { x.AttemptId, x.QuestionId }).IsUnique().HasDatabaseName("UX_attempt_answers_attempt_question");

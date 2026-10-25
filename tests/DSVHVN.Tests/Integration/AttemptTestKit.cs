@@ -104,6 +104,14 @@ public sealed class AttemptTestKit(ApiFactory factory)
     public async Task<SavedAnswerDto> SaveAsync(string token, long attemptId, long questionId, QuestionSubmission? answer) =>
         await DiscoveryTestKit.Expect(SaveRawAsync(token, attemptId, questionId, answer));
 
+    public Task<(HttpResponseMessage Response, Envelope<AnswerCheckDto> Body)> CheckRawAsync(string token, long attemptId, long questionId, QuestionSubmission? answer) =>
+        Http.PostAsync<AnswerCheckDto>($"{Student}/attempts/{attemptId}/answers/{questionId}/check", answer ?? new QuestionSubmission(), token);
+
+    public async Task<AnswerCheckDto> CheckAsync(string token, long attemptId, long questionId, QuestionSubmission? answer) =>
+        await DiscoveryTestKit.Expect(CheckRawAsync(token, attemptId, questionId, answer));
+
+    public async Task<StudentAlbumDto> AlbumAsync(string token) => await DiscoveryTestKit.Expect(Http.GetAsync<StudentAlbumDto>($"{Student}/album", token));
+
     public Task<(HttpResponseMessage Response, Envelope<StudentAttemptResultDto> Body)> SubmitRawAsync(string token, long attemptId) =>
         Http.PostAsync<StudentAttemptResultDto>($"{Student}/attempts/{attemptId}/submit", null, token);
 

@@ -28,9 +28,9 @@ public sealed class StudentLoginApiTests(ApiFactory factory) : IClassFixture<Api
     [Fact]
     public async Task First_login_forces_password_change_then_student_enters_the_learning_area()
     {
-        var (school, classId, entry) = await StudentAsync(grade: 3);
+        var (school, classId, entry) = await StudentAsync(grade: 8);
 
-        // Đăng nhập với mã gõ thường, có khoảng trắng và dấu gạch: vẫn đúng. Token kèm cấp học của lớp (khối 3 là cấp 1).
+        // Đăng nhập với mã gõ thường, có khoảng trắng và dấu gạch: vẫn đúng. Token kèm cấp học của lớp (khối 8 là cấp 2).
         var typed = entry.StudentCode!.ToLowerInvariant().Insert(2, " ").Insert(5, "-");
         var (res, body) = await _c.StudentLoginRawAsync(typed, entry.TemporaryPassword);
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
@@ -38,12 +38,12 @@ public sealed class StudentLoginApiTests(ApiFactory factory) : IClassFixture<Api
         var first = body.Data!;
         Assert.Equal("Bearer", first.TokenType);
         Assert.True(first.Student.MustChangePassword);
-        Assert.Equal((RoleCode.STUDENT, entry.StudentCode, "Nguyễn Văn An", 1, "Cấp 1"),
+        Assert.Equal((RoleCode.STUDENT, entry.StudentCode, "Nguyễn Văn An", 2, "Cấp 2"),
             (first.Student.Role, first.Student.StudentCode, first.Student.FullName, first.Student.SchoolLevel, first.Student.SchoolLevelName));
-        Assert.Equal((classId, "8A1", 3, 1), (first.Student.Class.Id, first.Student.Class.Name, first.Student.Class.Grade, first.Student.Class.SchoolLevel));
+        Assert.Equal((classId, "8A1", 8, 2), (first.Student.Class.Id, first.Student.Class.Name, first.Student.Class.Grade, first.Student.Class.SchoolLevel));
         Assert.Equal(school.Teacher.FullName, first.Student.Class.TeacherName);
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(first.AccessToken);
-        Assert.Equal(("STUDENT", "1"), (jwt.Claims.Single(c => c.Type == "role").Value, jwt.Claims.Single(c => c.Type == "lvl").Value));
+        Assert.Equal(("STUDENT", "2"), (jwt.Claims.Single(c => c.Type == "role").Value, jwt.Claims.Single(c => c.Type == "lvl").Value));
         Assert.Equal(first.ExpiresAt, jwt.ValidTo, TimeSpan.FromSeconds(1));
         Assert.InRange((first.ExpiresAt - DateTime.UtcNow).TotalHours, 7.9, 8.1);
 
@@ -79,7 +79,7 @@ public sealed class StudentLoginApiTests(ApiFactory factory) : IClassFixture<Api
         Assert.Equal(HttpStatusCode.Unauthorized, oldMe.StatusCode);
         var (classOk, classBody) = await Http.GetAsync<StudentClassDto>("/api/v1/student/class", token);
         Assert.Equal(HttpStatusCode.OK, classOk.StatusCode);
-        Assert.Equal(("8A1", "2026-2027", "Cấp 1"), (classBody.Data!.Name, classBody.Data.SchoolYear, classBody.Data.SchoolLevelName));
+        Assert.Equal(("8A1", "2026-2027", "Cấp 2"), (classBody.Data!.Name, classBody.Data.SchoolYear, classBody.Data.SchoolLevelName));
 
         // Lần sau đăng nhập bằng mật khẩu mới; mật khẩu tạm không còn dùng được.
         var again = await _c.StudentLoginAsync(entry.StudentCode!, "MatKhauMoi2026");

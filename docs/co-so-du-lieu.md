@@ -264,3 +264,14 @@ Migration `ThemLuotMoKhoaQuangCao` (06/10/2026) thêm bảng `ad_unlocks` của 
 
 Số liệu sau migration: 38 bảng, 354 cột (thêm 9), 60 khóa ngoại (thêm 2, Restrict), 49 CHECK (thêm 4), 10 UNIQUE có lọc, 17 UNIQUE thường (thêm 1), 33 cột enum (thêm 2), không thêm DEFAULT.
 Chi tiết luồng: [quang-cao-google.md](quang-cao-google.md).
+
+## 15. Phần CSDL của luồng "Cấp 1 dạng luyện tập, album di sản"
+
+Migration `ThemKiemTungCauVaBaiHocDaXong` (25/10/2026), không sửa bảng cũ ngoài một cột có giá trị mặc định, nên chạy được trên CSDL có dữ liệu.
+
+| Thay đổi | Cột | Ràng buộc |
+|---|---|---|
+| Cột mới `attempt_answers.try_count` | `tinyint NOT NULL DEFAULT 0`: số lần em đã kiểm câu (cấp 1); từ 1 trở lên thì câu trả lời đã lưu là lần đầu, đã chốt để chấm | DEFAULT `(CONVERT([tinyint],(0)))` |
+| Bảng mới `lesson_completions` | `id` (bigint, identity), `student_id`, `lesson_id`, `completed_at` (`datetime2(3)` NOT NULL) | UNIQUE thường `UX_lesson_completions_student_lesson` (`student_id`, `lesson_id`); chỉ mục `IX_lesson_completions_lesson_id`; khóa ngoại `fk_lesson_completions_student_id`, `fk_lesson_completions_lesson_id` **Restrict** |
+
+Số liệu sau migration: 40 bảng, 369 cột trong database, 63 khóa ngoại (thêm 2), 51 CHECK, 10 UNIQUE có lọc, 19 UNIQUE thường (thêm 1). Chi tiết luồng: [hoc-tap-theo-cap.md](hoc-tap-theo-cap.md) mục 9.

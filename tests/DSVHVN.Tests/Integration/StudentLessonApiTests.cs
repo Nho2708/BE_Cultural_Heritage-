@@ -59,7 +59,7 @@ public sealed class StudentLessonApiTests(ApiFactory factory) : IClassFixture<Ap
             (dto.Id, dto.AccessCode, dto.Title, dto.ClassName, dto.SchoolLevel, dto.SchoolLevelName));
         Assert.Equal(school.Teacher.FullName, dto.TeacherName);
         Assert.Equal(("STEP_BY_STEP", true), (dto.Layout.Layout, dto.Layout.SequentialFlow));
-        Assert.Equal(["Nghe chuyện", "Xem hình", "Chơi", "Nhận sao"], dto.Layout.Steps.Select(s => s.Label));
+        Assert.Equal(["Nhớ lại", "Nghe chuyện", "Xem hình", "Chơi", "Nhận thẻ"], dto.Layout.Steps.Select(s => s.Label));
         Assert.Equal(lesson.Summary, dto.Summary);
         Assert.Equal(lesson.KeyPoints, dto.KeyPoints);
         Assert.All(dto.Sections, s => Assert.Contains(s.Type, new[] { LessonSectionType.STORY, LessonSectionType.IMAGE }));

@@ -111,3 +111,39 @@ Tính khi hiển thị, theo cấp **hiện tại** của lớp (lớp đổi c�
 - **Kiên trì tính cả lượt hết giờ.** Đặc tả ghi "5 lượt đã nộp"; bản này hiểu là lượt đã chốt (`SUBMITTED` hoặc `EXPIRED`). Đổi ở `AttemptRules.HasPerseverance` nếu nhóm muốn chỉ tính nộp tay.
 - **Quiz mở được không cần mở bài bằng mã trước:** đúng bốn điều kiện tạo lượt của đặc tả (không có điều kiện "đã nhập mã"); trang học gắn nhãn "Cần mã bài học" để hướng em vào qua trang bài học.
 - **Chưa làm ở luồng này:** phần **gợi ý cá nhân hóa** (năm phần "Gợi ý cho em", tính ở Dịch vụ AI, dùng lại ở trang kết quả) và các màn hình xem của giáo viên (kết quả của lớp, tiến độ từng học sinh); giao diện web học tập và app.
+
+## 9. Cấp 1: bài chơi dạng luyện tập, con đường, album, bước Nhớ lại
+
+Phần làm lại của cấp 1 (đặc tả của nhóm, một bố cục cho cả khối 1-5). Các cấp 2, 3 không đổi.
+
+| Thêm | Nội dung |
+|---|---|
+| Migration | `ThemKiemTungCauVaBaiHocDaXong`: cột `attempt_answers.try_count tinyint NOT NULL DEFAULT 0`; bảng `lesson_completions` (`id`, `student_id`, `lesson_id`, `completed_at`; UNIQUE `UX_lesson_completions_student_lesson`; khóa ngoại Restrict) |
+| Lớp mới | `Domain/Rules/AlbumRules` (tên nhóm thẻ, câu mang về nhà, chọn câu ôn), `AttemptRules` (lời khen cụ thể, lời cổ vũ, số lần kiểm, bài đã xong), `PasswordPolicy`, `StudentCredentials`; `Application/Attempts/AlbumService`; `Application/Lessons/LessonProgressService` |
+| Endpoint mới | `POST /student/attempts/{attemptId}/answers/{questionId}/check`, `GET /student/album`, `POST /student/lessons/{code}/complete`, `GET /student/lessons/{code}/recall` |
+
+**Kiểm từng câu** (`check`, thân như `PUT …/answers/{questionId}`, vị trí theo thứ tự đang hiện): chỉ lớp cấp 1 (cấp khác 422 `PRACTICE_ONLY_FOR_YOUNG_STUDENTS`, "Chỉ bài chơi cấp 1 mới kiểm từng câu.").
+Cùng các bước kiểm như lưu câu trả lời (chủ lượt 404, lượt đang làm 409, quá hạn nhận bài thì chốt hết giờ rồi 409, câu thuộc bài 404, sai cấu trúc 400).
+Câu trả lời trống: 400 `ANSWER_REQUIRED_TO_CHECK`; ghép cặp chưa nối đủ mọi hình: 400 `MATCHES_INCOMPLETE`.
+Chưa có dòng hoặc `try_count` = 0: lưu và chấm như lưu câu trả lời (`answered_at` = bây giờ, `try_count` = 1) — **đó là lần được chấm** (sao, thống kê của giáo viên). Đã kiểm rồi: **không đổi câu trả lời đã lưu**, chấm câu gửi lên trong bộ nhớ, `try_count` + 1 (tối đa 255).
+`PUT` với câu đã kiểm của lượt cấp 1 không ghi đè và trả như đã lưu (app cũ vẫn chạy). Nộp bài, chấm, thống kê của giáo viên không đổi.
+
+`AnswerCheck`: `{ questionId, isCorrect, firstTryCorrect, tryCount, parts[], correctAnswer, explanation, answeredCount, questionCount }`. `parts[]` theo thứ tự đang hiện: một phần với dạng chọn, mỗi hình bên trái với ghép cặp, mỗi mục của `items` với sắp xếp (mục đó đang ở đúng vị trí).
+Lượt đang làm có thêm `practiceMode` (= cấp 1) và `checked` mỗi câu; `notice` của trang giới thiệu cấp 1 là "Em trả lời từng câu. Chưa đúng thì em được thử lại. Mỗi bài em chơi một lần."
+
+**Kết quả cấp 1** (các trường khác cấp là null): `firstTryCorrect` (số câu đúng ngay lần đầu), `cards[]` (thẻ các di sản của bài, `collected` = true), `albumCollected`, `albumTotal`, `takeHome`; `praise` nói đúng điều em nhớ:
+đúng hết "Em nhớ đúng hết {n} câu về {tên}! Giỏi quá!", đúng một phần "Em nhớ đúng ngay {k} trên {n} câu về {tên}!", không đúng câu nào "Em đã chơi hết bài về {tên}. Lần sau mình cùng nhớ thêm nhé!"; `{tên}` là tối đa hai di sản không trùng của các câu đúng (của mọi câu khi không đúng câu nào), nối bằng " và "; không có tên thì bỏ cụm "về …".
+
+**Trang học cấp 1** (`/home`): `classLessons[]` — mọi bài **Đã xuất bản**, chưa xóa của lớp theo thứ tự học (`created_at`, `id` tăng dần), tối đa 30 bài mới nhất: `{ lessonId, title, accessCode, createdAt, thumbnailUrl, heritageNames[] (≤3), quizzesPublished, quizzesDone, stars (null khi chưa nộp), completed }`;
+`completed` khi có dòng `lesson_completions` hoặc đã nộp hết các bài chơi đã phát hành. `openQuizzes[].needsLessonCode` luôn false ở cấp 1. `albumCollected`, `albumTotal`. `cheer`: lượt đang dở → bài đầu tiên chưa xong → đã có sao → lớp chưa có bài → lời rủ khám phá (không biểu tượng, không bảo gõ mã). `streakDays` hiện là "Ngày đã học".
+
+**Album** (`GET /album` → `{ collected, total, cards[] }`): thẻ = mỗi di sản (đã xuất bản, chưa xóa) của các bài chưa xóa của lớp em — bài Đã xuất bản, hoặc bài Lưu trữ mà em đã có thẻ; một di sản ở nhiều bài là một thẻ ghi bài sớm nhất. `collected` khi em ghi bài chứa di sản (`complete`) hoặc có lượt đã nộp (nộp tay hay hết giờ) của một bài chơi thuộc bài đó; `collectedAt` là lúc sớm nhất của hai nguồn.
+Thẻ đã có trước (mới nhất trước), thẻ chưa có sau theo thứ tự bài. `groupName`: Vật thể "Di tích và đồ vật xưa"; Phi vật thể "Lễ hội, nghề và làn điệu"; Thiên nhiên, Hỗn hợp "Cảnh đẹp thiên nhiên"; Tư liệu "Sách và tư liệu xưa"; không rõ "Di sản khác".
+
+**Ghi bài đã học xong** (`POST /lessons/{code}/complete`): kiểm mã như mở bài bằng mã (mã sai, bài chưa xuất bản, khác lớp đều 404 cùng câu và tính vào giới hạn nhập sai). Chưa có dòng thì thêm; hai yêu cầu cùng lúc: ràng buộc không trùng chặn, yêu cầu sau coi như đã có (`firstTime` chỉ bật ở lần ghi đầu).
+`takeHome` theo di sản đầu tiên của bài: Vật thể "Nhà mình đã từng đi thăm {tên} hay một di tích nào gần nhà chưa?"; Phi vật thể "Ông bà, bố mẹ đã từng xem hay tham gia {tên} chưa?"; Thiên nhiên, Hỗn hợp "Bố mẹ đã từng đến {tên} chưa? Ở đó có gì đẹp?"; Tư liệu "Nhà mình có giữ sách, ảnh hay giấy tờ xưa nào không?"; không rõ "Em kể cho bố mẹ nghe về {tên} nhé. Bố mẹ biết gì về di sản này?".
+
+**Bước Nhớ lại** (`GET /lessons/{code}/recall` → `{ questions[] }`): tối đa 3 câu từ các lượt **đã nộp** của em ở quiz thuộc **bài khác** của lớp, lượt nộp gần nhất trước; chỉ Đúng/Sai và Chọn hình đúng; câu chưa xóa; ưu tiên câu làm chưa đúng rồi câu đúng; không trùng câu.
+Mỗi câu `{ questionId, questionType, content, imageUrl, options[], correctIndex, explanation, heritageName, lessonTitle }`; thẻ chọn hình xáo tất định theo mã học sinh và mã câu (`correctIndex` theo thứ tự đã xáo), Đúng/Sai giữ "Đúng", "Sai". Chỉ đọc, không lưu gì, không tính sao; em chưa nộp bài nào thì `questions` rỗng.
+
+**Kiểm thử:** `AttemptRulesTests`, `AlbumRulesTests`, `PasswordPolicyTests`, `StudentRulesTests` (quy tắc thuần); `LevelOnePracticeApiTests` (kiểm từng câu, kết quả), `LevelOnePathApiTests` (trang học, ghi bài đã học xong, album, bước Nhớ lại), `LevelOnePasswordApiTests` (mật khẩu đơn giản, phiếu, đổi mật khẩu), `LevelOnePracticeSqlServerTests` (kiểu cột, ràng buộc, các yêu cầu đồng thời trên LocalDB).

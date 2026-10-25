@@ -41,6 +41,16 @@ public sealed class StudentRulesTests
         Assert.True(Enumerable.Range(0, 200).Select(_ => StudentCredentials.NewTemporaryPassword()).Distinct().Count() > 190);
     }
 
+    [Fact]
+    public void Simple_password_has_6_digits_and_only_level_one_uses_it()
+    {
+        for (var i = 0; i < 3000; i++) Assert.Matches("^[0-9]{6}$", StudentCredentials.NewSimplePassword());
+        Assert.True(Enumerable.Range(0, 200).Select(_ => StudentCredentials.NewSimplePassword()).Distinct().Count() > 150);
+        Assert.True(StudentCredentials.UsesSimplePassword(1));
+        Assert.False(StudentCredentials.UsesSimplePassword(2));
+        Assert.False(StudentCredentials.UsesSimplePassword(3));
+    }
+
     [Theory]
     [InlineData("HS8K2QX7", "HS8K2QX7")]
     [InlineData("hs8k2qx7", "HS8K2QX7")]

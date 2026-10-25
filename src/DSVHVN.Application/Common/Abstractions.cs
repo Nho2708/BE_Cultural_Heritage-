@@ -51,6 +51,7 @@ public interface IAppDbContext
     DbSet<Lesson> Lessons { get; }
     DbSet<LessonHeritage> LessonHeritages { get; }
     DbSet<LessonSection> LessonSections { get; }
+    DbSet<LessonCompletion> LessonCompletions { get; }
     DbSet<AiGeneration> AiGenerations { get; }
 
     DbSet<Question> Questions { get; }

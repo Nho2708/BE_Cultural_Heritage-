@@ -117,10 +117,11 @@ public static class LessonFrames
         Layout: "STEP_BY_STEP", SequentialFlow: true,
         Flow:
         [
+            new FlowStep("RECALL", "Nhớ lại"),
             new FlowStep("LISTEN_STORY", "Nghe chuyện"),
             new FlowStep("VIEW_IMAGES", "Xem hình"),
             new FlowStep("PLAY", "Chơi"),
-            new FlowStep("EARN_STARS", "Nhận sao"),
+            new FlowStep("EARN_CARD", "Nhận thẻ"),
         ]);
 
     public static readonly LevelFrame Level2 = new(

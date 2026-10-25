@@ -142,7 +142,8 @@ public sealed class AttemptResultApiTests(ApiFactory factory) : IClassFixture<Ap
         var perfect = await _k.AnswerAllAndSubmitAsync(q, AttemptTestKit.Correct);
 
         Assert.Equal((1, "Cấp 1", "STARS", 3), (perfect.Level, perfect.LevelName, perfect.ResultView, perfect.Stars));
-        Assert.Equal(AttemptRules.Praise(3), perfect.Praise);
+        Assert.Equal($"Em nhớ đúng hết 4 câu về {q.Setup.Heritage.Name}! Giỏi quá!", perfect.Praise);
+        Assert.Equal(4, perfect.FirstTryCorrect);
         Assert.Equal((null, null, null, null, null, null, 4), (perfect.Score, perfect.TotalPoint, perfect.Percent, perfect.CorrectCount, perfect.WrongCount, perfect.BlankCount, perfect.TotalQuestions));
         Assert.Null(perfect.Analysis);
         Assert.Equal([BadgeCode.PERFECT_SCORE, BadgeCode.ON_TIME], perfect.Badges.Select(b => b.Code));

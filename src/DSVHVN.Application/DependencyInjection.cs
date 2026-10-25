@@ -90,6 +90,8 @@ public static class DependencyInjection
         services.AddScoped<QuestionAiService>();
         services.AddScoped<AdminQuestionService>();
         services.AddScoped<StudentLessonService>();
+        services.AddScoped<AlbumService>();
+        services.AddScoped<LessonProgressService>();
         services.AddScoped<QuizDetailBuilder>();
         services.AddScoped<QuizService>();
         services.AddScoped<QuizAutoCloser>();

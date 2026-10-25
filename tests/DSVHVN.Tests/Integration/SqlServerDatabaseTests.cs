@@ -14,7 +14,7 @@ namespace DSVHVN.Tests.Integration;
 
 /// <summary>
 /// Kiểm trên SQL Server thật: database tạm tạo bằng migration khởi tạo (khi Api khởi động) và tự xóa khi xong.
-/// Lược đồ phải đúng CSDL v3 cộng phần v4 đã làm (39 bảng, 61 khóa ngoại, 51 CHECK, 10 UNIQUE có lọc, collation Vietnamese_CI_AI);
+/// Lược đồ phải đúng CSDL v3 cộng phần v4 đã làm (40 bảng, 63 khóa ngoại, 51 CHECK, 10 UNIQUE có lọc, collation Vietnamese_CI_AI);
 /// dữ liệu tỉnh/thành và di sản nạp được; luồng web quản trị chạy được; ràng buộc tài khoản học sinh đúng thiết kế.
 /// </summary>
 public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClassFixture<SqlServerApiFactory>
@@ -41,10 +41,10 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.True(LocalDb.Exists(factory.DatabaseName));
         Assert.Equal("Vietnamese_CI_AI",
             (await SqlAsync<string>($"SELECT CAST(DATABASEPROPERTYEX(DB_NAME(), 'Collation') AS nvarchar(128)) AS [Value]")).Single());
-        Assert.Equal(39, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(364, (await SqlAsync<int>(   // 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 17 cột của heritage_models (luồng mô hình 3D) + 9 cột của attempt_answer_parts và 2 cột parts_total, parts_correct của attempt_answers (luồng học tập) + 9 cột của ad_unlocks (luồng quảng cáo Google) + 10 cột của heritage_narrations (thuyết minh tạo sẵn)
+        Assert.Equal(40, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
+        Assert.Equal(369, (await SqlAsync<int>(   // 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 17 cột của heritage_models (luồng mô hình 3D) + 9 cột của attempt_answer_parts và 2 cột parts_total, parts_correct của attempt_answers (luồng học tập) + 9 cột của ad_unlocks (luồng quảng cáo Google) + 10 cột của heritage_narrations (thuyết minh tạo sẵn) + 4 cột của lesson_completions và attempt_answers.try_count (bài chơi dạng luyện tập)
             $"SELECT COUNT(*) AS [Value] FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id WHERE t.name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(61, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());
+        Assert.Equal(63, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());
         Assert.Equal(["fk_event_translations_event_id", "fk_media_translations_media_id", "fk_password_reset_tokens_user_id", "fk_timeline_translations_timeline_id"],
             await SqlAsync<string>($"SELECT name AS [Value] FROM sys.foreign_keys WHERE delete_referential_action_desc = 'CASCADE' ORDER BY name"));
         Assert.Equal(51, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());
@@ -64,7 +64,7 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
             "UX_users_email ([email] IS NOT NULL AND [deleted_at] IS NULL)",
             "UX_users_username ([deleted_at] IS NULL)",
         ], filtered);
-        Assert.Equal(18, (await SqlAsync<int>(   // 10 + năm khóa không trùng (bản gốc, ngôn ngữ) của các bảng đa ngôn ngữ + mã thiết bị của khách + (mạng quảng cáo, mã giao dịch) của lượt mở khóa + (di sản, ngôn ngữ) của thuyết minh
+        Assert.Equal(19, (await SqlAsync<int>(   // 10 + năm khóa không trùng (bản gốc, ngôn ngữ) của các bảng đa ngôn ngữ + mã thiết bị của khách + (mạng quảng cáo, mã giao dịch) của lượt mở khóa + (di sản, ngôn ngữ) của thuyết minh + (học sinh, bài học) của bài đã học xong
             $"SELECT COUNT(*) AS [Value] FROM sys.indexes i JOIN sys.tables t ON t.object_id = i.object_id WHERE i.is_unique = 1 AND i.has_filter = 0 AND i.is_primary_key = 0 AND t.name <> '__EFMigrationsHistory'")).Single());
 
         // 18 khóa ngoại được NULL; 42 khóa ngoại bắt buộc là NOT NULL.
@@ -84,7 +84,7 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
                           WHERE k.parent_object_id = c.object_id AND k.definition LIKE '%[[]' + c.name + '] IN %'
                              OR k.parent_object_id = c.object_id AND k.definition LIKE '%[[]' + c.name + ']=''%')
             """)).Single());
-        Assert.Equal(["((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((1))", "((1))", "((1))", "(CONVERT([smallint],(0)))", "(CONVERT([smallint],(1)))", "(CONVERT([tinyint],(1)))", "(CONVERT([tinyint],(3)))", "(N'vi')"],   // smallint: attempt_answers.parts_correct = 0, parts_total = 1; tinyint: questions.level_min = 1, level_max = 3; guest_devices.location_allowed = 0, language_code = 'vi' 
+        Assert.Equal(["((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((1))", "((1))", "((1))", "(CONVERT([smallint],(0)))", "(CONVERT([smallint],(1)))", "(CONVERT([tinyint],(0)))", "(CONVERT([tinyint],(1)))", "(CONVERT([tinyint],(3)))", "(N'vi')"],   // smallint: attempt_answers.parts_correct = 0, parts_total = 1; tinyint: attempt_answers.try_count = 0, questions.level_min = 1, level_max = 3; guest_devices.location_allowed = 0, language_code = 'vi' 
             await SqlAsync<string>($"SELECT definition AS [Value] FROM sys.default_constraints ORDER BY definition"));
 
         var roles = await factory.WithDbAsync(db => db.Roles.OrderBy(r => r.Id).Select(r => r.Name).ToListAsync());

@@ -86,12 +86,15 @@ Mọi endpoint khu học về sau (mở bài, làm bài…) dùng chính sách `
   Cũng là tên đăng nhập (`users.username`). Không trùng toàn hệ thống (`UX_students_student_code` **không lọc** `deleted_at`), không đổi, **không cấp lại** kể cả sau khi xóa.
   Trước khi lưu, mã được kiểm với bảng `students` và `users`; nếu hai yêu cầu đua nhau và ràng buộc không trùng chặn thì sinh lô mã khác, **tối đa 5 lần**, vẫn trùng thì lỗi hệ thống (500) và ghi log.
 - **Mã do người dùng gõ** được chuẩn hóa: bỏ khoảng trắng và dấu gạch, đổi chữ hoa (`hs 8k2-qx7` → `HS8K2QX7`).
-- **Mật khẩu tạm** 8 ký tự, luôn có ít nhất một chữ hoa, một chữ thường, một chữ số, bỏ ký tự dễ nhầm `0 O o 1 I l`. Chỉ lưu bản băm (PBKDF2), băm song song cho cả lô.
+- **Mật khẩu tạm** (lớp cấp 2, 3) 8 ký tự, luôn có ít nhất một chữ hoa, một chữ thường, một chữ số, bỏ ký tự dễ nhầm `0 O o 1 I l`. Chỉ lưu bản băm (PBKDF2), băm song song cho cả lô.
+  **Lớp cấp 1 (khối 1-5) dùng mật khẩu đơn giản 6 chữ số** (0-9, bộ sinh số an toàn) khi thêm em (từng em và nhập danh sách) và khi đặt lại; em dùng luôn, **`must_change_password` = 0**.
+  Tài khoản cấp 1 làm từ trước đang bị buộc đổi giữ nguyên; thầy cô đặt lại thì sang mật khẩu đơn giản.
   Chỉ xuất hiện **một lần** trong phản hồi tạo/đặt lại (`Cache-Control: no-store`); không có trong `audit_logs`, log hay email.
 - **Phiếu đăng nhập** (`sheet`): `className`, `loginUrl` (web học tập), `appDownloadUrl` (có thể null), `instructions[]` (mở web, hoặc cài app và chọn chế độ "Học sinh", đăng nhập bằng mã và mật khẩu tạm),
-  `firstLoginReminder` ("Em sẽ phải đổi mật khẩu ở lần đăng nhập đầu tiên."), `notice` ("Mật khẩu tạm chỉ hiện một lần…") và `entries[]` `{ studentId, fullName, className, studentCode, temporaryPassword }`.
+  `firstLoginReminder` ("Em sẽ phải đổi mật khẩu ở lần đăng nhập đầu tiên."), `notice` ("Mật khẩu tạm chỉ hiện một lần…"), `passwordIsTemporary` và `entries[]` `{ studentId, fullName, className, studentCode, temporaryPassword }`.
+  Lớp cấp 1: `passwordIsTemporary` = false, `firstLoginReminder` = "Em dùng mật khẩu này mỗi lần đăng nhập. Quên mật khẩu thì em nhờ thầy cô đặt lại.", dòng hướng dẫn cuối "Đăng nhập bằng mã học sinh và mật khẩu ghi trên phiếu." và `notice` "Mật khẩu chỉ hiện một lần…" (bỏ chữ "tạm"); `temporaryPassword` là mật khẩu đơn giản. Lớp cấp 2, 3: `passwordIsTemporary` = true và các câu như trên.
   Việc in nhiều phiếu mỗi trang A4 và tải PDF là việc của giao diện. Cấu hình ở mục `App` của `appsettings`: `LearningWebBaseUrl` (mặc định `http://localhost:5174`), `LearningLoginPath` (`/dang-nhap`), `MobileAppDownloadUrl` (để trống thì phiếu chỉ hướng dẫn chung).
-- Tài khoản học sinh: vai trò học sinh, thuộc trường của lớp, **không email**, `status` = `ACTIVE`, `must_change_password` = 1. Học sinh chỉ lưu họ tên, mã và tài khoản (không ngày sinh, email, số điện thoại).
+- Tài khoản học sinh: vai trò học sinh, thuộc trường của lớp, **không email**, `status` = `ACTIVE`, `must_change_password` = 1 (lớp cấp 1: 0). Học sinh chỉ lưu họ tên, mã và tài khoản (không ngày sinh, email, số điện thoại).
 
 ## 4. Đăng nhập và đổi mật khẩu của học sinh
 
@@ -107,6 +110,8 @@ Mọi endpoint khu học về sau (mở bài, làm bài…) dùng chính sách `
 - **Buộc đổi mật khẩu** (`must_change_password` = 1, lần đầu hoặc sau khi giáo viên đặt lại): token chỉ gọi được `/student/me` và `/student/me/password`; mọi endpoint khu học khác trả 403 `PASSWORD_CHANGE_REQUIRED`
   ("Em hãy đặt mật khẩu mới của riêng em để bắt đầu học. …"). Chế độ này **không hỏi mật khẩu hiện tại**; mật khẩu mới phải đạt quy tắc (8-64 ký tự, chữ hoa, chữ thường, chữ số), nhập hai lần giống nhau và **khác mật khẩu tạm**.
   Chế độ tự đổi (đã đổi xong) bắt buộc nhập đúng mật khẩu hiện tại và mật khẩu mới phải khác.
+  **Học sinh cấp 1** (cả chế độ bắt buộc của tài khoản cũ lẫn tự đổi) chỉ cần mật khẩu mới dài **6-64 ký tự**, thông báo sai là "Mật khẩu dài 6-64 ký tự." (`PASSWORD_POLICY`); vẫn phải khác mật khẩu hiện tại. Cấp 2, 3 theo quy tắc chung.
+  Giới hạn đăng nhập sai (5 lần trong 15 phút) giữ nguyên.
 - **Đổi xong trả token mới** trong cùng phản hồi; token cũ và phiên trên thiết bị khác hết dùng ngay vì dấu bảo mật suy từ `password_hash` đổi theo. Đặt lại mật khẩu bởi giáo viên cũng làm mọi phiên cũ hết dùng;
   phiên đang mở **không** được chuyển sang màn hình đổi mật khẩu, học sinh phải đăng nhập lại bằng mật khẩu tạm trên phiếu mới.
   (Cách làm dấu bảo mật chung của hệ thống thay cho việc so `iat` của token với `users.updated_at` nên sửa họ tên học sinh không làm học sinh bị đăng xuất.)

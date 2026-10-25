@@ -66,7 +66,8 @@ public sealed record LoginSheetEntryDto(
 
 /// <summary>
 /// Dữ liệu màn hình Phiếu đăng nhập của giáo viên (in nhiều phiếu mỗi trang A4 hoặc tải về): các câu chung của mọi phiếu
-/// và từng phiếu của mỗi học sinh. Phiếu không chứa thông tin nào khác của học sinh.
+/// và từng phiếu của mỗi học sinh. <see cref="PasswordIsTemporary"/> bật với lớp cấp 2, 3 (mật khẩu tạm, em phải đổi ở lần đăng nhập đầu) và tắt với lớp cấp 1
+/// (mật khẩu đơn giản 6 chữ số em dùng luôn); giao diện gọi là "Mật khẩu" thay cho "Mật khẩu tạm" khi tắt. Phiếu không chứa thông tin nào khác của học sinh.
 /// </summary>
 public sealed record LoginSheetDto(
     string? ClassName,
@@ -75,6 +76,7 @@ public sealed record LoginSheetDto(
     IReadOnlyList<string> Instructions,
     string FirstLoginReminder,
     string Notice,
+    bool PasswordIsTemporary,
     IReadOnlyList<LoginSheetEntryDto> Entries);
 
 /// <summary>Kết quả thêm từng em: học sinh vừa tạo và phiếu đăng nhập.</summary>

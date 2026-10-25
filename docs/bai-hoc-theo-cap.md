@@ -49,6 +49,10 @@ Khuôn phản hồi chung `{ success, data, message, errorCode, traceId, errors 
 | Method | Đường dẫn | Nội dung | Thành công | Lỗi chính |
 |---|---|---|---|---|
 | GET | `/student/lessons/{code}` | Mã gõ chữ thường, có khoảng trắng hay dấu gạch vẫn nhận ("bh 7f3k-2q") | 200 bài theo cấp lớp em (mục 4.6). **Không ghi vào CSDL** | 400 `REQUIRED` (mã rỗng); 404 `LESSON_CODE_INVALID`; 429 `LESSON_CODE_BLOCKED`; 401/403 |
+| POST | `/student/lessons/{code}/complete` | Cấp 1: ghi em đã tới bước Nhận thẻ. Kiểm mã và giới hạn nhập sai **như mở bài bằng mã** | 200 `{ lessonId, firstTime, cards[], albumCollected, albumTotal, takeHome }`; gọi lại chỉ ghi một lần | như trên |
+| GET | `/student/lessons/{code}/recall` | Cấp 1, bước Nhớ lại: tối đa 3 câu ôn từ bài chơi em đã nộp ở bài khác của lớp. Kiểm mã **như mở bài bằng mã**; chỉ đọc | 200 `{ questions[] }` (rỗng khi em chưa nộp bài nào) | như trên |
+
+Hai endpoint cuối thuộc luồng học cấp 1 (album, con đường, luyện tập), mô tả ở [hoc-tap-theo-cap.md](hoc-tap-theo-cap.md) mục 9.
 
 ## 3. Cấp học và khung nội dung
 
@@ -62,7 +66,7 @@ và chỉ các phần thuộc khung ấy).
 | Loại phần dùng được (`lesson_sections`) | `STORY` (bước câu chuyện, mỗi bước một hình), `IMAGE` | `READING`, `IMAGE` (kèm chú thích), `MILESTONE` | `READING`, `SOURCE_EXCERPT` (trích tư liệu gốc, **bắt buộc có nguồn**), `MILESTONE`, `REFLECTION` (câu hỏi gợi suy nghĩ) |
 | Phần bắt buộc để xuất bản | Có ít nhất một bước câu chuyện và **mọi bước đều có hình** | Có ít nhất một mốc thời gian | Có ít nhất một đoạn trích và đoạn nào cũng có nguồn |
 | Cảnh báo (không chặn) | Số từ ngoài 150-250; số bước ngoài 3-6; bước dài quá 50 từ | Số từ ngoài 300-500; số mốc ngoài 3-8; chưa có hình kèm chú thích | Số từ ngoài 600-900; quá 3 đoạn trích; đoạn trích dài quá 150 từ; số câu hỏi ngoài 1-5 |
-| Luồng học (`layout`) | `STEP_BY_STEP`, **đi lần lượt**: Nghe chuyện → Xem hình → Chơi → Nhận sao | `FREE_STEPS`, **nhảy tự do**: Đọc bài → Xem dòng thời gian → Làm bài kiểm tra → Xem giải thích | `DOCUMENT`, trang tài liệu: Đọc tài liệu → Làm bài kiểm tra có giờ → Xem phân tích kết quả |
+| Luồng học (`layout`) | `STEP_BY_STEP`, **đi lần lượt**: Nhớ lại → Nghe chuyện → Xem hình → Chơi → Nhận thẻ (khóa `RECALL`, `LISTEN_STORY`, `VIEW_IMAGES`, `PLAY`, `EARN_CARD`) | `FREE_STEPS`, **nhảy tự do**: Đọc bài → Xem dòng thời gian → Làm bài kiểm tra → Xem giải thích | `DOCUMENT`, trang tài liệu: Đọc tài liệu → Làm bài kiểm tra có giờ → Xem phân tích kết quả |
 | Độ dài AI soạn | Ngắn / Vừa / Chi tiết = khoảng 150 / 200 / 250 từ | 300 / 400 / 500 | 600 / 750 / 900 |
 
 - **Mọi cấp** cần tiêu đề (1-255 ký tự), ít nhất một di sản còn đang xuất bản, tóm tắt không rỗng và 1-10 ý chính (mỗi ý tối đa 300 ký tự).

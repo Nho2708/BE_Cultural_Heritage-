@@ -57,6 +57,9 @@ public static class MessageCodes
     public const string QuizEnded = "QUIZ_ENDED";
     public const string AttemptFinished = "ATTEMPT_FINISHED";
     public const string AttemptInProgress = "ATTEMPT_IN_PROGRESS";
+    public const string PracticeOnlyForYoungStudents = "PRACTICE_ONLY_FOR_YOUNG_STUDENTS";
+    public const string AnswerRequiredToCheck = "ANSWER_REQUIRED_TO_CHECK";
+    public const string MatchesIncomplete = "MATCHES_INCOMPLETE";
     public const string GuestOnly = "GUEST_ONLY";
     public const string SchoolInquiryReceived = "SCHOOL_INQUIRY_RECEIVED";
     public const string SchoolInquiryUnavailable = "SCHOOL_INQUIRY_UNAVAILABLE";
@@ -78,6 +81,9 @@ public static class Messages
     /// <summary>Mật khẩu không đạt quy tắc 8-64 ký tự, có chữ hoa, chữ thường và chữ số.</summary>
     public static readonly AppMessage PasswordPolicy =
         new(MessageCodes.PasswordPolicy, "Mật khẩu phải dài 8-64 ký tự, có chữ hoa, chữ thường và chữ số.");
+
+    /// <summary>Mật khẩu của học sinh cấp 1 không đạt quy tắc nhẹ: chỉ cần dài 6-64 ký tự.</summary>
+    public static readonly AppMessage PasswordLengthOnly = new(MessageCodes.PasswordPolicy, "Mật khẩu dài 6-64 ký tự.");
 
     /// <summary>Tự đổi mật khẩu: mật khẩu mới trùng mật khẩu hiện tại.</summary>
     public static readonly AppMessage SamePassword = new(MessageCodes.SamePassword, "Mật khẩu mới phải khác mật khẩu cũ.");
@@ -302,6 +308,21 @@ public static class Messages
     /// <summary>Xem kết quả khi lượt còn đang làm dở.</summary>
     public static readonly AppMessage AttemptInProgress = new(MessageCodes.AttemptInProgress,
         "Em chưa nộp bài này nên chưa xem được kết quả. Em hãy làm tiếp và nộp bài nhé.");
+
+    /// <summary>Kiểm từng câu chỉ dành cho bài chơi cấp 1.</summary>
+    public static readonly AppMessage PracticeOnlyForYoungStudents =
+        new(MessageCodes.PracticeOnlyForYoungStudents, "Chỉ bài chơi cấp 1 mới kiểm từng câu.");
+
+    /// <summary>Bấm kiểm tra khi chưa chọn gì.</summary>
+    public static readonly AppMessage AnswerRequiredToCheck =
+        new(MessageCodes.AnswerRequiredToCheck, "Em hãy chọn câu trả lời trước khi kiểm tra.");
+
+    /// <summary>Bấm kiểm tra câu ghép cặp khi chưa nối đủ mọi hình.</summary>
+    public static readonly AppMessage MatchesIncomplete =
+        new(MessageCodes.MatchesIncomplete, "Em nối đủ các cặp rồi kiểm tra nhé.");
+
+    /// <summary>Lời nhắc trước khi bắt đầu làm bài chơi cấp 1 (kiểm từng câu, được thử lại, mỗi bài một lượt).</summary>
+    public const string QuizPracticeNotice = "Em trả lời từng câu. Chưa đúng thì em được thử lại. Mỗi bài em chơi một lần.";
 
     /// <summary>Lời nhắc trước khi bắt đầu làm bài kiểm tra.</summary>
     public const string QuizOnlyOnceNotice = "Em chỉ được làm bài kiểm tra này một lần. Em bấm \"Bắt đầu\" khi đã sẵn sàng nhé.";

@@ -31,6 +31,8 @@ public interface ILessonCodeThrottle
 /// bài kiểm tra đã phát hành của bài kèm trạng thái với riêng em. Không có thông tin liên hệ của giáo viên.</item>
 /// <item>Mở bài không phụ thuộc gói của trường.</item>
 /// </list>
+/// Cùng cách kiểm mã (và cùng giới hạn nhập sai) dùng cho hai thao tác của bài cấp 1: ghi em đã học xong bài và lấy các câu ôn của bước Nhớ lại
+/// (<see cref="LessonProgressService"/>).
 /// </summary>
 public sealed class StudentLessonService(
     IAppDbContext db,
@@ -38,7 +40,21 @@ public sealed class StudentLessonService(
     ILessonCodeThrottle throttle,
     TimeProvider clock)
 {
+    /// <summary>Em và bài học đã qua bước kiểm mã: dùng chung cho mở bài, ghi bài đã học xong và lấy câu ôn.</summary>
+    internal sealed record ResolvedLesson(
+        long StudentId, long ClassId, byte Grade, string? ClassName, string? TeacherName, Lesson Lesson);
+
     public async Task<StudentLessonDto> OpenByCodeAsync(Actor actor, string? rawCode, CancellationToken ct)
+    {
+        var resolved = await ResolveByCodeAsync(actor, rawCode, includeSections: true, ct);
+        return await BuildAsync(resolved.Lesson, resolved.Grade, resolved.ClassName, resolved.TeacherName, resolved.StudentId, ct);
+    }
+
+    /// <summary>
+    /// Kiểm mã bài học của em: phải là học sinh, chưa bị chặn nhập mã; mã đúng khi bài chưa xóa, Đã xuất bản và thuộc lớp của em. Sai thì cùng một thông báo 404
+    /// và tính vào giới hạn nhập sai.
+    /// </summary>
+    internal async Task<ResolvedLesson> ResolveByCodeAsync(Actor actor, string? rawCode, bool includeSections, CancellationToken ct)
     {
         if (actor.Role != RoleCode.STUDENT) throw AppException.Forbidden(Messages.Forbidden);
 
@@ -54,12 +70,10 @@ public sealed class StudentLessonService(
             .SingleOrDefaultAsync(ct)
             ?? throw AppException.Unauthorized(Messages.Forbidden);
 
-        var lesson = LessonCodes.IsWellFormed(code)
-            ? await db.Lessons.AsNoTracking()
-                .Where(l => l.AccessCode == code && l.DeletedAt == null && l.Status == ContentStatus.PUBLISHED && l.ClassId == student.ClassId)
-                .Include(l => l.Sections)
-                .SingleOrDefaultAsync(ct)
-            : null;
+        var query = db.Lessons.AsNoTracking()
+            .Where(l => l.AccessCode == code && l.DeletedAt == null && l.Status == ContentStatus.PUBLISHED && l.ClassId == student.ClassId);
+        if (includeSections) query = query.Include(l => l.Sections);
+        var lesson = LessonCodes.IsWellFormed(code) ? await query.SingleOrDefaultAsync(ct) : null;
 
         if (lesson is null)
         {
@@ -68,7 +82,7 @@ public sealed class StudentLessonService(
             throw AppException.NotFound(Messages.LessonCodeInvalid);
         }
 
-        return await BuildAsync(lesson, student.Grade, student.ClassName, student.TeacherName, student.Id, ct);
+        return new ResolvedLesson(student.Id, student.ClassId, student.Grade, student.ClassName, student.TeacherName, lesson);
     }
 
     /// <summary>

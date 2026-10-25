@@ -1915,6 +1915,41 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonCompletion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CompletedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("completed_at");
+
+                    b.Property<long>("LessonId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<long>("StudentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("student_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_lesson_completions");
+
+                    b.HasIndex("LessonId")
+                        .HasDatabaseName("IX_lesson_completions_lesson_id");
+
+                    b.HasIndex("StudentId", "LessonId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_lesson_completions_student_lesson");
+
+                    b.ToTable("lesson_completions", (string)null);
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonHeritage", b =>
                 {
                     b.Property<long>("LessonId")
@@ -2360,6 +2395,11 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Property<long>("QuestionId")
                         .HasColumnType("bigint")
                         .HasColumnName("question_id");
+
+                    b.Property<byte>("TryCount")
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)0)
+                        .HasColumnName("try_count");
 
                     b.HasKey("Id")
                         .HasName("PK_attempt_answers");
@@ -2990,6 +3030,27 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("Class");
 
                     b.Navigation("Teacher");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonCompletion", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Lessons.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_lesson_completions_lesson_id");
+
+                    b.HasOne("DSVHVN.Domain.Classes.Student", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_lesson_completions_student_id");
+
+                    b.Navigation("Lesson");
+
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonHeritage", b =>

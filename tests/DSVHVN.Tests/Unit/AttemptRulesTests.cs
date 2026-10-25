@@ -168,19 +168,76 @@ public sealed class AttemptRulesTests
         var today = new DateTime(2026, 10, 16);
         Assert.Equal(0, AttemptRules.StreakDays([], today));
 
-        // 3 ngày học khác nhau -> 3 ngày chăm chỉ
+        // 3 ngày học khác nhau -> 3 ngày đã học
         Assert.Equal(3, AttemptRules.StreakDays([today, today.AddDays(-1), today.AddDays(-5)], today));
 
-        // 1 ngày học hôm qua -> 1 ngày chăm chỉ
+        // 1 ngày học hôm qua -> 1 ngày đã học
         Assert.Equal(1, AttemptRules.StreakDays([today.AddDays(-1)], today));
 
         // 1 ngày học từ 2 ngày trước -> vẫn giữ 1 ngày (không bị mất khi nghỉ)
         Assert.Equal(1, AttemptRules.StreakDays([today.AddDays(-2)], today));
-
-        // Level 1 cheers
-        Assert.Contains("làm dở", AttemptRules.LevelOneCheer(10, 2, hasInProgress: true, hasOpenQuizzes: true));
-        Assert.Contains("ngôi sao", AttemptRules.LevelOneCheer(15, 2, hasInProgress: false, hasOpenQuizzes: true));
-        Assert.Contains("thử thách", AttemptRules.LevelOneCheer(0, 0, hasInProgress: false, hasOpenQuizzes: true));
-        Assert.Contains("mã bài học", AttemptRules.LevelOneCheer(0, 0, hasInProgress: false, hasOpenQuizzes: false));
     }
+
+    [Fact]
+    public void The_level_one_cheer_follows_the_order_in_progress_then_unfinished_lesson_then_stars_then_no_lessons()
+    {
+        Assert.Equal("Em có bài chơi đang dở. Mình chơi tiếp nhé!", AttemptRules.LevelOneCheer(10, hasInProgress: true, "Chùa Một Cột", hasLessons: true));
+        Assert.Equal("Hôm nay mình học bài “Chùa Một Cột” nhé!", AttemptRules.LevelOneCheer(10, hasInProgress: false, "Chùa Một Cột", hasLessons: true));
+        Assert.Equal("Em đã có 7 sao. Giỏi quá!", AttemptRules.LevelOneCheer(7, hasInProgress: false, null, hasLessons: true));
+        Assert.Equal("Em đã có 7 sao. Giỏi quá!", AttemptRules.LevelOneCheer(7, hasInProgress: false, null, hasLessons: false));
+        Assert.Equal("Thầy cô chưa giao bài nào. Em quay lại sau nhé!", AttemptRules.LevelOneCheer(0, hasInProgress: false, null, hasLessons: false));
+        Assert.Equal("Cùng khám phá di sản nào!", AttemptRules.LevelOneCheer(0, hasInProgress: false, null, hasLessons: true));
+        Assert.Equal("Cùng khám phá di sản nào!", AttemptRules.LevelOneCheer(0, hasInProgress: false, "  ", hasLessons: true));
+    }
+
+    private static IReadOnlyList<AttemptRules.PraiseQuestion> Praised(params (string? Heritage, bool Correct)[] questions) =>
+        questions.Select(q => new AttemptRules.PraiseQuestion(q.Heritage, q.Correct)).ToList();
+
+    [Fact]
+    public void The_level_one_praise_names_what_the_student_remembered()
+    {
+        // Đúng hết: nêu tối đa hai di sản không trùng, theo thứ tự câu.
+        Assert.Equal("Em nhớ đúng hết 3 câu về Chùa Một Cột và Hội Gióng! Giỏi quá!",
+            AttemptRules.Praise(3, Praised(("Chùa Một Cột", true), ("Hội Gióng", true), ("Chùa Một Cột", true))));
+        Assert.Equal("Em nhớ đúng hết 3 câu về Chùa Một Cột và Hội Gióng! Giỏi quá!",
+            AttemptRules.Praise(3, Praised(("Chùa Một Cột", true), ("Hội Gióng", true), ("Vịnh Hạ Long", true))));
+
+        // Đúng một phần: tên chỉ của các câu đúng.
+        Assert.Equal("Em nhớ đúng ngay 2 trên 4 câu về Hội Gióng!",
+            AttemptRules.Praise(2, Praised(("Chùa Một Cột", false), ("Hội Gióng", true), ("Hội Gióng", true), ("Vịnh Hạ Long", false))));
+
+        // Không đúng câu nào: tên di sản của các câu trong bài.
+        Assert.Equal("Em đã chơi hết bài về Chùa Một Cột và Hội Gióng. Lần sau mình cùng nhớ thêm nhé!",
+            AttemptRules.Praise(1, Praised(("Chùa Một Cột", false), ("Hội Gióng", false))));
+
+        // Không có tên di sản thì bỏ cụm "về ...".
+        Assert.Equal("Em nhớ đúng hết 2 câu! Giỏi quá!", AttemptRules.Praise(3, Praised((null, true), (" ", true))));
+        Assert.Equal("Em nhớ đúng ngay 1 trên 2 câu!", AttemptRules.Praise(2, Praised((null, true), (null, false))));
+        Assert.Equal("Em đã chơi hết bài. Lần sau mình cùng nhớ thêm nhé!", AttemptRules.Praise(1, Praised((null, false))));
+
+        // Bài không có câu nào: khen theo sao như cũ.
+        Assert.Equal(AttemptRules.Praise(2), AttemptRules.Praise(2, []));
+    }
+
+    [Fact]
+    public void A_checked_question_keeps_its_first_answer_and_the_try_count_stops_at_the_column_limit()
+    {
+        Assert.False(AttemptRules.IsAnswerFixed(0));
+        Assert.True(AttemptRules.IsAnswerFixed(1));
+        Assert.True(AttemptRules.IsAnswerFixed(200));
+        Assert.Equal(1, AttemptRules.NextTryCount(0));
+        Assert.Equal(254, AttemptRules.NextTryCount(253));
+        Assert.Equal(255, AttemptRules.NextTryCount(254));
+        Assert.Equal(255, AttemptRules.NextTryCount(255));
+    }
+
+    [Theory]
+    [InlineData(false, 0, 0, false)]   // lớp chưa có bài chơi nào và chưa ghi: chưa xong
+    [InlineData(true, 0, 0, true)]     // đã tới bước Nhận thẻ
+    [InlineData(false, 2, 1, false)]
+    [InlineData(false, 2, 2, true)]    // đã nộp hết bài chơi đã phát hành
+    [InlineData(false, 2, 3, true)]
+    [InlineData(true, 2, 0, true)]
+    public void A_lesson_is_completed_by_the_completion_row_or_by_submitting_every_published_quiz(bool row, int published, int done, bool expected) =>
+        Assert.Equal(expected, AttemptRules.IsLessonCompleted(row, published, done));
 }
