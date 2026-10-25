@@ -43,7 +43,10 @@ chưa có thì sinh ở bậc thấp; lỗi thì nghỉ rồi xếp lại tối 
 Tạo trước lúc xuất bản (`SpeechWarmUp`, chỉ khi `SelfHosted`; xếp vào hàng đợi rồi đi tiếp, không chờ sinh và không bao giờ làm hỏng lần xuất bản):
 
 - Xuất bản bài học của lớp khối 1-5 (cấp 1): tiêu đề và từng câu của các phần Kể chuyện, từng câu chú thích của phần Hình, từng câu của các ý chính, câu mang về nhà (`AlbumRules.TakeHomeQuestion`).
-- Phát hành bài kiểm tra của bài học thuộc lớp khối 1-5: nội dung và giải thích của từng câu hỏi, chữ trên thẻ hình của câu Chọn hình đúng.
+- Phát hành bài kiểm tra của bài học thuộc lớp khối 1-5: nội dung và giải thích của từng câu hỏi, chữ trên thẻ hình của câu Chọn hình đúng, lời đọc cả câu như bài chơi web
+  đọc (lời câu, phương án, lời hướng dẫn; trừ ghép cặp và sắp xếp vì mỗi lượt xáo một kiểu) và lời phản hồi có giải thích theo vị trí câu (bài xáo câu thì cả ba lời khen).
+  Chữ dựng ở `LevelOneSpeech`, khớp từng ký tự với lời đọc của web; hai bên giữ cùng bộ câu mẫu trong kiểm thử (`LevelOneSpeechTests` và `quiz/speech.test.ts` của web học tập).
+- Học sinh cấp 1 bắt đầu một lượt bài chơi: lời đọc cả câu của mọi câu theo đúng thứ tự câu, phương án, hình và bước đang hiện cho em (`AttemptService`, chỉ lúc tạo lượt mới).
 - Chữ đi qua `PlainText.FromMarkdown` trước khi tách câu (dấu kết câu `. ! ? …`, có thể kèm ngoặc hoặc nháy đóng, rồi khoảng trắng), giống cách giao diện chuẩn bị chữ để đọc, nên băm khớp với lời gọi nghe ngay.
 
 ## 5. Triển khai
