@@ -12,6 +12,7 @@ using DSVHVN.Domain.Organizations;
 using DSVHVN.Domain.Questions;
 using DSVHVN.Domain.Quizzes;
 using DSVHVN.Domain.Rules;
+using DSVHVN.Domain.Speech;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -55,6 +56,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
     public DbSet<HeritageNarration> HeritageNarrations => Set<HeritageNarration>();
     public DbSet<HeritageModel> HeritageModels => Set<HeritageModel>();
 
+    // Giọng đọc tự host (CSDL v4)
+    public DbSet<SpeechClip> SpeechClips => Set<SpeechClip>();
+
     // 10. Khách tham quan (CSDL v4)
     public DbSet<GuestDevice> GuestDevices => Set<GuestDevice>();
     public DbSet<GuestActivity> GuestActivities => Set<GuestActivity>();
@@ -64,6 +68,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
     public DbSet<Lesson> Lessons => Set<Lesson>();
     public DbSet<LessonHeritage> LessonHeritages => Set<LessonHeritage>();
     public DbSet<LessonSection> LessonSections => Set<LessonSection>();
+    public DbSet<LessonCompletion> LessonCompletions => Set<LessonCompletion>();
     public DbSet<AiGeneration> AiGenerations => Set<AiGeneration>();
 
     // 5. Ngân hàng câu hỏi

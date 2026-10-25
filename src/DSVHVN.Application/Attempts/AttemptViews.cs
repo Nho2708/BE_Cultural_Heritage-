@@ -10,8 +10,9 @@ internal static class AttemptViews
 {
     /// <summary>
     /// Câu hiện cho em: không có đáp án đúng; thứ tự các thẻ, cột và mục theo cách xáo của lượt. <paramref name="point"/> null ở cấp 1.
+    /// <paramref name="isChecked"/>: cấp 1, em đã kiểm câu này ít nhất một lần.
     /// </summary>
-    public static StudentAttemptQuestionDto Question(QuestionLayout l, int position, decimal? point, QuestionSubmission? shownAnswer)
+    public static StudentAttemptQuestionDto Question(QuestionLayout l, int position, decimal? point, QuestionSubmission? shownAnswer, bool isChecked = false)
     {
         var q = l.Question;
         var rows = l.Rows;
@@ -34,7 +35,7 @@ internal static class AttemptViews
         return new StudentAttemptQuestionDto(
             q.Id, position, point, l.Type, QuestionTypes.NameOf(l.Type), q.Content ?? string.Empty, q.ImageUrl, q.Passage, q.PassageSource,
             options, lefts, rights, items, l.BlankCount, l.WordBank, statements, Math.Max(1, QuestionGrader.PartsTotal(l.Type, rows)),
-            shownAnswer is not null, shownAnswer);
+            shownAnswer is not null, shownAnswer, isChecked);
     }
 
     /// <summary>Đáp án đúng của câu theo cách em thấy (vị trí trên màn hình). Điền từ lấy cách viết đúng đầu tiên của mỗi chỗ trống.</summary>

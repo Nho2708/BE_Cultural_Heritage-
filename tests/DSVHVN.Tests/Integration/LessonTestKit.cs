@@ -113,6 +113,12 @@ public sealed class LessonTestKit(ApiFactory factory)
     public Task<(HttpResponseMessage Response, Envelope<StudentLessonDto> Body)> OpenAsync(string studentToken, string code) =>
         Http.GetAsync<StudentLessonDto>($"{Student}/{Uri.EscapeDataString(code)}", studentToken);
 
+    public Task<(HttpResponseMessage Response, Envelope<DSVHVN.Application.Attempts.LessonCompletionDto> Body)> CompleteRawAsync(string studentToken, string code) =>
+        Http.PostAsync<DSVHVN.Application.Attempts.LessonCompletionDto>($"{Student}/{Uri.EscapeDataString(code)}/complete", null, studentToken);
+
+    public Task<(HttpResponseMessage Response, Envelope<DSVHVN.Application.Attempts.StudentRecallDto> Body)> RecallRawAsync(string studentToken, string code) =>
+        Http.GetAsync<DSVHVN.Application.Attempts.StudentRecallDto>($"{Student}/{Uri.EscapeDataString(code)}/recall", studentToken);
+
     /// <summary>Thêm bài kiểm tra cho bài thẳng vào CSDL (luồng bài kiểm tra chưa có API ở nhánh này).</summary>
     public async Task<long> AddQuizAsync(long lessonId, QuizStatus status, DateTime? openAt, DateTime? closeAt, string name = "Bài kiểm tra thử") =>
         await Factory.WithDbAsync(async db =>

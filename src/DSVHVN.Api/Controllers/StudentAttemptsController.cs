@@ -16,7 +16,7 @@ namespace DSVHVN.Api.Controllers;
 [Authorize(Policy = Policies.StudentReady)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
-public sealed class StudentAttemptsController(AttemptService attempts, StudentLearningService learning) : ApiControllerBase
+public sealed class StudentAttemptsController(AttemptService attempts, StudentLearningService learning, AlbumService album) : ApiControllerBase
 {
     /// <summary>
     /// Trang trước khi bắt đầu: tên, số câu, thời gian làm, giờ mở và đóng, và việc em làm được lúc này (Bắt đầu, Làm tiếp, Xem kết quả, chưa mở, đã đóng).
@@ -81,6 +81,22 @@ public sealed class StudentAttemptsController(AttemptService attempts, StudentLe
         => OkEnvelope(await attempts.SaveAnswerAsync(CurrentActor, attemptId, questionId, answer, ct));
 
     /// <summary>
+    /// Cấp 1, bài chơi dạng luyện tập: kiểm một câu ngay khi em trả lời; thân như lưu câu trả lời (mọi vị trí tính theo thứ tự đang hiện trên màn hình em).
+    /// Lần kiểm đầu tiên của câu được lưu làm câu trả lời để chấm (sao, thống kê của giáo viên) và không đổi nữa; các lần sau chỉ chấm câu gửi lên để em thử lại.
+    /// Trả đúng sai từng phần, đáp án đúng và giải thích của câu. Câu trả lời trống hoặc ghép cặp chưa nối đủ mọi hình là 400; lượt đã nộp hoặc quá hạn nhận bài
+    /// là 409; lớp không phải cấp 1 là 422.
+    /// </summary>
+    [HttpPost("attempts/{attemptId:long}/answers/{questionId:long}/check")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<ApiResponse<AnswerCheckDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<ApiResponse<AnswerCheckDto>>> CheckAnswer(long attemptId, long questionId, [FromBody] QuestionSubmission? answer, CancellationToken ct)
+        => OkEnvelope(await attempts.CheckAnswerAsync(CurrentActor, attemptId, questionId, answer, ct));
+
+    /// <summary>
     /// Nộp bài: chấm cố định từng câu (dạng nhiều phần chấm theo phần, câu bỏ trống 0 điểm), trả kết quả theo cấp của lớp. Nộp lần hai trả lại kết quả cũ.
     /// Quá hạn nhận bài thì lượt được chốt thành hết giờ với các câu đã lưu.
     /// </summary>
@@ -112,6 +128,16 @@ public sealed class StudentAttemptsController(AttemptService attempts, StudentLe
     [ProducesResponseType<ApiResponse<StudentHomeDto>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<StudentHomeDto>>> Home(CancellationToken ct)
         => OkEnvelope(await learning.HomeAsync(CurrentActor, ct));
+
+    /// <summary>
+    /// Album di sản của em (cấp 1): mỗi di sản của các bài thầy cô đã xuất bản cho lớp là một thẻ; thẻ đã có khi em học xong bài hoặc nộp bài chơi của bài đó.
+    /// Thẻ đã có xếp trước (mới nhất trước), thẻ chưa có sau theo thứ tự bài học.
+    /// </summary>
+    [HttpGet("album")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<ApiResponse<StudentAlbumDto>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<StudentAlbumDto>>> Album(CancellationToken ct)
+        => OkEnvelope(await album.GetAsync(CurrentActor, ct));
 
     /// <summary>
     /// Tiến độ của em: số quiz đã nộp trên số quiz đã phát hành của lớp, bài học đã hoàn thành, mức thành thạo theo di sản (cấp 1 hiện thanh sao) và huy hiệu đã đạt.

@@ -10,13 +10,14 @@ namespace DSVHVN.Application.Attempts;
 /// <summary>
 /// Kết quả một lượt đã nộp, trình bày theo cấp hiện tại của lớp (tính khi hiển thị từ điểm đã chấm, không lưu thêm gì).
 /// <list type="bullet">
-/// <item>Cấp 1: số sao 1-3 (từ 80% là 3 sao, từ 50% là 2 sao, còn lại 1 sao), lời khen, huy hiệu; không điểm, không phần trăm, không số câu đúng sai.</item>
+/// <item>Cấp 1: số sao 1-3 (từ 80% là 3 sao, từ 50% là 2 sao, còn lại 1 sao), huy hiệu và lời khen nói đúng điều em nhớ (số câu đúng ngay lần đầu, tên di sản);
+/// thêm các thẻ di sản của bài đã vào album, số thẻ em đã có và một câu mang về nhà; không điểm, không phần trăm, không số câu đúng sai.</item>
 /// <item>Cấp 2: điểm, số câu đúng, sai, bỏ trống, thời gian làm, huy hiệu, và đáp án cùng giải thích từng câu khi bài cho xem đáp án.</item>
 /// <item>Cấp 3: như cấp 2, thêm phân tích tỉ lệ đúng theo di sản (chủ đề) và theo dạng câu, các di sản nên ôn.</item>
 /// </list>
 /// Em chỉ xem lượt của chính mình (lượt của em khác như không tồn tại), kể cả khi bài đã đóng hay bài học đã lưu trữ.
 /// </summary>
-public sealed class AttemptResultService(IAppDbContext db, AttemptLifecycle lifecycle)
+public sealed class AttemptResultService(IAppDbContext db, AttemptLifecycle lifecycle, AlbumService albums)
 {
     internal async Task<StudentAttemptResultDto> GetAsync(StudentContext student, long attemptId, CancellationToken ct)
     {
@@ -74,14 +75,30 @@ public sealed class AttemptResultService(IAppDbContext db, AttemptLifecycle life
             }
         }
 
+        // Cấp 1: lời khen cụ thể theo lần trả lời đầu tiên của từng câu (câu đã lưu là lần đầu), thẻ di sản của bài và câu mang về nhà.
+        var firstTryCorrect = items.Count(i => rows[i.QuestionId]?.IsCorrect == true);
+        string? praise = stars is { } starCount ? AttemptRules.Praise(starCount) : null;
+        List<StudentAlbumCardDto>? cards = null;
+        AlbumData? album = null;
+        string? takeHome = null;
+        if (level == 1)
+        {
+            praise = AttemptRules.Praise(stars!.Value, items
+                .Select(i => new AttemptRules.PraiseQuestion(heritageNames.GetValueOrDefault(i.Question!.HeritageId), rows[i.QuestionId]?.IsCorrect == true)).ToList());
+            album = await albums.LoadAsync(student, ct);
+            cards = await albums.LessonCardsAsync(album, quiz.LessonId, quiz.Lesson?.Title, attempt.SubmittedAt, ct);
+            takeHome = await albums.TakeHomeAsync(quiz.LessonId, ct);
+        }
+
         return new StudentAttemptResultDto(
             attempt.Id, quiz.Id, quiz.Name, quiz.LessonId, quiz.Lesson?.Title, level, student.LevelName,
             level switch { 1 => "STARS", 2 => "SCORE", _ => "ANALYSIS" },
             attempt.Status!.Value, AttemptRules.StatusLabel(attempt.Status), attempt.StartedAt, attempt.SubmittedAt, attempt.DurationSeconds,
-            stars, stars is { } s ? AttemptRules.Praise(s) : null,
+            stars, praise,
             level == 1 ? null : score, level == 1 ? null : total, level == 1 ? null : AttemptRules.Percent(score, total),
             level == 1 ? null : correct, level == 1 ? null : wrong, level == 1 ? null : blank, items.Count,
-            badges, showAnswers, review, level == 3 ? Analysis(items, answers, heritageNames) : null);
+            badges, showAnswers, review, level == 3 ? Analysis(items, answers, heritageNames) : null,
+            level == 1 ? firstTryCorrect : null, cards, album?.Collected, album?.Total, takeHome);
     }
 
     public static StudentBadgeDto Badge(BadgeCode code) => new(code, AttemptRules.BadgeName(code), AttemptRules.BadgeDescription(code));

@@ -71,6 +71,7 @@ trien_khai() {
 
     buoc "Chạy bản mới ($khoa=$ma_anh)"
     dat_bien "$khoa" "$ma_anh"
+    [[ $dich_vu == ai ]] && chuan_bi_mo_hinh
     compose up -d --no-deps "$dich_vu" > /dev/null || return 1
 
     buoc "Kiểm sức khỏe"

@@ -11,6 +11,9 @@ public interface IStudentCredentialGenerator
     string NewStudentCode();
 
     string NewTemporaryPassword();
+
+    /// <summary>Mật khẩu đơn giản 6 chữ số cho lớp cấp 1.</summary>
+    string NewSimplePassword();
 }
 
 public sealed class RandomStudentCredentialGenerator : IStudentCredentialGenerator
@@ -18,4 +21,6 @@ public sealed class RandomStudentCredentialGenerator : IStudentCredentialGenerat
     public string NewStudentCode() => StudentCredentials.NewStudentCode();
 
     public string NewTemporaryPassword() => StudentCredentials.NewTemporaryPassword();
+
+    public string NewSimplePassword() => StudentCredentials.NewSimplePassword();
 }

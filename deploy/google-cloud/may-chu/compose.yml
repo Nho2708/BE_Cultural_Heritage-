@@ -1,7 +1,8 @@
 # Máy chủ Google Cloud của DiViet: năm dịch vụ Docker Compose trong /opt/dsvhvn (cài bằng cai-dat-may-chu.sh).
 #   sql   SQL Server 2019 Express, dữ liệu ở volume sql-data, bản sao lưu ở ./sao-luu
 #   api   backend ASP.NET Core (ảnh của repo backend), chỉ mở ở 127.0.0.1:8080 cho script kiểm sức khỏe
-#   ai    Dịch vụ AI (ảnh của repo AI), chỉ mở ở 127.0.0.1:8090
+#   ai    Dịch vụ AI (ảnh của repo AI), chỉ mở ở 127.0.0.1:8090; mô hình giọng đọc (VieNeu-TTS, khoảng 530 MB) tải về volume mo-hinh ở lần chạy đầu
+#   ai-mo-hinh  việc chạy một lần, đặt quyền ghi của volume mo-hinh cho người dùng không phải root (uid 10002) của ảnh AI trước khi ai khởi động
 #   web   hai web đã build (ảnh của repo frontend): 8080 web học tập, 8081 web quản trị, chỉ trong mạng Docker
 #   edge  Caddy: cửa vào duy nhất (80, 443, 8443), tự lấy chứng chỉ HTTPS, chuyển /api, /files, /health sang api
 # Biến lấy từ ./.env (chỉ root đọc được): REGISTRY, API_TAG, AI_TAG, WEB_TAG, MSSQL_SA_PASSWORD, DIA_CHI_HOC_TAP,
@@ -58,16 +59,34 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
 
+  # Volume Docker mới tạo thuộc root, còn Dịch vụ AI chạy bằng người dùng uid 10002: việc này chạy một lần (cùng ảnh AI, chỉ khác người dùng root)
+  # để đổi chủ volume mo-hinh trước khi dịch vụ ai nạp mô hình; chạy lại lần nữa vô hại.
+  ai-mo-hinh:
+    image: ${REGISTRY}/ai:${AI_TAG:-chua-trien-khai}
+    restart: "no"
+    logging: *nhat-ky
+    user: "0:0"
+    entrypoint: ["chown", "-R", "10002:10002", "/srv/mo-hinh"]
+    volumes:
+      - mo-hinh:/srv/mo-hinh
+
   ai:
     image: ${REGISTRY}/ai:${AI_TAG:-chua-trien-khai}
     restart: unless-stopped
     logging: *nhat-ky
+    depends_on:
+      ai-mo-hinh:
+        condition: service_completed_successfully
     env_file:
       - ./cau-hinh/ai.env
     environment:
       AI_HOST: 0.0.0.0
       AI_PORT: "8000"
+      # Mô hình giọng đọc tải từ Hugging Face về đây ở lần chạy đầu và còn nguyên qua các lần tạo lại container, nên không tải lại mỗi lần triển khai.
+      HF_HOME: /srv/mo-hinh
       TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - mo-hinh:/srv/mo-hinh
     ports:
       - "127.0.0.1:8090:8000"
 
@@ -100,5 +119,6 @@ services:
 
 volumes:
   sql-data:
+  mo-hinh:
   caddy-data:
   caddy-config:

@@ -63,6 +63,9 @@ public static class StudentCredentials
 
     public const int TemporaryPasswordLength = 8;
 
+    /// <summary>Mật khẩu đơn giản của lớp cấp 1: 6 chữ số, em dùng luôn không phải đổi.</summary>
+    public const int SimplePasswordLength = 6;
+
     // Mật khẩu tạm bỏ các ký tự dễ nhầm 0, O, o, 1, I, l để học sinh chép từ phiếu không sai.
     private const string Upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
     private const string Lower = "abcdefghijkmnpqrstuvwxyz";
@@ -89,6 +92,17 @@ public static class StudentCredentials
         chars[2] = Pick(Digits);
         for (var i = 3; i < chars.Length; i++) chars[i] = Pick(all);
         RandomNumberGenerator.Shuffle(chars.AsSpan());
+        return new string(chars);
+    }
+
+    /// <summary>Lớp cấp 1 (khối 1-5) dùng mật khẩu đơn giản em dùng luôn; cấp 2, 3 dùng mật khẩu tạm và phải đổi ở lần đăng nhập đầu.</summary>
+    public static bool UsesSimplePassword(int level) => level == 1;
+
+    /// <summary>Mật khẩu đơn giản cho lớp cấp 1: 6 chữ số 0-9 từ bộ sinh số an toàn (chữ số dễ gõ trên điện thoại, em nhỏ chép từ phiếu không nhầm chữ).</summary>
+    public static string NewSimplePassword()
+    {
+        var chars = new char[SimplePasswordLength];
+        for (var i = 0; i < chars.Length; i++) chars[i] = (char)('0' + RandomNumberGenerator.GetInt32(10));
         return new string(chars);
     }
 

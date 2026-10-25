@@ -134,6 +134,12 @@ public class AttemptAnswer
 
     public DateTime? AnsweredAt { get; set; }
 
+    /// <summary>
+    /// Bài chơi cấp 1 dạng luyện tập (tinyint NOT NULL DEFAULT 0): số lần em đã kiểm câu này. Từ 1 trở lên thì câu trả lời đã lưu là lần trả lời
+    /// đầu tiên, đã chốt để chấm và không ghi đè nữa. Luôn 0 ở cấp 2, 3.
+    /// </summary>
+    public byte TryCount { get; set; }
+
     public List<AttemptAnswerPart> Parts { get; set; } = [];
 }
 

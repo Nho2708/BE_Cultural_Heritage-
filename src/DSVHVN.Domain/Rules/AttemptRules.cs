@@ -119,6 +119,31 @@ public static class AttemptRules
         _ => "Em đã hoàn thành bài rồi! Em được 1 sao, lần sau mình thử thêm nhé!",
     };
 
+    /// <summary>Một câu của bài chơi cấp 1 để viết lời khen: tên di sản của câu và em có đúng ngay lần trả lời đầu tiên không.</summary>
+    public sealed record PraiseQuestion(string? HeritageName, bool FirstTryCorrect);
+
+    /// <summary>Số tên di sản tối đa nhắc trong lời khen cụ thể của cấp 1.</summary>
+    public const int PraiseMaxHeritageNames = 2;
+
+    /// <summary>
+    /// Lời khen của cấp 1 nói đúng điều em nhớ (<paramref name="questions"/> theo thứ tự câu của bài). Có k câu đúng ngay lần đầu trên n câu:
+    /// k = n thì khen cả bài, 0 &lt; k &lt; n nói số câu đúng, k = 0 nói em đã chơi hết bài và hẹn lần sau. Tên di sản là của các câu đúng (của mọi câu
+    /// khi không đúng câu nào), không trùng, theo thứ tự câu, tối đa hai tên nối bằng " và "; không có tên thì bỏ cụm "về …". Bài không có câu nào thì
+    /// khen theo số sao như <see cref="Praise(int)"/>.
+    /// </summary>
+    public static string Praise(int stars, IReadOnlyList<PraiseQuestion> questions)
+    {
+        var n = questions.Count;
+        if (n == 0) return Praise(stars);
+        var k = questions.Count(q => q.FirstTryCorrect);
+        var source = k == 0 ? questions : questions.Where(q => q.FirstTryCorrect).ToList();
+        var names = source.Select(q => q.HeritageName?.Trim()).Where(x => !string.IsNullOrEmpty(x)).Distinct().Take(PraiseMaxHeritageNames).ToList();
+        var about = names.Count == 0 ? string.Empty : " về " + string.Join(" và ", names);
+        if (k == n) return $"Em nhớ đúng hết {n} câu{about}! Giỏi quá!";
+        if (k > 0) return $"Em nhớ đúng ngay {k} trên {n} câu{about}!";
+        return $"Em đã chơi hết bài{about}. Lần sau mình cùng nhớ thêm nhé!";
+    }
+
     public static string StatusLabel(AttemptStatus? status) => status switch
     {
         AttemptStatus.IN_PROGRESS => "Đang làm",
@@ -193,16 +218,37 @@ public static class AttemptRules
     public static decimal RatePercent(int correct, int answered) =>
         answered <= 0 ? 0m : Math.Round(correct * 100m / answered, 1, MidpointRounding.AwayFromZero);
 
-    /// <summary>Số ngày chăm chỉ: đếm tổng số ngày thực tế em đã tham gia học tập/nộp bài (không bị mất ngày khi nghỉ).</summary>
+    /// <summary>Số ngày đã học: đếm tổng số ngày thực tế em đã tham gia học tập/nộp bài (không bị mất ngày khi nghỉ).</summary>
     public static int StreakDays(IEnumerable<DateTime> dates, DateTime today) =>
         dates.Select(d => d.Date).Distinct().Count();
 
-    /// <summary>Lời cổ vũ vui vẻ của linh vật cho học sinh cấp 1 ở trang chủ.</summary>
-    public static string LevelOneCheer(int stars, int streak, bool hasInProgress, bool hasOpenQuizzes)
+    /// <summary>
+    /// Lời cổ vũ ở trang học của cấp 1, không biểu tượng và không bảo em nhập mã. Theo thứ tự: có lượt chơi đang dở; còn bài chưa xong (nhắc bài đầu tiên
+    /// chưa xong); đã có sao; lớp chưa có bài nào; còn lại là lời rủ khám phá.
+    /// </summary>
+    public static string LevelOneCheer(int stars, bool hasInProgress, string? firstUnfinishedLessonTitle, bool hasLessons)
     {
-        if (hasInProgress) return "Em có bài đang làm dở kìa! Cùng hoàn thành để nhận thêm sao nhé!";
-        if (stars > 0) return $"Tuyệt vời! Em đã tích lũy được {stars} ngôi sao sáng chói rồi đó! 🌟";
-        if (hasOpenQuizzes) return "Có thử thách đố vui mới dành cho em! Vào chơi ngay nào! 🎮";
-        return "Nhập mã bài học từ thầy cô để mở khóa các chặng di sản kỳ thú nhé! 🔑";
+        if (hasInProgress) return "Em có bài chơi đang dở. Mình chơi tiếp nhé!";
+        if (!string.IsNullOrWhiteSpace(firstUnfinishedLessonTitle)) return $"Hôm nay mình học bài “{firstUnfinishedLessonTitle.Trim()}” nhé!";
+        if (stars > 0) return $"Em đã có {stars} sao. Giỏi quá!";
+        if (!hasLessons) return "Thầy cô chưa giao bài nào. Em quay lại sau nhé!";
+        return "Cùng khám phá di sản nào!";
     }
+
+    // ---- Bài chơi cấp 1 dạng luyện tập ----
+
+    /// <summary>Số lần kiểm tối đa ghi cho một câu (cột <c>try_count</c> là tinyint).</summary>
+    public const int MaxTryCount = byte.MaxValue;
+
+    /// <summary>Số lần kiểm sau lần kiểm này, không vượt <see cref="MaxTryCount"/>.</summary>
+    public static byte NextTryCount(byte current) => (byte)Math.Min(MaxTryCount, current + 1);
+
+    /// <summary>Câu đã kiểm ít nhất một lần thì câu trả lời đã lưu là lần đầu đã chốt để chấm, không ghi đè nữa.</summary>
+    public static bool IsAnswerFixed(byte tryCount) => tryCount >= 1;
+
+    /// <summary>
+    /// Bài học đã xong của em ở cấp 1: có ghi em tới bước Nhận thẻ, hoặc bài có bài chơi đã phát hành và em đã nộp hết.
+    /// </summary>
+    public static bool IsLessonCompleted(bool hasCompletionRow, int quizzesPublished, int quizzesDone) =>
+        hasCompletionRow || (quizzesPublished > 0 && quizzesDone >= quizzesPublished);
 }

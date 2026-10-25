@@ -1,6 +1,7 @@
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
+using DSVHVN.Application.Speech;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Quizzes;
 using DSVHVN.Domain.Rules;
@@ -16,12 +17,14 @@ namespace DSVHVN.Application.Attempts;
 /// <item>Mỗi em một lượt mỗi quiz: ràng buộc không trùng chặn cả hai yêu cầu bắt đầu gửi đồng thời; đã có lượt đang làm thì vào tiếp đúng lượt đó
 /// (giờ vẫn tính từ lúc bắt đầu), đã nộp thì chỉ xem kết quả.</item>
 /// <item>Mỗi thao tác trả lời lưu ngay (ghi đè cả câu), kèm chấm tạm; câu trả lời phải hợp lệ với đúng câu đó. Chỉ chủ lượt gửi được.</item>
+/// <item>Cấp 1 là bài chơi dạng luyện tập: em bấm kiểm tra từng câu, lần kiểm đầu tiên được lưu làm câu trả lời để chấm (không ghi đè nữa), các lần sau
+/// chỉ cho biết đúng sai để em thử lại.</item>
 /// <item>Hạn nộp = lúc bắt đầu + thời gian làm, không muộn hơn giờ đóng (cấp 1 không có thời gian làm). Máy chủ nhận bài tới hạn nộp cộng 30 giây;
 /// quá thì lượt được chốt thành hết giờ với các câu đã lưu.</item>
 /// <item>Quiz bật xáo câu thì thứ tự câu cố định suốt lượt; các thẻ, cột, mục cần xáo luôn được xáo theo cách tất định từ mã lượt.</item>
 /// </list>
 /// </summary>
-public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle, AttemptResultService results)
+public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle, AttemptResultService results, ISpeechPrefetcher speech)
 {
     private DateTime Now => lifecycle.Now;
 
@@ -64,7 +67,7 @@ public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle,
             quiz.Id, quiz.Name, quiz.Description, quiz.LessonId, quiz.LessonTitle, student.Level, student.LevelName,
             QuestionPreviewBuilder.LayoutOf(student.Level), quiz.QuestionCount, student.Level == 1 ? null : quiz.TotalPoint, limit, clock,
             quiz.OpenAt, quiz.CloseAt, state, StudentLessonService.LabelOf(state), action, ActionLabel(action), attempt?.Id, status,
-            action == StudentQuizAction.START ? Messages.QuizOnlyOnceNotice : null);
+            action == StudentQuizAction.START ? (student.Level == 1 ? Messages.QuizPracticeNotice : Messages.QuizOnlyOnceNotice) : null);
     }
 
     /// <summary>
@@ -111,7 +114,18 @@ public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle,
             if (winner == 0) throw;
             return (await ViewAsync(student, winner, ct), false);
         }
-        return (await ViewAsync(student, attempt.Id, ct), true);
+        var view = await ViewAsync(student, attempt.Id, ct);
+        WarmSpeech(view);
+        return (view, true);
+    }
+
+    /// <summary>
+    /// Lượt mới của bài chơi cấp 1 (đọc to): nhờ tạo trước tiếng lời đọc của mọi câu theo đúng thứ tự đang hiện cho em, vì ghép cặp và sắp xếp
+    /// xáo khác nhau mỗi lượt nên không tạo sẵn được lúc thầy cô phát hành. Chỉ xếp vào hàng đợi nền, không chờ.
+    /// </summary>
+    private void WarmSpeech(StudentAttemptDto view)
+    {
+        if (view.ReadAloud && speech.Enabled) speech.Enqueue(SpeechWarmUpTexts.ForAttempt(view.Questions));
     }
 
     // ---- Trong lúc làm ----
@@ -152,6 +166,15 @@ public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle,
         var stored = AttemptAnswerCodec.ToStored(layout, answer);
 
         var row = await db.AttemptAnswers.Include(a => a.Parts).SingleOrDefaultAsync(a => a.AttemptId == attemptId && a.QuestionId == questionId, ct);
+        if (student.Level == 1 && row is not null && AttemptRules.IsAnswerFixed(row.TryCount))
+        {
+            // Bài chơi cấp 1: câu đã kiểm thì lần trả lời đầu đã chốt để chấm; giữ nguyên và trả như đã lưu (bản app cũ vẫn chạy).
+            var kept = await AttemptFinisher.LoadAnswersAsync(db, attemptId, ct);
+            var keptCount = CountAnswered(items, kept, attempt.Id);
+            await tx.CommitAsync(ct);
+            return new SavedAnswerDto(questionId, AttemptAnswerCodec.ToStored(layout, row) is not null, row.AnsweredAt ?? now, keptCount, items.Count,
+                AttemptViews.RemainingSeconds(deadline, now));
+        }
         if (row is null)
         {
             row = new AttemptAnswer { AttemptId = attemptId, QuestionId = questionId };
@@ -166,6 +189,77 @@ public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle,
         await tx.CommitAsync(ct);
         return new SavedAnswerDto(questionId, stored is not null, now, answered, items.Count, AttemptViews.RemainingSeconds(deadline, now));
     }
+
+    /// <summary>
+    /// Cấp 1: kiểm một câu ngay khi em trả lời (cùng các bước kiểm như lưu câu trả lời: chủ lượt, lượt đang làm, chưa quá hạn nhận bài, câu thuộc bài,
+    /// đúng cấu trúc). Câu trả lời trống và ghép cặp chưa nối đủ mọi hình bị từ chối 400. Lần kiểm đầu tiên của câu (chưa có dòng hoặc chưa kiểm lần nào)
+    /// lưu và chấm như lưu câu trả lời, đó là lần được chấm; các lần sau không đổi câu trả lời đã lưu, chỉ chấm câu gửi lên trong bộ nhớ và tăng số lần kiểm.
+    /// Lớp không phải cấp 1 là 422.
+    /// </summary>
+    public async Task<AnswerCheckDto> CheckAnswerAsync(Actor actor, long attemptId, long questionId, QuestionSubmission? answer, CancellationToken ct)
+    {
+        var student = await StudentContext.LoadAsync(db, actor, ct);
+        if (student.Level != 1) throw AppException.BusinessRule(Messages.PracticeOnlyForYoungStudents);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await EnsureOwnedAsync(student, attemptId, ct);
+        await db.LockAttemptAsync(attemptId, ct);
+
+        var attempt = await db.Attempts.Include(a => a.Quiz).SingleAsync(a => a.Id == attemptId, ct);
+        var now = Now;
+        var deadline = AttemptFinisher.DeadlineOf(attempt, attempt.Quiz!, student.Level);
+        if (attempt.Status != AttemptStatus.IN_PROGRESS) throw new AppException(409, Messages.AttemptFinished(attempt.Status == AttemptStatus.EXPIRED));
+        if (AttemptRules.IsOverdue(deadline, now))
+        {
+            await FinishAsync(attempt, student.Level, AttemptStatus.EXPIRED, AttemptFinisher.SubmitTime(now, deadline), ct);
+            await tx.CommitAsync(ct);
+            throw new AppException(409, Messages.AttemptFinished(autoSubmitted: true));
+        }
+
+        var items = await AttemptFinisher.LoadQuizQuestionsAsync(db, attempt.QuizId, ct);
+        var item = items.FirstOrDefault(x => x.QuestionId == questionId)
+                   ?? throw AppException.NotFound(Messages.NotFound("kiểm tra câu trả lời", "câu hỏi này trong bài kiểm tra của em"));
+        var layout = QuestionLayout.Build(item.Question!, attempt.Id);
+        var stored = AttemptAnswerCodec.ToStored(layout, answer);
+        if (layout.Type == QuestionType.MATCHING)
+        {
+            if (stored?.Matches is not { } matches || matches.Any(m => m is null)) throw AppException.Validation("answer", Messages.MatchesIncomplete);
+        }
+        else if (stored is null)
+        {
+            throw AppException.Validation("answer", Messages.AnswerRequiredToCheck);
+        }
+
+        var row = await db.AttemptAnswers.Include(a => a.Parts).SingleOrDefaultAsync(a => a.AttemptId == attemptId && a.QuestionId == questionId, ct);
+        if (row is null)
+        {
+            row = new AttemptAnswer { AttemptId = attemptId, QuestionId = questionId };
+            db.AttemptAnswers.Add(row);
+        }
+        if (!AttemptRules.IsAnswerFixed(row.TryCount))
+        {
+            // Lần kiểm đầu tiên: lưu và chấm như lưu câu trả lời; đây là lần được chấm (sao và thống kê của giáo viên).
+            foreach (var part in AttemptAnswerCodec.Apply(row, layout, stored, item.Point)) db.AttemptAnswerParts.Add(part);
+            row.AnsweredAt = now;
+        }
+        row.TryCount = AttemptRules.NextTryCount(row.TryCount);
+        await db.SaveChangesAsync(ct);
+
+        var grade = QuestionGrader.Grade(layout.Type, layout.Rows, stored);
+        var answers = await AttemptFinisher.LoadAnswersAsync(db, attemptId, ct);
+        var answered = CountAnswered(items, answers, attempt.Id);
+        await tx.CommitAsync(ct);
+        return new AnswerCheckDto(
+            questionId, grade.IsCorrect, row.IsCorrect, row.TryCount, ShownParts(layout, grade), AttemptViews.CorrectAnswer(layout),
+            item.Question!.Explanation, answered, items.Count);
+    }
+
+    /// <summary>Đúng sai từng phần của một lần kiểm theo thứ tự đang hiện: một phần với dạng chọn, mỗi hình bên trái với ghép cặp, mỗi mục với sắp xếp.</summary>
+    private static IReadOnlyList<bool> ShownParts(QuestionLayout l, GradeResult grade) => l.Type switch
+    {
+        QuestionType.MATCHING => l.LeftOrder.Select(stored => grade.Parts[stored]).ToList(),
+        QuestionType.ORDERING => l.ItemOrder.Select(stored => grade.Parts[stored]).ToList(),
+        _ => grade.Parts.ToList(),
+    };
 
     // ---- Nộp bài ----
 
@@ -251,11 +345,11 @@ public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle,
             var row = answers.FirstOrDefault(a => a.QuestionId == item.QuestionId);
             var shown = AttemptAnswerCodec.ToShown(layout, AttemptAnswerCodec.ToStored(layout, row));
             if (shown is not null) answered++;
-            questions.Add(AttemptViews.Question(layout, i + 1, level == 1 ? null : item.Point, shown));
+            questions.Add(AttemptViews.Question(layout, i + 1, level == 1 ? null : item.Point, shown, level == 1 && row is not null && AttemptRules.IsAnswerFixed(row.TryCount)));
         }
 
         return new StudentAttemptDto(
-            attempt.Id, quiz.Id, quiz.Name, quiz.LessonId, quiz.Lesson?.Title, level, QuestionPreviewBuilder.LayoutOf(level), level == 1,
+            attempt.Id, quiz.Id, quiz.Name, quiz.LessonId, quiz.Lesson?.Title, level, QuestionPreviewBuilder.LayoutOf(level), level == 1, level == 1,
             AttemptRules.ShowsClock(level, limit, deadline), AttemptStatus.IN_PROGRESS, attempt.StartedAt ?? now, deadline,
             AttemptViews.RemainingSeconds(deadline, now), now, limit, items.Count, answered, level == 1 ? null : quiz.TotalPoint, questions);
     }

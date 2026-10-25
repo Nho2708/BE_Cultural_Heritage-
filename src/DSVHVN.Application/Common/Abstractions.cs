@@ -9,13 +9,14 @@ using DSVHVN.Domain.Lessons;
 using DSVHVN.Domain.Organizations;
 using DSVHVN.Domain.Questions;
 using DSVHVN.Domain.Quizzes;
+using DSVHVN.Domain.Speech;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace DSVHVN.Application.Common;
 
 /// <summary>
-/// Cổng vào CSDL cho tầng Application: 27 bảng của CSDL v3 và các bảng của CSDL v4 đã thêm theo từng luồng (hiện có lesson_sections, năm bảng đa ngôn ngữ, thuyết minh tạo sẵn, mô hình 3D và ba bảng của khách tham quan và quảng cáo).
+/// Cổng vào CSDL cho tầng Application: 27 bảng của CSDL v3 và các bảng của CSDL v4 đã thêm theo từng luồng (hiện có lesson_sections, năm bảng đa ngôn ngữ, thuyết minh tạo sẵn, mô hình 3D, bộ nhớ đệm giọng đọc tự host (speech_clips) và ba bảng của khách tham quan và quảng cáo).
 /// Thay đổi lược đồ về sau đi qua migration mới.
 /// </summary>
 public interface IAppDbContext
@@ -44,6 +45,8 @@ public interface IAppDbContext
     DbSet<HeritageNarration> HeritageNarrations { get; }
     DbSet<HeritageModel> HeritageModels { get; }
 
+    DbSet<SpeechClip> SpeechClips { get; }
+
     DbSet<GuestDevice> GuestDevices { get; }
     DbSet<GuestActivity> GuestActivities { get; }
     DbSet<AdUnlock> AdUnlocks { get; }
@@ -51,6 +54,7 @@ public interface IAppDbContext
     DbSet<Lesson> Lessons { get; }
     DbSet<LessonHeritage> LessonHeritages { get; }
     DbSet<LessonSection> LessonSections { get; }
+    DbSet<LessonCompletion> LessonCompletions { get; }
     DbSet<AiGeneration> AiGenerations { get; }
 
     DbSet<Question> Questions { get; }

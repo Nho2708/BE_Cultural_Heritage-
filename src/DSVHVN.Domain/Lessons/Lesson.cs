@@ -133,3 +133,21 @@ public class AiGeneration : IHasCreatedAt
 
     public DateTime? CompletedAt { get; set; }
 }
+
+/// <summary>
+/// Bảng <c>lesson_completions</c>: em ở lớp cấp 1 đã tới bước Nhận thẻ của một bài học (thẻ di sản của bài vào album của em).
+/// (<c>student_id</c>, <c>lesson_id</c>) không trùng: mỗi em chỉ ghi một lần cho mỗi bài, lần ghi đầu giữ nguyên thời điểm.
+/// </summary>
+public class LessonCompletion
+{
+    public long Id { get; set; }
+
+    public long StudentId { get; set; }
+    public Student? Student { get; set; }
+
+    public long LessonId { get; set; }
+    public Lesson? Lesson { get; set; }
+
+    /// <summary>Lúc em tới bước Nhận thẻ lần đầu (UTC).</summary>
+    public DateTime CompletedAt { get; set; }
+}

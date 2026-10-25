@@ -89,7 +89,7 @@ public sealed class StudentAuthService(
     }
 
     /// <summary>
-    /// Đổi mật khẩu. Chế độ bắt buộc (đang bị buộc đổi, lần đầu hoặc sau khi giáo viên đặt lại): không hỏi mật khẩu hiện tại vì token này
+    /// Đổi mật khẩu (mật khẩu mới dài 6-64 ký tự với lớp cấp 1, theo quy tắc mật khẩu chung với cấp 2, 3). Chế độ bắt buộc (đang bị buộc đổi, lần đầu hoặc sau khi giáo viên đặt lại): không hỏi mật khẩu hiện tại vì token này
     /// chỉ có được bằng cách vừa đăng nhập với mật khẩu tạm; mật khẩu mới phải khác mật khẩu tạm. Chế độ tự đổi: phải nhập đúng mật khẩu
     /// hiện tại và mật khẩu mới phải khác. Đổi xong tắt cờ buộc đổi, trả token mới trong cùng phản hồi (dấu bảo mật đổi nên token cũ
     /// và phiên trên thiết bị khác hết dùng), học sinh vào thẳng trang học.
@@ -100,6 +100,11 @@ public sealed class StudentAuthService(
         var student = await FindStudentAsync(actor.UserId, tracking: true, ct)
                       ?? throw AppException.Unauthorized(Messages.Forbidden);
         var user = student.User!;
+
+        // Lớp cấp 1: mật khẩu mới chỉ cần dài 6-64 ký tự; cấp 2, 3 theo quy tắc mật khẩu chung.
+        var level = SchoolClass.SchoolLevelOf(student.Class!.Grade);
+        if (!PasswordPolicy.IsSatisfiedByStudent(request.NewPassword, level))
+            throw AppException.Validation("newPassword", level == 1 ? Messages.PasswordLengthOnly : Messages.PasswordPolicy);
 
         if (user.MustChangePassword)
         {

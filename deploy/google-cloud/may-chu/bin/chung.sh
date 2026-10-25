@@ -10,7 +10,15 @@ TEN_CSDL=dsvhvn
 DANG_NHAP_UNG_DUNG=dsvhvn_app
 UID_API=1654   # người dùng "app" trong ảnh ASP.NET
 UID_SQL=10001  # người dùng "mssql" trong ảnh SQL Server
+UID_AI=10002   # người dùng "dichvuai" trong ảnh Dịch vụ AI
 export DSVHVN_GOC="$GOC"
+
+# Volume mo-hinh (mô hình giọng đọc Hugging Face của Dịch vụ AI) mới tạo thuộc root, còn Dịch vụ AI chạy bằng người dùng $UID_AI: chạy việc một lần
+# ai-mo-hinh (cùng ảnh AI, người dùng root, chỉ chown) trước khi dịch vụ ai ghi mô hình vào đó. Chạy lại vô hại. Lỗi chỉ cảnh báo: các việc AI khác vẫn chạy.
+chuan_bi_mo_hinh() {
+    compose run --rm --no-deps ai-mo-hinh > /dev/null 2>&1 ||
+        echo "CẢNH BÁO: chưa đặt được quyền ghi cho volume mo-hinh (uid $UID_AI); giọng đọc tự host sẽ không tải được mô hình." >&2
+}
 
 loi() {
     echo "LỖI: $*" >&2

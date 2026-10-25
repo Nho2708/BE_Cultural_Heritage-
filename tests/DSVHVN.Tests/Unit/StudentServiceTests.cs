@@ -49,6 +49,7 @@ public sealed class StudentServiceTests : IDisposable
         public int CodesIssued { get; private set; }
         public string NewStudentCode() { CodesIssued++; return _codes.Count > 0 ? _codes.Dequeue() : StudentCredentials.NewStudentCode(); }
         public string NewTemporaryPassword() => StudentCredentials.NewTemporaryPassword();
+        public string NewSimplePassword() => StudentCredentials.NewSimplePassword();
     }
 
     private sealed class ExplodingAudit : IAuditLogger

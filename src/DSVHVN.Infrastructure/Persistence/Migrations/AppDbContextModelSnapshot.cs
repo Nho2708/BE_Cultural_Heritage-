@@ -1915,6 +1915,41 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonCompletion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CompletedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("completed_at");
+
+                    b.Property<long>("LessonId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<long>("StudentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("student_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_lesson_completions");
+
+                    b.HasIndex("LessonId")
+                        .HasDatabaseName("IX_lesson_completions_lesson_id");
+
+                    b.HasIndex("StudentId", "LessonId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_lesson_completions_student_lesson");
+
+                    b.ToTable("lesson_completions", (string)null);
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonHeritage", b =>
                 {
                     b.Property<long>("LessonId")
@@ -2361,6 +2396,11 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("question_id");
 
+                    b.Property<byte>("TryCount")
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)0)
+                        .HasColumnName("try_count");
+
                     b.HasKey("Id")
                         .HasName("PK_attempt_answers");
 
@@ -2572,6 +2612,65 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.HasIndex("QuestionId");
 
                     b.ToTable("quiz_questions", (string)null);
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Speech.SpeechClip", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("ByteSize")
+                        .HasColumnType("int")
+                        .HasColumnName("byte_size");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("int")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<string>("TextHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("text_hash")
+                        .IsFixedLength();
+
+                    b.Property<string>("Voice")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("voice");
+
+                    b.HasKey("Id")
+                        .HasName("PK_speech_clips");
+
+                    b.HasIndex("TextHash", "Voice")
+                        .IsUnique()
+                        .HasDatabaseName("UX_speech_clips_hash_voice");
+
+                    b.ToTable("speech_clips", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_speech_clips_byte_size", "[byte_size] > 0");
+
+                            t.HasCheckConstraint("CK_speech_clips_duration", "[duration_ms] > 0");
+                        });
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Audit.AuditLog", b =>
@@ -2990,6 +3089,27 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("Class");
 
                     b.Navigation("Teacher");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonCompletion", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Lessons.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_lesson_completions_lesson_id");
+
+                    b.HasOne("DSVHVN.Domain.Classes.Student", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_lesson_completions_student_id");
+
+                    b.Navigation("Lesson");
+
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonHeritage", b =>

@@ -17,6 +17,7 @@ Internet ──443──▶ edge (Caddy, HTTPS tự gia hạn) ──┬─ /api
 | Ảnh Docker | Artifact Registry `asia-southeast1-docker.pkg.dev/<dự án>/dsvhvn/{api,ai,web}:<mã commit>` |
 | Thư mục trên máy | `/opt/dsvhvn`: `compose.yml`, `.env` (chỉ root đọc), `cau-hinh/`, `du-lieu/storage/`, `sao-luu/`, `caddy/`, `bin/` |
 | CSDL | `dsvhvn` trên SQL Server trong container (volume `dsvhvn_sql-data`); API đăng nhập bằng `dsvhvn_app` (chỉ đọc, ghi dữ liệu) |
+| Giọng đọc | Dịch vụ AI sinh giọng tiếng Việt (VieNeu-TTS, giọng Mai Anh); mô hình ở volume `dsvhvn_mo-hinh`, MP3 đã sinh ở `du-lieu/storage/giong-doc/` và bảng `speech_clips` (xem "Giọng đọc tự host") |
 | Sao lưu | trước mỗi lần triển khai API (giữ 10 bản) và 01:30 hằng đêm (giữ 14 bản, chép thêm lên bucket `<dự án>-dsvhvn-sao-luu`, giữ 30 ngày) |
 
 Chưa có tên miền thì hai web chạy bằng IP: web học tập `https://<IP>`, web quản trị `https://<IP>:8443`. Chứng chỉ của
@@ -55,6 +56,24 @@ Các lệnh chạy trên máy chủ (`gcloud compute ssh dsvhvn-may-chu --zone a
 
 Triển khai hỏng (không khỏe sau 90 giây) thì script tự chạy lại ảnh trước. CSDL không tự khôi phục: migration của dự án chỉ thêm
 nên bản trước thường vẫn chạy; script in lệnh khôi phục từ bản sao lưu vừa tạo.
+
+## Giọng đọc tự host
+
+Cấu hình máy chủ do `tao-cau-hinh-may-chu.ps1` sinh đặt `Tts:Provider = SelfHosted` (máy demo giữ mặc định `FptAi`): nút Nghe của cấp 1 xin `POST /api/v1/tts`,
+API tra bảng `speech_clips` (băm SHA-256 của chữ đã gộp khoảng trắng cộng mã giọng); chưa có thì gọi `POST http://ai:8000/v1/tts` bằng khóa nội bộ, lưu MP3 vào
+`du-lieu/storage/giong-doc/<giọng>/<băm>.mp3` (phục vụ ở `/files/giong-doc/...`) và nhớ lại, nên mỗi câu chỉ sinh một lần. Mỗi lúc Dịch vụ AI chỉ nhận một yêu cầu; yêu cầu
+nghe ngay đi trước việc tạo trước (lúc thầy cô xuất bản bài hoặc bài chơi của lớp cấp 1, và lời gọi `/api/v1/tts/prefetch` của giao diện). Chờ quá 30 giây
+(`Tts:WaitSeconds`) thì API trả liên kết `null` và giao diện lùi về giọng thiết bị, còn lần sinh vẫn chạy tiếp.
+
+- **Mô hình** (khoảng 530 MB) tải từ Hugging Face về volume `dsvhvn_mo-hinh` (gắn ở `/srv/mo-hinh`, biến `HF_HOME`) ở lần chạy đầu của Dịch vụ AI, nên chưa có giọng trong vài phút
+  đầu và `/health` của Dịch vụ AI báo `tts: loading`; các lần tạo lại container sau đó dùng lại, không tải nữa. Nạp xong, mô hình chiếm khoảng 1 GB RAM; máy e2-standard-2 vẫn đủ cho API, SQL Server và Dịch vụ AI.
+- **Quyền ghi**: ảnh AI chạy bằng người dùng `dichvuai` (uid 10002) còn volume mới tạo thuộc root, nên `compose.yml` có việc chạy một lần `ai-mo-hinh` (cùng ảnh AI, người dùng root, chỉ `chown -R 10002:10002 /srv/mo-hinh`).
+  `trien-khai.sh ai` và `cap-nhat-ha-tang.sh` (khi `ai` đang chạy) tự chạy việc này trước khi tạo lại `ai`; chạy tay: `cd /opt/dsvhvn && sudo docker compose run --rm --no-deps ai-mo-hinh`.
+  Không đụng tới volume này thì không cần làm gì thêm.
+- **Bật giọng ở Dịch vụ AI**: ảnh mặc định bật (`GIONG_DOC_BAT`); chưa nạp xong hay hỏng thì Dịch vụ AI trả 503 và API trả liên kết `null`, không lỗi.
+- **Tắt hẳn** giọng của máy chủ: đặt `Tts:Provider = None` trong `cau-hinh/appsettings.Production.json` (sửa `tao-cau-hinh-may-chu.ps1`, chạy lại với `-TaiLen`).
+- **Dung lượng**: mỗi câu vài chục KB (mono 64-96 kbps); `giong-doc/` nằm trong `du-lieu/storage` nên đi cùng sao lưu và chuyển dữ liệu của kho tệp. Xóa thư mục này mà giữ bảng `speech_clips` thì liên kết cũ trả 404,
+  nên muốn tạo lại hết thì xóa cả hai: `DELETE FROM speech_clips`.
 
 ## Kiểm thử
 

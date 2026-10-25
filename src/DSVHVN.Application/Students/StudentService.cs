@@ -145,8 +145,8 @@ public sealed class StudentService(
     }
 
     /// <summary>
-    /// Đặt lại mật khẩu một hoặc nhiều học sinh đang hoạt động của lớp trong một giao dịch: mật khẩu tạm mới, thay bản băm cũ,
-    /// bật buộc đổi mật khẩu, gỡ tạm khóa đăng nhập. Mật khẩu cũ và mọi phiên đang mở hết dùng ngay (dấu bảo mật đổi theo mật khẩu).
+    /// Đặt lại mật khẩu một hoặc nhiều học sinh đang hoạt động của lớp trong một giao dịch: mật khẩu mới (lớp cấp 1 là mật khẩu đơn giản 6 chữ số, không buộc
+    /// đổi; lớp cấp 2, 3 là mật khẩu tạm, bật buộc đổi mật khẩu), thay bản băm cũ, gỡ tạm khóa đăng nhập. Mật khẩu cũ và mọi phiên đang mở hết dùng ngay (dấu bảo mật đổi theo mật khẩu).
     /// Học sinh bị vô hiệu phải được mở lại trước. Ghi một dòng nhật ký kèm danh sách học sinh.
     /// </summary>
     public async Task<LoginSheetDto> ResetPasswordsAsync(Actor actor, long classId, ResetPasswordsRequest request, CancellationToken ct)
@@ -166,13 +166,14 @@ public sealed class StudentService(
             throw AppException.BusinessRule(Messages.Blocked("đặt lại mật khẩu",
                 $"Học sinh {inactive.FullName} đang bị vô hiệu. Hãy mở lại học sinh trước khi đặt lại mật khẩu."));
 
-        var passwords = students.Select(_ => generator.NewTemporaryPassword()).ToArray();
+        var simple = StudentCredentials.UsesSimplePassword(SchoolClass.SchoolLevelOf(schoolClass.Grade));
+        var passwords = students.Select(_ => simple ? generator.NewSimplePassword() : generator.NewTemporaryPassword()).ToArray();
         var hashes = new string[passwords.Length];
         Parallel.For(0, passwords.Length, i => hashes[i] = hasher.Hash(passwords[i]));
         for (var i = 0; i < students.Count; i++)
         {
             students[i].User!.PasswordHash = hashes[i];
-            students[i].User!.MustChangePassword = true;
+            students[i].User!.MustChangePassword = !simple;
         }
 
         audit.Record(AuditAction.STUDENT_PASSWORD_RESET, AuditTargets.Classes, classId, actor,
@@ -183,13 +184,13 @@ public sealed class StudentService(
         // Gỡ tạm khóa đăng nhập ngay sau khi lưu; tạm khóa chỉ nằm trong bộ nhớ máy chủ.
         foreach (var student in students) throttle.ResetFailedLogins("user:" + student.UserId);
 
-        return sheets.Build(schoolClass.Name, students.Select((s, i) => new LoginSheetEntryDto(
+        return sheets.Build(schoolClass.Name, schoolClass.Grade, students.Select((s, i) => new LoginSheetEntryDto(
             s.Id, s.FullName, schoolClass.Name, s.StudentCode, passwords[i])));
     }
 
     internal StudentsCreatedDto ToCreatedDto(SchoolClass schoolClass, IReadOnlyList<NewStudentAccount> created) =>
         new(created.Select(c => StudentDto.From(c.Student)).ToList(),
-            sheets.Build(schoolClass.Name, created.Select(c => new LoginSheetEntryDto(
+            sheets.Build(schoolClass.Name, schoolClass.Grade, created.Select(c => new LoginSheetEntryDto(
                 c.Student.Id, c.Student.FullName, schoolClass.Name, c.Student.StudentCode, c.TemporaryPassword))));
 
     /// <summary>Chặn khi thêm <paramref name="adding"/> em nữa làm lớp vượt 60 học sinh đang hoạt động. Gọi trong giao dịch đã khóa lớp.</summary>

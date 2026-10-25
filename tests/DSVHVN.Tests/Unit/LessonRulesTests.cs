@@ -58,7 +58,8 @@ public sealed class LessonRulesTests
         Assert.Equal([LessonSectionType.READING, LessonSectionType.SOURCE_EXCERPT, LessonSectionType.MILESTONE, LessonSectionType.REFLECTION], l3.AllowedTypes);
         Assert.Equal(["STEP_BY_STEP", "FREE_STEPS", "DOCUMENT"], new[] { l1.Layout, l2.Layout, l3.Layout });
         Assert.Equal([true, false, false], new[] { l1.SequentialFlow, l2.SequentialFlow, l3.SequentialFlow });
-        Assert.Equal(["Nghe chuyện", "Xem hình", "Chơi", "Nhận sao"], l1.Flow.Select(s => s.Label));
+        Assert.Equal(["Nhớ lại", "Nghe chuyện", "Xem hình", "Chơi", "Nhận thẻ"], l1.Flow.Select(s => s.Label));
+        Assert.Equal(["RECALL", "LISTEN_STORY", "VIEW_IMAGES", "PLAY", "EARN_CARD"], l1.Flow.Select(s => s.Key));
         Assert.Equal(["Đọc bài", "Xem dòng thời gian", "Làm bài kiểm tra", "Xem giải thích"], l2.Flow.Select(s => s.Label));
         Assert.Equal(["Đọc tài liệu", "Làm bài kiểm tra có giờ", "Xem phân tích kết quả"], l3.Flow.Select(s => s.Label));
         Assert.Throws<ArgumentOutOfRangeException>(() => LessonFrames.For(4));

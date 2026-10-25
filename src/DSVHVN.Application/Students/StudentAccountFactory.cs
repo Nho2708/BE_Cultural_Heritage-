@@ -27,8 +27,9 @@ public static partial class StudentNames
 }
 
 /// <summary>
-/// Tạo tài khoản học sinh: với mỗi em sinh mã học sinh (không trùng toàn hệ thống), mật khẩu tạm, tài khoản vai trò học sinh
-/// (tên đăng nhập là mã học sinh, không email, hoạt động, buộc đổi mật khẩu) và bản ghi học sinh nối với tài khoản và lớp.
+/// Tạo tài khoản học sinh: với mỗi em sinh mã học sinh (không trùng toàn hệ thống), mật khẩu, tài khoản vai trò học sinh
+/// (tên đăng nhập là mã học sinh, không email, hoạt động) và bản ghi học sinh nối với tài khoản và lớp. Lớp cấp 1 (khối 1-5) nhận mật khẩu đơn giản 6 chữ số
+/// và không bị buộc đổi mật khẩu; lớp cấp 2, 3 nhận mật khẩu tạm và phải đổi ở lần đăng nhập đầu.
 /// Không tự mở giao dịch: người gọi bọc việc khóa lớp, kiểm sĩ số và bước này trong cùng một giao dịch.
 /// Ghi một dòng nhật ký cho cả lần thêm, kèm số học sinh (không ghi mật khẩu tạm).
 /// </summary>
@@ -47,7 +48,8 @@ public sealed class StudentAccountFactory(
     {
         if (fullNames.Count == 0) return [];
 
-        var passwords = fullNames.Select(_ => generator.NewTemporaryPassword()).ToArray();
+        var simple = StudentCredentials.UsesSimplePassword(SchoolClass.SchoolLevelOf(schoolClass.Grade));
+        var passwords = fullNames.Select(_ => simple ? generator.NewSimplePassword() : generator.NewTemporaryPassword()).ToArray();
         var hashes = new string[passwords.Length];
         // PBKDF2 tốn thời gian (khoảng vài chục mili giây mỗi mật khẩu): băm song song để 60 học sinh vẫn xong trong vài giây.
         Parallel.For(0, passwords.Length, i => hashes[i] = hasher.Hash(passwords[i]));
@@ -65,7 +67,7 @@ public sealed class StudentAccountFactory(
                     Username = codes[i],
                     Email = null,
                     PasswordHash = hashes[i],
-                    MustChangePassword = true,
+                    MustChangePassword = !simple,
                     FullName = fullNames[i],
                     Status = UserStatus.ACTIVE,
                 };
@@ -151,8 +153,16 @@ public sealed class LoginSheetBuilder(IOptions<StudentSheetOptions> options)
     public const string Notice =
         "Mật khẩu tạm chỉ hiện một lần. Hãy in hoặc tải phiếu đăng nhập trước khi rời trang; nếu mất phiếu, dùng \"Đặt lại mật khẩu\".";
 
-    public LoginSheetDto Build(string? className, IEnumerable<LoginSheetEntryDto> entries)
+    /// <summary>Lớp cấp 1: mật khẩu đơn giản em dùng mỗi lần đăng nhập, không phải đổi.</summary>
+    public const string SimplePasswordReminder = "Em dùng mật khẩu này mỗi lần đăng nhập. Quên mật khẩu thì em nhờ thầy cô đặt lại.";
+
+    public const string SimplePasswordNotice =
+        "Mật khẩu chỉ hiện một lần. Hãy in hoặc tải phiếu đăng nhập trước khi rời trang; nếu mất phiếu, dùng \"Đặt lại mật khẩu\".";
+
+    /// <param name="grade">Khối của lớp: lớp cấp 1 dùng mật khẩu đơn giản (phiếu không gọi là mật khẩu tạm), lớp cấp 2, 3 dùng mật khẩu tạm.</param>
+    public LoginSheetDto Build(string? className, byte grade, IEnumerable<LoginSheetEntryDto> entries)
     {
+        var simple = StudentCredentials.UsesSimplePassword(SchoolClass.SchoolLevelOf(grade));
         var o = options.Value;
         var loginUrl = o.LearningWebBaseUrl.TrimEnd('/') + "/" + o.LearningLoginPath.TrimStart('/');
         var appUrl = string.IsNullOrWhiteSpace(o.MobileAppDownloadUrl) ? null : o.MobileAppDownloadUrl.Trim();
@@ -163,8 +173,9 @@ public sealed class LoginSheetBuilder(IOptions<StudentSheetOptions> options)
             appUrl is null
                 ? "Hoặc cài ứng dụng DiViet trên điện thoại, mở ứng dụng và chọn chế độ \"Học sinh\" (không chọn \"Khách tham quan\")."
                 : $"Hoặc cài ứng dụng DiViet trên điện thoại (tải tại {appUrl}), mở ứng dụng và chọn chế độ \"Học sinh\" (không chọn \"Khách tham quan\").",
-            "Đăng nhập bằng mã học sinh và mật khẩu tạm ghi trên phiếu.",
+            simple ? "Đăng nhập bằng mã học sinh và mật khẩu ghi trên phiếu." : "Đăng nhập bằng mã học sinh và mật khẩu tạm ghi trên phiếu.",
         };
-        return new LoginSheetDto(className, loginUrl, appUrl, instructions, FirstLoginReminder, Notice, entries.ToList());
+        return new LoginSheetDto(className, loginUrl, appUrl, instructions, simple ? SimplePasswordReminder : FirstLoginReminder,
+            simple ? SimplePasswordNotice : Notice, !simple, entries.ToList());
     }
 }

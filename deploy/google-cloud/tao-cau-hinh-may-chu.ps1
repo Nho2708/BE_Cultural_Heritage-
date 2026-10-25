@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   Ghi vào %APPDATA%\DSVHVN\may-chu\ (không vào repo, không in giá trị bí mật):
-    appsettings.Production.json  cấu hình API: chuỗi kết nối bằng đăng nhập dsvhvn_app, khóa ký JWT, VNPay, email, AI, kho tệp,
+    appsettings.Production.json  cấu hình API: chuỗi kết nối bằng đăng nhập dsvhvn_app, khóa ký JWT, VNPay, email, AI, giọng đọc tự host, kho tệp,
                                  địa chỉ hai web, CORS, quảng cáo, tài khoản quản trị seed
     ai.env                       biến của Dịch vụ AI (nhà cung cấp, khóa mô hình) cùng khóa nội bộ dùng chung với API
     bi-mat.env                   MSSQL_SA_PASSWORD và MAT_KHAU_CSDL_UNG_DUNG cho Docker Compose và script trên máy chủ
@@ -130,6 +130,10 @@ else { Write-Warning 'User Secrets chưa có SchoolInquiry:Recipients: thư liê
 Dat 'Ai:Mode' 'Remote'
 Dat 'Ai:BaseUrl' 'http://ai:8000'
 Dat 'Ai:InternalKey' $biMat['KhoaNoiBoAi']
+
+# Giọng đọc tiếng Việt do chính Dịch vụ AI này sinh (VieNeu-TTS, giọng Mai Anh) và nhớ đệm trong CSDL + kho tệp; máy demo giữ mặc định FPT.AI.
+Dat 'Tts:Provider' 'SelfHosted'
+Dat 'Tts:Voice' 'vieneu-mai-anh'
 
 Dat 'Storage:Provider' 'Local'
 Dat 'Storage:Local:RootPath' '/data/storage'

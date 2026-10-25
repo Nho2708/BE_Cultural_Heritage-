@@ -69,9 +69,8 @@ public sealed class StudentPasswordRequestValidator : AbstractValidator<StudentP
 {
     public StudentPasswordRequestValidator()
     {
-        RuleFor(x => x.NewPassword).Cascade(CascadeMode.Stop)
-            .RequiredField("mật khẩu mới")
-            .Must(PasswordPolicy.IsSatisfiedBy).WithAppMessage(Messages.PasswordPolicy);
+        // Quy tắc độ mạnh của mật khẩu phụ thuộc cấp của lớp nên kiểm trong StudentAuthService.ChangePasswordAsync, sau khi biết em học cấp nào.
+        RuleFor(x => x.NewPassword).RequiredField("mật khẩu mới");
         RuleFor(x => x.ConfirmNewPassword).Cascade(CascadeMode.Stop)
             .RequiredField("mật khẩu mới một lần nữa")
             .Must((request, confirm) => confirm == request.NewPassword).WithAppMessage(Messages.PasswordMismatch);

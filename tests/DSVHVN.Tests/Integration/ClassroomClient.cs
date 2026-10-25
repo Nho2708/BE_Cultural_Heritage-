@@ -60,12 +60,16 @@ public sealed class ClassroomClient(ApiFactory factory)
         return body.Data!;
     }
 
-    /// <summary>Học sinh đã đăng nhập bằng mật khẩu tạm và đổi sang mật khẩu của riêng em; trả token để gọi khu học.</summary>
+    /// <summary>
+    /// Học sinh đã đăng nhập bằng mật khẩu trên phiếu và đổi sang mật khẩu của riêng em; trả token để gọi khu học. Lớp cấp 2, 3 bị buộc đổi ở lần đăng nhập đầu;
+    /// lớp cấp 1 dùng luôn mật khẩu đơn giản nên em tự đổi (nhập mật khẩu hiện tại).
+    /// </summary>
     public async Task<string> ReadyStudentTokenAsync(LoginSheetEntryDto entry, string newPassword = "MatKhauMoi2026")
     {
         var first = await StudentLoginAsync(entry.StudentCode!, entry.TemporaryPassword);
         var (res, body) = await Http.PutAsync<StudentSessionDto>("/api/v1/student/me/password",
-            new { newPassword, confirmNewPassword = newPassword }, first.AccessToken);
+            new { currentPassword = first.Student.MustChangePassword ? null : entry.TemporaryPassword, newPassword, confirmNewPassword = newPassword },
+            first.AccessToken);
         Assert.True(res.StatusCode == HttpStatusCode.OK, $"Đổi mật khẩu {entry.StudentCode}: {(int)res.StatusCode} {body.Message}");
         return body.Data!.AccessToken;
     }

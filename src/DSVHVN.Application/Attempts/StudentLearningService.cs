@@ -6,10 +6,10 @@ using Microsoft.EntityFrameworkCore;
 namespace DSVHVN.Application.Attempts;
 
 /// <summary>
-/// Trang học, lịch sử bài làm và tiến độ của em. Mọi số liệu tính từ <c>attempts</c> và <c>attempt_answers</c>, không có bảng mới; huy hiệu và sao tính khi
-/// hiển thị. Chỉ tính lượt đã nộp hoặc hết giờ; chỉ của chính em.
+/// Trang học, lịch sử bài làm và tiến độ của em. Số liệu tính từ <c>attempts</c> và <c>attempt_answers</c> (cấp 1 thêm bảng ghi bài đã học xong
+/// <c>lesson_completions</c>); huy hiệu và sao tính khi hiển thị. Chỉ tính lượt đã nộp hoặc hết giờ; chỉ của chính em.
 /// </summary>
-public sealed class StudentLearningService(IAppDbContext db, AttemptLifecycle lifecycle)
+public sealed class StudentLearningService(IAppDbContext db, AttemptLifecycle lifecycle, AlbumService albums)
 {
     public const string NeedsLessonCodeLabel = "Cần mã bài học";
 
@@ -93,17 +93,73 @@ public sealed class StudentLearningService(IAppDbContext db, AttemptLifecycle li
 
         var submittedDates = finished.Where(a => a.SubmittedAt != null).Select(a => a.SubmittedAt!.Value).ToList();
         int? streakDays = AttemptRules.StreakDays(submittedDates, now);
-        string? cheer = student.Level == 1
-            ? AttemptRules.LevelOneCheer(totalStars ?? 0, streakDays ?? 0, inProgress.Count > 0, openQuizzes.Count > 0)
-            : null;
+
+        // Cấp 1: bài thầy cô đã xuất bản cho lớp hiện thẳng trên con đường, số thẻ album và lời cổ vũ theo bài chưa xong.
+        IReadOnlyList<StudentClassLessonDto> classLessons = [];
+        int? albumCollected = null, albumTotal = null;
+        string? cheer = null;
+        if (student.Level == 1)
+        {
+            classLessons = await ClassLessonsAsync(student, ct);
+            var album = await albums.LoadAsync(student, ct);
+            albumCollected = album.Collected;
+            albumTotal = album.Total;
+            cheer = AttemptRules.LevelOneCheer(totalStars ?? 0, inProgress.Count > 0, classLessons.FirstOrDefault(l => !l.Completed)?.Title, classLessons.Count > 0);
+        }
 
         return new StudentHomeDto(
             student.Id, student.StudentCode, student.FullName, student.ClassName, student.Grade, student.Level, student.LevelName,
             LessonFrames.For(student.Level).Layout, student.TeacherName, totalStars, inProgress,
             openQuizzes.Select(q => new StudentOpenQuizDto(
                 q.Id, q.Name, q.LessonId, q.LessonTitle, q.OpenAt, q.CloseAt, AttemptRules.EffectiveTimeLimit(student.Level, q.TimeLimitMinutes),
-                q.Questions, q.NeedsCode, q.NeedsCode ? NeedsLessonCodeLabel : null)).ToList(),
-            myLessons, recentBadges, streakDays, cheer);
+                q.Questions, q.NeedsCode && student.Level != 1, q.NeedsCode && student.Level != 1 ? NeedsLessonCodeLabel : null)).ToList(),
+            myLessons, recentBadges, classLessons, albumCollected, albumTotal, streakDays, cheer);
+    }
+
+    /// <summary>
+    /// Cấp 1: các bài Đã xuất bản, chưa xóa của lớp em theo thứ tự học (tạo bài trước thì học trước), tối đa 30 bài mới nhất. Mỗi bài kèm ảnh và tên di sản,
+    /// số bài chơi đã phát hành và em đã nộp, số sao cao nhất và đã xong chưa.
+    /// </summary>
+    private async Task<IReadOnlyList<StudentClassLessonDto>> ClassLessonsAsync(StudentContext student, CancellationToken ct)
+    {
+        var lessons = await db.Lessons.AsNoTracking()
+            .Where(l => l.ClassId == student.ClassId && l.DeletedAt == null && l.Status == ContentStatus.PUBLISHED)
+            .OrderByDescending(l => l.CreatedAt).ThenByDescending(l => l.Id)
+            .Take(AlbumRules.ClassLessonLimit)
+            .Select(l => new { l.Id, l.Title, l.AccessCode, l.CreatedAt })
+            .ToListAsync(ct);
+        if (lessons.Count == 0) return [];
+        lessons.Reverse();
+        var lessonIds = lessons.Select(l => l.Id).ToList();
+
+        var heritages = await db.LessonHeritages.AsNoTracking()
+            .Where(lh => lessonIds.Contains(lh.LessonId) && lh.Heritage!.DeletedAt == null && lh.Heritage.Status == ContentStatus.PUBLISHED)
+            .OrderBy(lh => lh.HeritageId)
+            .Select(lh => new { lh.LessonId, lh.Heritage!.Name, lh.Heritage.ThumbnailUrl })
+            .ToListAsync(ct);
+        var quizIds = await db.Quizzes.AsNoTracking()
+            .Where(q => lessonIds.Contains(q.LessonId) && q.DeletedAt == null && (q.Status == QuizStatus.PUBLISHED || q.Status == QuizStatus.CLOSED))
+            .Select(q => new { q.Id, q.LessonId })
+            .ToListAsync(ct);
+        var submitted = await db.Attempts.AsNoTracking()
+            .Where(a => a.StudentId == student.Id && a.Status != AttemptStatus.IN_PROGRESS && lessonIds.Contains(a.Quiz!.LessonId))
+            .Select(a => new { a.QuizId, a.Quiz!.LessonId, a.Score, a.TotalPoint })
+            .ToListAsync(ct);
+        var completed = (await db.LessonCompletions.AsNoTracking()
+            .Where(c => c.StudentId == student.Id && lessonIds.Contains(c.LessonId)).Select(c => c.LessonId).ToListAsync(ct)).ToHashSet();
+
+        return lessons.Select(l =>
+        {
+            var own = heritages.Where(h => h.LessonId == l.Id).ToList();
+            var published = quizIds.Where(q => q.LessonId == l.Id).Select(q => q.Id).ToHashSet();
+            var attempts = submitted.Where(a => published.Contains(a.QuizId)).ToList();
+            var done = attempts.Select(a => a.QuizId).Distinct().Count();
+            int? stars = attempts.Count == 0 ? null : attempts.Max(a => AttemptRules.Stars(a.Score ?? 0m, a.TotalPoint ?? 0m));
+            return new StudentClassLessonDto(
+                l.Id, l.Title, l.AccessCode ?? string.Empty, l.CreatedAt, own.Select(h => h.ThumbnailUrl).FirstOrDefault(),
+                own.Select(h => h.Name ?? string.Empty).Take(AlbumRules.HeritageNamesPerLesson).ToList(), published.Count, done, stars,
+                AttemptRules.IsLessonCompleted(completed.Contains(l.Id), published.Count, done));
+        }).ToList();
     }
 
     // ---- Lịch sử bài làm ----

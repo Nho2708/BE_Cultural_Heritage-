@@ -3,6 +3,7 @@ using DSVHVN.Application.Billing;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
+using DSVHVN.Application.Speech;
 using DSVHVN.Domain.Audit;
 using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Enums;
@@ -30,6 +31,7 @@ public sealed class QuizService(
     PlanGuard plans,
     QuizDetailBuilder detailBuilder,
     IAuditLogger audit,
+    SpeechWarmUp speechWarmUp,
     TimeProvider clock)
 {
     // ---- Danh sách, chi tiết, hộp chọn câu ----
@@ -364,6 +366,9 @@ public sealed class QuizService(
             await db.SaveChangesAsync(ct);
             return true;
         }, ct);
+
+        // Bài chơi của bài cấp 1 vừa phát hành thì xếp các câu sẽ đọc to vào hàng đợi tạo giọng nền; không chờ và không bao giờ làm hỏng lần phát hành.
+        if (published) await speechWarmUp.WarmQuizAsync(quizId, ct);
 
         var detail = await GetAsync(actor, quizId, ct);
         var message = published
