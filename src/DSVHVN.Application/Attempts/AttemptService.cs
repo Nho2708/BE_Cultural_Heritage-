@@ -1,6 +1,7 @@
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
+using DSVHVN.Application.Speech;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Quizzes;
 using DSVHVN.Domain.Rules;
@@ -23,7 +24,7 @@ namespace DSVHVN.Application.Attempts;
 /// <item>Quiz bật xáo câu thì thứ tự câu cố định suốt lượt; các thẻ, cột, mục cần xáo luôn được xáo theo cách tất định từ mã lượt.</item>
 /// </list>
 /// </summary>
-public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle, AttemptResultService results)
+public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle, AttemptResultService results, ISpeechPrefetcher speech)
 {
     private DateTime Now => lifecycle.Now;
 
@@ -113,7 +114,18 @@ public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle,
             if (winner == 0) throw;
             return (await ViewAsync(student, winner, ct), false);
         }
-        return (await ViewAsync(student, attempt.Id, ct), true);
+        var view = await ViewAsync(student, attempt.Id, ct);
+        WarmSpeech(view);
+        return (view, true);
+    }
+
+    /// <summary>
+    /// Lượt mới của bài chơi cấp 1 (đọc to): nhờ tạo trước tiếng lời đọc của mọi câu theo đúng thứ tự đang hiện cho em, vì ghép cặp và sắp xếp
+    /// xáo khác nhau mỗi lượt nên không tạo sẵn được lúc thầy cô phát hành. Chỉ xếp vào hàng đợi nền, không chờ.
+    /// </summary>
+    private void WarmSpeech(StudentAttemptDto view)
+    {
+        if (view.ReadAloud && speech.Enabled) speech.Enqueue(SpeechWarmUpTexts.ForAttempt(view.Questions));
     }
 
     // ---- Trong lúc làm ----

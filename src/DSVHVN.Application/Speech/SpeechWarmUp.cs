@@ -43,22 +43,38 @@ public static class SpeechWarmUpTexts
         return Clean(texts);
     }
 
-    /// <summary>Một câu hỏi của bài chơi để chọn chữ: nội dung, giải thích, dạng và nhãn chữ của các phương án.</summary>
-    public sealed record QuestionSource(string? Content, string? Explanation, QuestionType? Type, IReadOnlyList<string?> OptionLabels);
+    /// <summary>
+    /// Một câu hỏi của bài chơi để chọn chữ: nội dung, giải thích, dạng, nhãn chữ của các phương án theo thứ tự lưu, và vị trí của câu trong bài
+    /// (null khi bài xáo câu, vì mỗi lượt một thứ tự).
+    /// </summary>
+    public sealed record QuestionSource(string? Content, string? Explanation, QuestionType? Type, IReadOnlyList<string?> OptionLabels, int? Position = null);
 
-    /// <summary>Bài chơi của bài cấp 1: nội dung câu hỏi, giải thích và chữ trên thẻ hình (phương án của câu Chọn hình đúng).</summary>
+    /// <summary>
+    /// Bài chơi của bài cấp 1: nội dung câu hỏi, giải thích, chữ trên thẻ hình (phương án của câu Chọn hình đúng), lời đọc cả câu như bài chơi đọc to
+    /// và lời phản hồi có giải thích. Ghép cặp và sắp xếp đọc các hình, các bước theo thứ tự đã xáo của từng lượt nên lời đọc cả câu của hai dạng này
+    /// chỉ tạo được lúc em bắt đầu lượt (xem <see cref="ForAttempt"/>).
+    /// </summary>
     public static IReadOnlyList<string> ForQuiz(IEnumerable<QuestionSource> questions)
     {
         var texts = new List<string>();
         foreach (var question in questions)
         {
+            var type = question.Type ?? QuestionType.SINGLE_CHOICE;
+            if (type is not (QuestionType.MATCHING or QuestionType.ORDERING))
+                texts.Add(LevelOneSpeech.Question(type, question.Content, question.OptionLabels, [], []));
+            texts.AddRange(LevelOneSpeech.Feedback(question.Explanation, question.Position));
             texts.Add(PlainText.FromMarkdown(question.Content));
             texts.Add(PlainText.FromMarkdown(question.Explanation));
-            if (question.Type == QuestionType.IMAGE_CHOICE)
+            if (type == QuestionType.IMAGE_CHOICE)
                 texts.AddRange(question.OptionLabels.Select(PlainText.FromMarkdown));
         }
         return Clean(texts);
     }
+
+    /// <summary>Lượt vừa bắt đầu của bài chơi cấp 1: lời đọc cả câu theo đúng thứ tự câu và thứ tự phương án, hình, bước đang hiện cho em.</summary>
+    public static IReadOnlyList<string> ForAttempt(IEnumerable<StudentAttemptQuestionDto> questions) =>
+        Clean(questions.Select(q =>
+            LevelOneSpeech.Question(q.QuestionType, q.Content, q.Options.Select(o => o.Content).ToList(), q.RightItems, q.Items)));
 
     private static IEnumerable<string> Sentences(string? text) => SpeechRules.SplitSentences(PlainText.FromMarkdown(text));
 
@@ -76,7 +92,7 @@ public static class SpeechWarmUpTexts
 
 /// <summary>
 /// Tạo trước giọng đọc lúc thầy cô xuất bản bài của lớp cấp 1 (các câu của phần Kể chuyện, tiêu đề, chú thích hình, ý chính, câu mang về nhà) và lúc phát hành bài chơi
-/// của bài cấp 1 (nội dung câu hỏi, giải thích, chữ trên thẻ hình). Chỉ chạy khi giọng tự host đang bật. Việc này chạy sau khi lần xuất bản đã lưu xong: chỉ xếp chữ vào hàng đợi nền,
+/// của bài cấp 1 (nội dung câu hỏi, giải thích, chữ trên thẻ hình, lời đọc cả câu và lời phản hồi). Chỉ chạy khi giọng tự host đang bật. Việc này chạy sau khi lần xuất bản đã lưu xong: chỉ xếp chữ vào hàng đợi nền,
 /// không chờ sinh âm thanh, và mọi lỗi chỉ ghi log để không bao giờ làm hỏng lần xuất bản.
 /// </summary>
 public sealed class SpeechWarmUp(IAppDbContext db, ISpeechPrefetcher prefetcher, AlbumService album, ILogger<SpeechWarmUp> logger)
@@ -110,18 +126,20 @@ public sealed class SpeechWarmUp(IAppDbContext db, ISpeechPrefetcher prefetcher,
                 .SingleOrDefaultAsync(q => q.Id == quizId && q.DeletedAt == null, ct);
             if (quiz?.Lesson?.Class is null || SchoolClass.SchoolLevelOf(quiz.Lesson.Class.Grade) != 1) return;
 
+            // Cùng thứ tự câu và thứ tự phương án như lượt làm bài dựng (bài không xáo câu thì vị trí câu là cố định).
             var questions = await db.QuizQuestions.AsNoTracking()
                 .Where(x => x.QuizId == quizId)
+                .OrderBy(x => x.SortOrder).ThenBy(x => x.QuestionId)
                 .Select(x => new
                 {
                     x.Question!.Content,
                     x.Question.Explanation,
                     x.Question.QuestionType,
-                    Labels = x.Question.Answers.OrderBy(a => a.SortOrder).Select(a => a.Content).ToList(),
+                    Labels = x.Question.Answers.OrderBy(a => a.SortOrder ?? int.MaxValue).ThenBy(a => a.Id).Select(a => a.Content).ToList(),
                 })
                 .ToListAsync(ct);
-            var texts = SpeechWarmUpTexts.ForQuiz(questions.Select(q =>
-                new SpeechWarmUpTexts.QuestionSource(q.Content, q.Explanation, q.QuestionType, q.Labels)));
+            var texts = SpeechWarmUpTexts.ForQuiz(questions.Select((q, i) =>
+                new SpeechWarmUpTexts.QuestionSource(q.Content, q.Explanation, q.QuestionType, q.Labels, quiz.ShuffleQuestions ? null : i + 1)));
             var queued = prefetcher.Enqueue(texts);
             logger.LogInformation("Đã xếp {Queued} đoạn chữ của bài kiểm tra {QuizId} vào hàng đợi tạo giọng đọc.", queued, quizId);
         }

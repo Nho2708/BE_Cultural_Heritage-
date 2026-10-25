@@ -1,3 +1,5 @@
+using DSVHVN.Application.Attempts;
+using DSVHVN.Application.Questions;
 using DSVHVN.Application.Speech;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Lessons;
@@ -72,23 +74,65 @@ public sealed class SpeechWarmUpTextsTests
     }
 
     [Fact]
-    public void A_quiz_gives_content_explanation_and_image_labels_only_for_image_choice_questions()
+    public void A_quiz_gives_the_spoken_question_feedback_by_position_content_explanation_and_image_labels_only_for_image_choice()
     {
         var questions = new[]
         {
-            new SpeechWarmUpTexts.QuestionSource("Hình nào là đình làng?", "Đình làng có mái cong.", QuestionType.IMAGE_CHOICE, ["Đình làng", "Chùa Một Cột", " "]),
-            new SpeechWarmUpTexts.QuestionSource("Hội Gióng ở đâu?", null, QuestionType.SINGLE_CHOICE, ["Phù Đổng", "Hội An"]),
-            new SpeechWarmUpTexts.QuestionSource("Đúng hay sai: Cậu bé lớn nhanh.", "Đúng vậy.", QuestionType.TRUE_FALSE, ["Đúng", "Sai"]),
-            new SpeechWarmUpTexts.QuestionSource("Hình nào là đình làng?", "Đình làng có mái cong.", QuestionType.IMAGE_CHOICE, ["Đình làng"]),
+            new SpeechWarmUpTexts.QuestionSource("Hình nào là đình làng?", "Đình làng có mái cong.", QuestionType.IMAGE_CHOICE, ["Đình làng", "Chùa Một Cột", " "], 1),
+            new SpeechWarmUpTexts.QuestionSource("Hội Gióng ở đâu?", null, QuestionType.SINGLE_CHOICE, ["Phù Đổng", "Hội An"], 2),
+            new SpeechWarmUpTexts.QuestionSource("Đúng hay sai: Cậu bé lớn nhanh.", "Đúng vậy.", QuestionType.TRUE_FALSE, ["Đúng", "Sai"], 3),
+            new SpeechWarmUpTexts.QuestionSource("Hình nào là đình làng?", "Đình làng có mái cong.", QuestionType.IMAGE_CHOICE, ["Đình làng"], 4),
         };
 
         var texts = SpeechWarmUpTexts.ForQuiz(questions);
 
         Assert.Equal(
         [
+            "Hình nào là đình làng? Em chạm vào hình đúng.", "Đúng rồi! Đình làng có mái cong.", "Đáp án đúng ở đây nè! Đình làng có mái cong.",
             "Hình nào là đình làng?", "Đình làng có mái cong.", "Đình làng", "Chùa Một Cột",
-            "Hội Gióng ở đâu?",
+            "Hội Gióng ở đâu? A: Phù Đổng. B: Hội An. Em chọn câu trả lời nhé.", "Hội Gióng ở đâu?",
+            "Đúng hay sai: Cậu bé lớn nhanh. Em chạm Đúng hoặc Sai.", "Chính xác! Đúng vậy.", "Đáp án đúng ở đây nè! Đúng vậy.",
             "Đúng hay sai: Cậu bé lớn nhanh.", "Đúng vậy.",
         ], texts);
     }
+
+    [Fact]
+    public void Matching_and_ordering_are_not_spoken_whole_at_publish_because_each_attempt_shuffles_them()
+    {
+        var questions = new[]
+        {
+            new SpeechWarmUpTexts.QuestionSource("Nối hình với tên", "Chùa Một Cột ở Hà Nội.", QuestionType.MATCHING, ["Hình chùa"]),
+            new SpeechWarmUpTexts.QuestionSource("Xếp các bước", null, QuestionType.ORDERING, ["Vẽ mẫu", "Khắc ván"]),
+        };
+
+        Assert.Equal(
+        [
+            "Đúng rồi! Chùa Một Cột ở Hà Nội.", "Giỏi quá! Chùa Một Cột ở Hà Nội.", "Chính xác! Chùa Một Cột ở Hà Nội.",
+            "Đáp án đúng ở đây nè! Chùa Một Cột ở Hà Nội.", "Nối hình với tên", "Chùa Một Cột ở Hà Nội.",
+            "Xếp các bước",
+        ], SpeechWarmUpTexts.ForQuiz(questions));
+    }
+
+    [Fact]
+    public void An_attempt_gives_each_spoken_question_in_the_order_shown_with_its_shuffled_names_and_steps()
+    {
+        var questions = new[]
+        {
+            Shown(1, QuestionType.MATCHING, "Nối hình với tên", rights: ["Văn Miếu", "Chùa Một Cột"]),
+            Shown(2, QuestionType.SINGLE_CHOICE, "Hội Gióng ở đâu?", options: ["Phù Đổng", "Hội An"]),
+            Shown(3, QuestionType.ORDERING, "Xếp các bước", items: ["Khắc ván", "Vẽ mẫu"]),
+        };
+
+        Assert.Equal(
+        [
+            "Nối hình với tên. Văn Miếu. Chùa Một Cột. Em chạm một hình, rồi chạm tên của hình đó.",
+            "Hội Gióng ở đâu? A: Phù Đổng. B: Hội An. Em chọn câu trả lời nhé.",
+            "Xếp các bước. Khắc ván. Vẽ mẫu. Em chạm các bước theo đúng thứ tự.",
+        ], SpeechWarmUpTexts.ForAttempt(questions));
+    }
+
+    private static StudentAttemptQuestionDto Shown(
+        int position, QuestionType type, string content, string[]? options = null, string[]? rights = null, string[]? items = null) =>
+        new(position, position, null, type, type.ToString(), content, null, null, null,
+            (options ?? []).Select(o => new QuestionPreviewOptionDto(o, null)).ToList(), [], rights ?? [], items ?? [], 0, [], [], 1, false, null);
 }

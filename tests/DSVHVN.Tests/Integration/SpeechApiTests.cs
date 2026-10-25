@@ -1,4 +1,5 @@
 using System.Net;
+using DSVHVN.Application.Attempts;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Speech;
 using DSVHVN.Application.Translations;
@@ -394,6 +395,42 @@ public sealed class SpeechSelfHostedApiTests(SelfHostedSpeechFactory factory) : 
         await quizzes.OpenQuizAsync(2);
         await DrainAsync();
         Assert.Equal(middle, factory.Prefetch.Batches.Count);
+    }
+
+    [Fact]
+    public async Task Publishing_queues_each_question_as_the_level_one_game_speaks_it_and_a_new_attempt_queues_its_own_order_once()
+    {
+        var quizzes = new AttemptTestKit(factory);
+        var before = factory.Prefetch.Batches.Count;
+        var quiz = await quizzes.OpenQuizAsync(1);
+        var atPublish = factory.Prefetch.Batches.Skip(before).Last();
+        await DrainAsync();
+
+        var started = factory.Prefetch.Batches.Count;
+        var attempt = await quizzes.StartAsync(quiz.StudentToken, quiz.Id);
+        var atStart = factory.Prefetch.Batches.Skip(started).Single();
+        string Spoken(StudentAttemptQuestionDto q) =>
+            SpeechRules.Normalize(LevelOneSpeech.Question(q.QuestionType, q.Content, q.Options.Select(o => o.Content).ToList(), q.RightItems, q.Items))!;
+        Assert.Equal(attempt.Questions.Select(Spoken).Distinct(), atStart);
+
+        // Bài không xáo câu: lời đọc cả câu (trừ ghép cặp, sắp xếp) và lời phản hồi theo đúng vị trí câu đã có từ lúc phát hành.
+        foreach (var question in attempt.Questions)
+        {
+            if (question.QuestionType is not (QuestionType.MATCHING or QuestionType.ORDERING)) Assert.Contains(Spoken(question), atPublish);
+            var explanation = AttemptTestKit.DetailOf(quiz, question.QuestionId).Explanation;
+            foreach (var feedback in LevelOneSpeech.Feedback(explanation, question.Position)) Assert.Contains(SpeechRules.Normalize(feedback)!, atPublish);
+        }
+        await DrainAsync();
+
+        // Vào tiếp lượt đang làm thì không xếp lại; lượt của lớp cấp khác không xếp gì.
+        var resumed = factory.Prefetch.Batches.Count;
+        await quizzes.StartAsync(quiz.StudentToken, quiz.Id);
+        var other = await quizzes.OpenQuizAsync(3);
+        await DrainAsync();
+        var otherStart = factory.Prefetch.Batches.Count;
+        Assert.Equal(resumed, otherStart);
+        await quizzes.StartAsync(other.StudentToken, other.Id);
+        Assert.Equal(otherStart, factory.Prefetch.Batches.Count);
     }
 }
 
