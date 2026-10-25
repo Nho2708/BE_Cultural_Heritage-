@@ -275,3 +275,16 @@ Migration `ThemKiemTungCauVaBaiHocDaXong` (25/10/2026), không sửa bảng cũ 
 | Bảng mới `lesson_completions` | `id` (bigint, identity), `student_id`, `lesson_id`, `completed_at` (`datetime2(3)` NOT NULL) | UNIQUE thường `UX_lesson_completions_student_lesson` (`student_id`, `lesson_id`); chỉ mục `IX_lesson_completions_lesson_id`; khóa ngoại `fk_lesson_completions_student_id`, `fk_lesson_completions_lesson_id` **Restrict** |
 
 Số liệu sau migration: 40 bảng, 369 cột trong database, 63 khóa ngoại (thêm 2), 51 CHECK, 10 UNIQUE có lọc, 19 UNIQUE thường (thêm 1). Chi tiết luồng: [hoc-tap-theo-cap.md](hoc-tap-theo-cap.md) mục 9.
+
+## 16. Phần CSDL của luồng "Giọng đọc tự host"
+
+Migration `ThemBoNhoDemGiongDoc` (25/10/2026), chỉ thêm bảng, nên chạy được trên CSDL có dữ liệu.
+
+| Bảng mới | Cột | Ràng buộc |
+|---|---|---|
+| `speech_clips` | `id` (bigint, identity), `text_hash` (char(64), không Unicode: SHA-256 hex thường của giọng và chữ đã gộp khoảng trắng), `voice` (varchar(100)), `storage_key` (varchar(500): khóa tệp trong kho, dạng `giong-doc/{giọng}/{băm}.mp3`), `duration_ms` (int), `byte_size` (int), `created_at` (`datetime2(3)` NOT NULL) | UNIQUE thường `UX_speech_clips_hash_voice` (`text_hash`, `voice`); CHECK `CK_speech_clips_duration`, `CK_speech_clips_byte_size` (cả hai > 0); không khóa ngoại |
+
+- Bảng chỉ giữ băm, không giữ chữ gốc (chữ có thể là nội dung bài học của giáo viên). Hai lần sinh cùng một băm chạm nhau ở UNIQUE thì lần thua dùng lại dòng của lần thắng.
+- Không có `deleted_at` hay `updated_at`: một dòng là một tệp MP3 không đổi; muốn tạo lại thì xóa dòng (và tệp nếu muốn).
+
+Số liệu sau migration: 41 bảng, 376 cột trong database (thêm 7), 63 khóa ngoại, 53 CHECK (thêm 2), 10 UNIQUE có lọc, 20 UNIQUE thường (thêm 1). Chi tiết luồng: [giong-doc.md](giong-doc.md).

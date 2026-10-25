@@ -33,6 +33,9 @@ public static partial class StoredFileRules
     public const string ModelFolder = "models";
     public const string NarrationFolder = "thuyet-minh";
 
+    /// <summary>Thư mục các tệp MP3 giọng đọc tự host: <c>giong-doc/{giọng}/{băm 64 ký tự}.mp3</c>.</summary>
+    public const string SpeechFolder = "giong-doc";
+
     public const string Jpeg = "jpg";
     public const string Png = "png";
     public const string Webp = "webp";
@@ -52,12 +55,16 @@ public static partial class StoredFileRules
 
     public static string NarrationKey(Guid id) => $"{NarrationFolder}/{id:N}.{Mp3}";
 
+    /// <summary>Khóa tệp giọng đọc tự host; <paramref name="voice"/> phải qua <see cref="SpeechRules.IsValidVoice"/> và <paramref name="hash"/> là băm 64 ký tự hex thường.</summary>
+    public static string SpeechClipKey(string voice, string hash) => $"{SpeechFolder}/{voice}/{hash}.{Mp3}";
+
     /// <summary>Khóa hợp lệ của một tệp trong kho (chỉ các dạng hệ thống sinh ra); dùng để chặn đường dẫn lạ trước khi chạm vào đĩa.</summary>
     public static bool IsValidKey(string? key) => key is not null && KeyPattern().IsMatch(key);
 
-    /// <summary>Tệp lưu ở Cloudinary dưới loại raw (giữ nguyên byte và đuôi tệp): mô hình 3D và thuyết minh MP3; ảnh thì không.</summary>
+    /// <summary>Tệp lưu ở Cloudinary dưới loại raw (giữ nguyên byte và đuôi tệp): mô hình 3D, thuyết minh MP3 và giọng đọc tự host; ảnh thì không.</summary>
     public static bool IsRawKey(string key) =>
-        key.StartsWith(ModelFolder + "/", StringComparison.Ordinal) || key.StartsWith(NarrationFolder + "/", StringComparison.Ordinal);
+        key.StartsWith(ModelFolder + "/", StringComparison.Ordinal) || key.StartsWith(NarrationFolder + "/", StringComparison.Ordinal)
+        || key.StartsWith(SpeechFolder + "/", StringComparison.Ordinal);
 
     /// <summary>Đường dẫn tương đối tới tệp trong kho, dạng <c>/files/images/{32 ký tự}.jpg</c>; hợp lệ làm đường dẫn ảnh của di sản.</summary>
     public static bool IsStoredPath(string? url) => url is not null && StoredPathPattern().IsMatch(url.Trim());
@@ -78,7 +85,7 @@ public static partial class StoredFileRules
         return cloud.Success ? $"{cloud.Groups[1].Value}{CloudinaryThumbnailTransformation}/{cloud.Groups[2].Value}.{Webp}" : null;
     }
 
-    [GeneratedRegex(@"^(images/[0-9a-f]{32}(-thumb)?\.(jpg|png|webp)|models/[0-9a-f]{32}\.glb|thuyet-minh/[0-9a-f]{32}\.mp3)$")]
+    [GeneratedRegex(@"^(images/[0-9a-f]{32}(-thumb)?\.(jpg|png|webp)|models/[0-9a-f]{32}\.glb|thuyet-minh/[0-9a-f]{32}\.mp3|giong-doc/[a-z0-9][a-z0-9-]{0,63}/[0-9a-f]{64}\.mp3)$")]
     private static partial Regex KeyPattern();
 
     [GeneratedRegex(@"^/files/(images/[0-9a-f]{32}\.(jpg|png|webp)|models/[0-9a-f]{32}\.glb|thuyet-minh/[0-9a-f]{32}\.mp3)$")]

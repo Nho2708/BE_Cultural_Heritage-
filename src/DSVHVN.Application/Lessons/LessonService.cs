@@ -2,6 +2,7 @@ using DSVHVN.Application.Billing;
 using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Quizzes;
+using DSVHVN.Application.Speech;
 using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Lessons;
@@ -98,6 +99,7 @@ public sealed class LessonService(
     LessonMaterialService materialService,
     LessonDetailBuilder detailBuilder,
     ILessonCodeGenerator codeGenerator,
+    SpeechWarmUp speechWarmUp,
     TimeProvider clock,
     ILogger<LessonService> logger)
 {
@@ -288,6 +290,7 @@ public sealed class LessonService(
         var level = SchoolClass.SchoolLevelOf(lesson.Class!.Grade);
 
         var codeCreated = false;
+        var becamePublished = false;
         if (lesson.Status != ContentStatus.PUBLISHED)
         {
             var publishedIds = await PublishedHeritageIdsAsync(lesson.Id, ct);
@@ -296,6 +299,7 @@ public sealed class LessonService(
 
             lesson.Status = ContentStatus.PUBLISHED;
             lesson.UpdatedAt = Now;
+            becamePublished = true;
             if (lesson.AccessCode is null)
             {
                 await AssignNewCodeAsync(lesson, ct);
@@ -307,6 +311,9 @@ public sealed class LessonService(
             }
         }
         await tx.CommitAsync(ct);
+
+        // Bài của lớp cấp 1 vừa xuất bản thì xếp các câu sẽ đọc to vào hàng đợi tạo giọng nền; không chờ và không bao giờ làm hỏng lần xuất bản.
+        if (becamePublished) await speechWarmUp.WarmLessonAsync(lessonId, ct);
 
         var detail = await GetAsync(actor, lessonId, ct);
         var message = codeCreated

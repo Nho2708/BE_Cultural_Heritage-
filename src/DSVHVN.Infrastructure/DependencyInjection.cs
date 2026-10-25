@@ -24,6 +24,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -205,7 +206,9 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Chuyển văn bản thành giọng nói (TTS) qua FPT.AI (giọng Ban Mai): <c>FptAi</c> (ApiKey, Voice, Speed). Không có ApiKey thì dịch vụ trả null và không gọi ra ngoài.
+    /// Giọng đọc: <c>Tts:Provider</c> chọn nguồn lúc tạo dịch vụ (không đọc ngay lúc đăng ký). <c>FptAi</c> (mặc định) là FPT.AI giọng Ban Mai (<c>FptAi</c>: ApiKey, Voice, Speed; không có ApiKey thì trả null
+    /// và không gọi ra ngoài); <c>SelfHosted</c> là giọng VieNeu-TTS của Dịch vụ AI nội bộ với bộ nhớ đệm bền và hàng đợi tạo trước (<c>Tts</c>: Voice, WaitSeconds...); <c>None</c> luôn trả null.
+    /// Yêu cầu sinh giọng gửi tới Dịch vụ AI dùng cùng mục <c>Ai</c> (địa chỉ và khóa nội bộ) với các việc AI khác.
     /// </summary>
     private static void AddSpeech(this IServiceCollection services, IConfiguration configuration)
     {
@@ -220,8 +223,9 @@ public static class DependencyInjection
                     opt.ApiKey = envKey.Trim();
                 }
             });
+        services.AddOptions<TtsOptions>().Bind(configuration.GetSection(TtsOptions.Section));
 
-        services.AddSingleton<ITtsService>(sp =>
+        services.AddSingleton<FptAiTtsService>(sp =>
         {
             var handler = new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
             var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
@@ -231,6 +235,41 @@ public static class DependencyInjection
                 sp.GetRequiredService<IMemoryCache>(),
                 sp.GetRequiredService<ILogger<FptAiTtsService>>());
         });
+
+        // Giọng tự host dựng khi cần (chỉ khi Provider là SelfHosted); kiểm thử thay được bộ xử lý HTTP bằng dịch vụ khóa SpeechServiceKeys.AiHandler.
+        services.AddSingleton<SelfHostedTtsService>(sp =>
+        {
+            var handler = sp.GetKeyedService<HttpMessageHandler>(SpeechServiceKeys.AiHandler)
+                          ?? new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+            var http = new HttpClient(handler, disposeHandler: false) { Timeout = Timeout.InfiniteTimeSpan };
+            return new SelfHostedTtsService(
+                http,
+                sp.GetRequiredService<IServiceScopeFactory>(),
+                sp.GetRequiredService<IFileStorage>(),
+                sp.GetRequiredService<IOptions<TtsOptions>>(),
+                sp.GetRequiredService<IOptions<AiOptions>>(),
+                sp.GetRequiredService<ILogger<SelfHostedTtsService>>(),
+                sp.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
+        });
+
+        services.AddSingleton<ITtsService>(sp => sp.GetRequiredService<IOptions<TtsOptions>>().Value.Provider switch
+        {
+            TtsProvider.SelfHosted => sp.GetRequiredService<SelfHostedTtsService>(),
+            TtsProvider.None => new NoTtsService(),
+            _ => sp.GetRequiredService<FptAiTtsService>(),
+        });
+
+        // Thay bản không làm gì mà tầng Application đăng ký, bất kể thứ tự gọi AddApplication và AddInfrastructure.
+        services.Replace(ServiceDescriptor.Singleton<ISpeechPrefetcher>(sp =>
+            sp.GetRequiredService<IOptions<TtsOptions>>().Value.Provider == TtsProvider.SelfHosted
+                ? sp.GetRequiredService<SelfHostedTtsService>()
+                : new NullSpeechPrefetcher()));
+        services.AddHostedService<SpeechPrefetchWorker>();
     }
 }
 
+/// <summary>Khóa dịch vụ để kiểm thử thay bộ xử lý HTTP gọi Dịch vụ AI sinh giọng (không dùng ngoài kiểm thử).</summary>
+public static class SpeechServiceKeys
+{
+    public const string AiHandler = "tts-ai-handler";
+}

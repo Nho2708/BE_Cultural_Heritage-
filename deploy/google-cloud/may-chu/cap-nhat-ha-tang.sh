@@ -43,6 +43,9 @@ fi
 
 da_cau_hinh || { echo "Chưa có cấu hình bí mật: bỏ qua bước cập nhật dịch vụ đang chạy."; exit 0; }
 
+# Dịch vụ ai đổi định nghĩa (volume mo-hinh) thì bị tạo lại: đặt quyền ghi cho volume trước.
+[[ -n $(compose ps -q ai 2> /dev/null) ]] && chuan_bi_mo_hinh
+
 for dich_vu in sql api ai web edge; do
     [[ -n $(compose ps -q "$dich_vu" 2> /dev/null) ]] || continue
     compose up -d --no-deps "$dich_vu" 2>&1 | grep -E 'Recreat|Start' || true

@@ -2614,6 +2614,65 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.ToTable("quiz_questions", (string)null);
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Speech.SpeechClip", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("ByteSize")
+                        .HasColumnType("int")
+                        .HasColumnName("byte_size");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("int")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<string>("TextHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("text_hash")
+                        .IsFixedLength();
+
+                    b.Property<string>("Voice")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("voice");
+
+                    b.HasKey("Id")
+                        .HasName("PK_speech_clips");
+
+                    b.HasIndex("TextHash", "Voice")
+                        .IsUnique()
+                        .HasDatabaseName("UX_speech_clips_hash_voice");
+
+                    b.ToTable("speech_clips", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_speech_clips_byte_size", "[byte_size] > 0");
+
+                            t.HasCheckConstraint("CK_speech_clips_duration", "[duration_ms] > 0");
+                        });
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Audit.AuditLog", b =>
                 {
                     b.HasOne("DSVHVN.Domain.Identity.User", null)

@@ -24,9 +24,11 @@ using DSVHVN.Application.Students;
 using DSVHVN.Application.Teachers;
 using DSVHVN.Application.Models;
 using DSVHVN.Application.Narrations;
+using DSVHVN.Application.Speech;
 using DSVHVN.Application.Translations;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DSVHVN.Application;
 
@@ -67,6 +69,9 @@ public static class DependencyInjection
         services.AddScoped<HeritageTranslationService>();
         services.AddScoped<PublicSummaryService>();
         services.AddScoped<NarrationService>();
+        // Bản không làm gì; Infrastructure thay bằng hàng đợi thật khi Tts:Provider là SelfHosted.
+        services.TryAddSingleton<ISpeechPrefetcher, NullSpeechPrefetcher>();
+        services.AddScoped<SpeechWarmUp>();
         services.AddScoped<DiscoveryService>();
         services.AddScoped<HeritagePreviewService>();
         services.AddSingleton<IStudentCredentialGenerator, RandomStudentCredentialGenerator>();
