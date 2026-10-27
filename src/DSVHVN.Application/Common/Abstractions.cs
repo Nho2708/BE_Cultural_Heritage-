@@ -187,6 +187,10 @@ public interface IAccountMailer
     /// <summary>Quên mật khẩu: liên kết đặt lại, hạn 30 phút.</summary>
     Task SendResetPasswordLinkAsync(string email, string fullName, string rawToken, DateTime expiresAt,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Gửi email thông báo cho giáo viên chủ nhiệm khi học sinh xin đặt lại mật khẩu.</summary>
+    Task SendStudentPasswordResetRequestToTeacherAsync(string teacherEmail, string teacherName, string studentCode,
+        string studentName, string className, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

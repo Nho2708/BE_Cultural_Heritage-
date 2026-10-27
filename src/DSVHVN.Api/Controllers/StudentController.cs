@@ -27,6 +27,21 @@ public sealed class StudentAuthController(StudentAuthService studentAuth) : ApiC
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ApiResponse<StudentSessionDto>>> Login(StudentLoginRequest request, CancellationToken ct)
         => OkEnvelope(await studentAuth.LoginAsync(request, ClientIp, ct), Messages.Success("Đăng nhập").Text);
+
+    /// <summary>
+    /// Học sinh xin đặt lại mật khẩu bằng mã học sinh. Nếu mã tồn tại -> gửi email thông báo cho giáo viên chủ nhiệm;
+    /// nếu không tồn tại -> 404 để giao diện báo đỏ dưới ô nhập.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<ApiResponse<StudentForgotPasswordResultDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<StudentForgotPasswordResultDto>>> ForgotPassword(StudentForgotPasswordRequest request, CancellationToken ct)
+    {
+        var result = await studentAuth.ForgotPasswordAsync(request, ct);
+        return OkEnvelope(result, Messages.StudentPasswordResetRequested.Text);
+    }
 }
 
 /// <summary>

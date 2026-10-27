@@ -19,6 +19,11 @@ public sealed class AccountMailer(IEmailSender sender, IOptions<AppLinkOptions> 
     public Task SendResetPasswordLinkAsync(string email, string fullName, string rawToken, DateTime expiresAt,
         CancellationToken cancellationToken = default) =>
         sender.SendAsync(_composer.ResetPasswordLink(email, fullName, rawToken, expiresAt), cancellationToken);
+
+    public Task SendStudentPasswordResetRequestToTeacherAsync(string teacherEmail, string teacherName, string studentCode,
+        string studentName, string className, CancellationToken cancellationToken = default) =>
+        sender.SendAsync(_composer.StudentPasswordResetRequest(teacherEmail, teacherName, studentCode, studentName, className),
+            cancellationToken);
 }
 
 /// <summary>
@@ -68,6 +73,22 @@ public sealed class AccountEmailComposer(AppLinkOptions links)
             Validity:
                 $"Liên kết có hiệu lực {Lifetime(AccountRules.ForgotPasswordLinkLifetime)} (đến {Local(expiresAt)}) và chỉ dùng được một lần.",
             IgnoreNote: "Nếu bạn không yêu cầu, hãy bỏ qua thư này; mật khẩu hiện tại của bạn vẫn giữ nguyên."));
+
+    public EmailMessage StudentPasswordResetRequest(string teacherEmail, string teacherName, string studentCode,
+        string studentName, string className) =>
+        Compose(new Letter(
+            To: teacherEmail,
+            FullName: teacherName,
+            Subject: $"[DiViet] Học sinh {studentName} ({studentCode}) xin đặt lại mật khẩu",
+            Intro:
+            [
+                new Line($"Học sinh ", studentName, $" (Mã học sinh: {studentCode}) thuộc lớp {className} vừa gửi yêu cầu xin đặt lại mật khẩu đăng nhập."),
+                new Line("Thầy/Cô vui lòng đăng nhập vào trang quản trị để cấp lại hoặc đặt lại mật khẩu cho học sinh:"),
+            ],
+            ButtonText: "Mở trang quản trị",
+            Link: links.FrontendBaseUrl.Trim().TrimEnd('/') + "/dang-nhap",
+            Validity: "Học sinh đang chờ thầy cô cấp lại mật khẩu để tiếp tục vào học.",
+            IgnoreNote: "Nếu em đã nhớ mật khẩu hoặc không cần cấp lại, thầy cô có thể bỏ qua thư này."));
 
     /// <summary>Liên kết tới màn hình Đặt mật khẩu của ứng dụng React.</summary>
     public string Link(string rawToken)

@@ -23,10 +23,11 @@ public sealed class AuthController(AuthService auth) : ApiControllerBase
     public async Task<ActionResult<ApiResponse<LoginResultDto>>> Login(LoginRequest request, CancellationToken ct)
         => OkEnvelope(await auth.LoginAsync(request, ClientIp, ct), Messages.Success("Đăng nhập").Text);
 
-    /// <summary>Nhánh quên mật khẩu: luôn trả cùng một câu dù email có thuộc tài khoản nào hay không.</summary>
+    /// <summary>Nhánh quên mật khẩu: nếu không tìm thấy tài khoản -> 404 để báo đỏ; nếu tìm thấy -> gửi liên kết đặt lại mật khẩu.</summary>
     [HttpPost("forgot-password")]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<object>>> ForgotPassword(ForgotPasswordRequest request, CancellationToken ct)
     {
         await auth.ForgotPasswordAsync(request, ct);

@@ -79,24 +79,37 @@ public sealed class AuthService(
     }
 
     /// <summary>
-    /// Nhánh quên mật khẩu: luôn trả cùng một câu (kể cả email không có, tài khoản bị khóa, vượt 3 yêu cầu/giờ).
-    /// Chỉ tài khoản người lớn có email; học sinh quên mật khẩu thì giáo viên đặt lại.
-    /// Liên kết mới hạn 30 phút và vô hiệu mọi liên kết cũ chưa dùng.
+    /// Nhánh quên mật khẩu:
+    /// Nếu email không tồn tại trong hệ thống -> báo lỗi 404 (báo đỏ dưới ô nhập).
+    /// Nếu tài khoản bị khóa -> 403.
+    /// Nếu tài khoản hợp lệ -> sinh mã đặt lại mật khẩu và gửi email.
     /// </summary>
     public async Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct)
     {
         await validator.EnsureValidAsync(request, ct);
         var email = EmailAddress.Normalize(request.Email);
 
-        if (!throttle.TryConsumeForgotPasswordRequest(email))
-        {
-            logger.LogWarning("Vượt giới hạn 3 yêu cầu quên mật khẩu mỗi giờ cho một email");
-            return;
-        }
-
         var user = await db.Users.Include(u => u.Organization)
             .SingleOrDefaultAsync(u => u.Email == email && u.DeletedAt == null && u.RoleId != Roles.StudentId, ct);
-        if (user is null || AccountAccess.BlockedReason(user) is not null) return;
+        if (user is null)
+        {
+            throw new AppException(404, Messages.AccountNotFound, new Dictionary<string, string>
+            {
+                ["email"] = Messages.AccountNotFound.Text
+            });
+        }
+
+        var blockedReason = AccountAccess.BlockedReason(user);
+        if (blockedReason is not null)
+        {
+            throw AppException.Forbidden(new AppMessage(MessageCodes.Blocked, blockedReason));
+        }
+
+        if (!throttle.TryConsumeForgotPasswordRequest(email))
+        {
+            logger.LogWarning("Vượt giới hạn 3 yêu cầu quên mật khẩu mỗi giờ cho email {Email}", email);
+            return;
+        }
 
         var token = await passwordTokens.IssueAsync(user.Id, AccountRules.ForgotPasswordLinkLifetime, ct);
         await db.SaveChangesAsync(ct);
@@ -107,7 +120,6 @@ public sealed class AuthService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Không đổi câu trả lời: người gọi không được biết email có thuộc tài khoản nào hay không.
             logger.LogError(ex, "Gửi thư đặt lại mật khẩu thất bại cho tài khoản {UserId}", user.Id);
         }
     }
