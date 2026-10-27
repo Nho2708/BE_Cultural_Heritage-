@@ -1,5 +1,6 @@
 using System.Net;
 using DSVHVN.Application.Auth;
+using DSVHVN.Application.Common;
 using DSVHVN.Domain.Enums;
 
 namespace DSVHVN.Tests.Integration;
@@ -92,15 +93,16 @@ public sealed class AuthApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Forgot_password_always_returns_the_same_message()
+    public async Task Forgot_password_sends_link_for_existing_account_and_returns_not_found_for_unknown()
     {
-        foreach (var email in new[] { ApiFactory.AdminEmail, "khongai@example.vn" })
-        {
-            var (res, body) = await Http.PostAsync<object>("/api/v1/auth/forgot-password", new { email });
-            Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-            Assert.Equal("Nếu email này thuộc một tài khoản, liên kết đặt lại mật khẩu sẽ được gửi tới hộp thư. " +
-                         "Liên kết có hiệu lực 30 phút.", body.Message);
-        }
+        var (okRes, okBody) = await Http.PostAsync<object>("/api/v1/auth/forgot-password", new { email = ApiFactory.AdminEmail });
+        Assert.Equal(HttpStatusCode.OK, okRes.StatusCode);
+        Assert.Equal(Messages.ForgotPasswordAccepted.Text, okBody.Message);
+
+        var (notFoundRes, notFoundBody) = await Http.PostAsync<object>("/api/v1/auth/forgot-password", new { email = "khongai@example.vn" });
+        Assert.Equal(HttpStatusCode.NotFound, notFoundRes.StatusCode);
+        Assert.Equal(Messages.AccountNotFound.Text, notFoundBody.Message);
+
         Assert.NotNull(factory.Mail.LastTokenFor(ApiFactory.AdminEmail));
         Assert.Null(factory.Mail.LastTokenFor("khongai@example.vn"));
     }

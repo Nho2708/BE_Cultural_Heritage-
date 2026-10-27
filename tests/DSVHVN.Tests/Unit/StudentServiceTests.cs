@@ -284,4 +284,25 @@ public sealed class StudentServiceTests : IDisposable
 
         Assert.NotNull(await LoginAsync(entry.StudentCode!, entry.TemporaryPassword));
     }
+
+    [Fact]
+    public async Task ForgotPassword_fails_for_unknown_student_and_notifies_teacher_when_found()
+    {
+        var (teacher, schoolClass) = await TeacherWithClassAsync();
+        var entry = (await AddAsync(teacher, schoolClass.Id, "Nguyễn Văn A")).Sheet.Entries.Single();
+        var studentCode = entry.StudentCode!;
+
+        // Case 1: Unknown student code -> 404
+        var ex = await Assert.ThrowsAsync<AppException>(() =>
+            _h.Service<StudentAuthService, StudentForgotPasswordResultDto>(s =>
+                s.ForgotPasswordAsync(new StudentForgotPasswordRequest("HSUNKNOWN"), default)));
+        Assert.Equal(404, ex.StatusCode);
+        Assert.Equal(Messages.StudentAccountNotFound.Text, ex.Message);
+
+        // Case 2: Known student code -> sends email to teacher
+        var result = await _h.Service<StudentAuthService, StudentForgotPasswordResultDto>(s =>
+            s.ForgotPasswordAsync(new StudentForgotPasswordRequest(studentCode), default));
+        Assert.Equal("Nguyễn Văn A", result.StudentName);
+        Assert.Equal(1, _h.Mail.CountTo("giaovien.a@example.vn"));
+    }
 }

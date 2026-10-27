@@ -24,6 +24,7 @@ public static class MessageCodes
     public const string Blocked = "BLOCKED";
     public const string TeacherLimitReached = "TEACHER_LIMIT_REACHED";
     public const string NotReady = "NOT_READY";
+    public const string NotFound = "NOT_FOUND";
     public const string SystemError = "SYSTEM_ERROR";
     public const string TooManyRequests = "TOO_MANY_REQUESTS";
     public const string StudentInvalidCredentials = "STUDENT_INVALID_CREDENTIALS";
@@ -114,9 +115,21 @@ public static class Messages
         public const string OrganizationDeactivated = "Trường của bạn đã ngừng sử dụng nền tảng.";
     }
 
-    /// <summary>Luôn trả cùng một câu dù email có thuộc tài khoản nào hay không.</summary>
+    /// <summary>Thông báo khi tài khoản tồn tại và đã gửi liên kết đặt lại mật khẩu.</summary>
     public static readonly AppMessage ForgotPasswordAccepted = new(MessageCodes.ForgotPasswordAccepted,
-        "Nếu email này thuộc một tài khoản, liên kết đặt lại mật khẩu sẽ được gửi tới hộp thư. Liên kết có hiệu lực 30 phút.");
+        "Liên kết đặt lại mật khẩu đã được gửi tới hộp thư của bạn. Vui lòng kiểm tra hộp thư (kể cả mục thư rác/spam) trong 1-2 phút tới. Liên kết có hiệu lực 30 phút.");
+
+    /// <summary>Không tìm thấy tài khoản theo email hoặc số điện thoại.</summary>
+    public static readonly AppMessage AccountNotFound = new(MessageCodes.NotFound,
+        "Không tìm thấy tài khoản. Hãy kiểm tra số di động hoặc email của bạn rồi thử lại.");
+
+    /// <summary>Không tìm thấy tài khoản học sinh theo mã học sinh.</summary>
+    public static readonly AppMessage StudentAccountNotFound = new(MessageCodes.NotFound,
+        "Không tìm thấy tài khoản học sinh. Hãy kiểm tra lại mã học sinh rồi thử lại.");
+
+    /// <summary>Đã gửi thông báo xin đặt lại mật khẩu học sinh tới giáo viên chủ nhiệm.</summary>
+    public static readonly AppMessage StudentPasswordResetRequested = new(MessageCodes.Success,
+        "Đã báo thầy cô, em chờ thầy cô đặt lại mật khẩu nhé.");
 
     /// <summary>Liên kết đặt mật khẩu hết hạn, đã dùng hoặc đã bị thay bằng liên kết mới.</summary>
     public static readonly AppMessage PasswordLinkInvalid =

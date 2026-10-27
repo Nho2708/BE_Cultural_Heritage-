@@ -184,14 +184,19 @@ public sealed class AuthServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Forgot_password_is_silent_for_unknown_or_locked_accounts_and_limited_to_3_per_hour()
+    public async Task Forgot_password_fails_for_unknown_or_locked_accounts_and_limited_to_3_per_hour()
     {
         var org = await _h.AddOrganizationAsync();
         await _h.AddUserAsync("giaovien.a", RoleCode.TEACHER, org.Id);
         await _h.AddUserAsync("bi.khoa", RoleCode.TEACHER, org.Id, status: UserStatus.LOCKED);
 
-        await Forgot("khongai@example.vn");
-        await Forgot("bi.khoa@example.vn");
+        var exUnknown = await Assert.ThrowsAsync<AppException>(() => Forgot("khongai@example.vn"));
+        Assert.Equal(404, exUnknown.StatusCode);
+        Assert.Equal(Messages.AccountNotFound.Text, exUnknown.Message);
+
+        var exLocked = await Assert.ThrowsAsync<AppException>(() => Forgot("bi.khoa@example.vn"));
+        Assert.Equal(403, exLocked.StatusCode);
+
         Assert.Equal(0, _h.Mail.CountTo("khongai@example.vn") + _h.Mail.CountTo("bi.khoa@example.vn"));
 
         for (var i = 0; i < 4; i++) await Forgot("giaovien.a@example.vn");

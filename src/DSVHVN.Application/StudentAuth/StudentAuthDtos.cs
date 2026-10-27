@@ -56,6 +56,19 @@ public sealed record StudentProfileDto(
 /// <summary>Kết quả đăng nhập và đổi mật khẩu của học sinh: access token hạn 8 giờ kèm thông tin học sinh và cấp học.</summary>
 public sealed record StudentSessionDto(string TokenType, string AccessToken, DateTime ExpiresAt, StudentProfileDto Student);
 
+/// <summary>Yêu cầu quên mật khẩu học sinh: nhập mã học sinh để hệ thống kiểm tra và báo cho giáo viên chủ nhiệm.</summary>
+public sealed record StudentForgotPasswordRequest(string? StudentCode);
+
+public sealed record StudentForgotPasswordResultDto(string StudentName, string TeacherName);
+
+public sealed class StudentForgotPasswordRequestValidator : AbstractValidator<StudentForgotPasswordRequest>
+{
+    public StudentForgotPasswordRequestValidator()
+    {
+        RuleFor(x => x.StudentCode).RequiredField("mã học sinh");
+    }
+}
+
 public sealed class StudentLoginRequestValidator : AbstractValidator<StudentLoginRequest>
 {
     public StudentLoginRequestValidator()
