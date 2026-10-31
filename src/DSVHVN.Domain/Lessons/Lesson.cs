@@ -151,3 +151,24 @@ public class LessonCompletion
     /// <summary>Lúc em tới bước Nhận thẻ lần đầu (UTC).</summary>
     public DateTime CompletedAt { get; set; }
 }
+
+/// <summary>
+/// Bảng <c>lesson_visits</c>: em đã mở bài học nào bằng mã, để bài vẫn nằm trong "Bài học của em" ở mọi thiết bị kể cả khi bài chưa có bài kiểm tra.
+/// Mỗi em mỗi bài một dòng; mở lại thì cập nhật <see cref="LastOpenedAt"/>.
+/// </summary>
+public class LessonVisit
+{
+    public long Id { get; set; }
+
+    public long StudentId { get; set; }
+    public Student? Student { get; set; }
+
+    public long LessonId { get; set; }
+    public Lesson? Lesson { get; set; }
+
+    /// <summary>Lúc em mở bài lần đầu (UTC).</summary>
+    public DateTime FirstOpenedAt { get; set; }
+
+    /// <summary>Lúc em mở bài gần nhất (UTC).</summary>
+    public DateTime LastOpenedAt { get; set; }
+}

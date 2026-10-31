@@ -95,7 +95,7 @@ mã học sinh, tên lớp. Thời gian chờ **2 giây**; lỗi, quá giờ ho�
 Theo từng lớp của giáo viên, cùng bộ tính với gợi ý cho học sinh, trên các lượt đã nộp của học sinh đang hoạt động; lọc được theo **bài kiểm tra** (`quizId`) và **khoảng thời gian nộp** (`from`, `to`, giờ UTC; `from` phải không sau `to`, nếu không 400).
 
 - **Tỉ lệ sai theo di sản** = số câu trả lời sai hoặc bỏ trống ÷ tổng số câu trả lời gắn di sản đó.
-- **Di sản nên ôn:** tỉ lệ sai **từ 40%** và **ít nhất 10 câu trả lời**, tối đa **5**, xếp tỉ lệ sai giảm dần; lý do "Lớp sai {x}% ở {n} câu về di sản này" (x làm tròn nguyên). Có `answered`, `wrong`, `wrongPercent` (1 chữ số thập phân).
+- **Di sản nên ôn:** tỉ lệ sai **từ 40%** và **ít nhất 10 câu trả lời** (xem riêng một bài kiểm tra thì chỉ cần có câu trả lời, để khớp với kết quả của bài đó), tối đa **5**, xếp tỉ lệ sai giảm dần; lý do "Lớp sai {x}% ở {n} câu về di sản này" (x làm tròn nguyên). Có `answered`, `wrong`, `wrongPercent` (1 chữ số thập phân).
 - **Di sản liên quan:** tối đa **5**, giống nhất với các di sản của các bài học đã xuất bản của lớp (di sản nên ôn nặng gấp đôi), loại các di sản đã giao.
 - `suggestedHeritageIds` là các di sản nên ôn, để giáo viên tạo nhanh bài học ôn tập. Chưa có lượt nộp: `message` = "Chưa có học sinh nào nộp bài. Thống kê và gợi ý sẽ hiện khi có kết quả." và các danh sách rỗng.
 - Không gửi gì về học sinh sang Dịch vụ AI (`studentId` và `level` null); AI lỗi thì phần nên ôn vẫn hiện (máy chủ tự tính), phần liên quan dự phòng như mục 3.

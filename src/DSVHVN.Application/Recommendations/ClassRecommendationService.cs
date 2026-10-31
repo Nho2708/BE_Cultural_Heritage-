@@ -10,7 +10,8 @@ namespace DSVHVN.Application.Recommendations;
 
 /// <summary>
 /// Gợi ý ôn tập cho lớp (cùng bộ tính với gợi ý cho học sinh): tỉ lệ sai theo di sản = số câu trả lời sai hoặc bỏ trống ÷ tổng số câu trả lời gắn di sản đó,
-/// trên các lượt đã nộp của lớp, lọc được theo bài kiểm tra và khoảng thời gian nộp. "Nên ôn": tỉ lệ sai từ 40% và ít nhất 10 câu trả lời, tối đa 5.
+/// trên các lượt đã nộp của lớp, lọc được theo bài kiểm tra và khoảng thời gian nộp. "Nên ôn": tỉ lệ sai từ 40%, tối đa 5; xem cả lớp thì cần ít nhất 10 câu trả lời,
+/// xem riêng một bài kiểm tra thì chỉ cần có câu trả lời để khớp với kết quả của bài đó.
 /// "Liên quan": tối đa 5 di sản giống nhất với các di sản của những bài học đã giao cho lớp. Chỉ gợi ý di sản đã xuất bản; không gửi gì về học sinh sang Dịch vụ AI.
 /// </summary>
 public sealed class ClassRecommendationService(IAppDbContext db, RelatedRanker ranker)
@@ -58,7 +59,7 @@ public sealed class ClassRecommendationService(IAppDbContext db, RelatedRanker r
 
         var catalog = await HeritageCatalog.LoadAsync(db, ct);
         var review = rates
-            .Where(r => RecommendationRules.ClassShouldReview(r.Wrong, r.Answered) && catalog.IsPublished(r.HeritageId))
+            .Where(r => RecommendationRules.ClassShouldReview(r.Wrong, r.Answered, quizId is not null) && catalog.IsPublished(r.HeritageId))
             .OrderByDescending(r => RecommendationRules.WrongRatio(r.Wrong, r.Answered)).ThenByDescending(r => r.Answered).ThenBy(r => r.HeritageId)
             .Take(RecommendationRules.ClassSectionLimit)
             .Select(r => catalog.ReviewCard(r.HeritageId, r.Answered, r.Wrong)!)

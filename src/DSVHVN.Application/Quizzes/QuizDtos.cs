@@ -124,10 +124,12 @@ public sealed record QuizAccessDto(
     bool CanDelete,
     bool CanDuplicate);
 
+/// <summary><see cref="AccessCode"/> là mã riêng của bài kiểm tra, có từ lúc phát hành lần đầu.</summary>
 public sealed record QuizDetailDto(
     long Id,
     string? Name,
     string? Description,
+    string? AccessCode,
     long LessonId,
     string? LessonTitle,
     ContentStatus? LessonStatus,

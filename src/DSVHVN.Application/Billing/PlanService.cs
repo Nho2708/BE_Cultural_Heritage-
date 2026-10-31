@@ -132,7 +132,7 @@ public sealed class PlanService(IAppDbContext db, RequestValidator validator, Pl
     private static void EnsureNameFree(IEnumerable<Plan> plans, string name, int? exceptId)
     {
         if (plans.Any(p => p.Id != exceptId && SameName(p.Name, name)))
-            throw AppException.Conflict("name", Messages.Taken("Tên gói", name.Trim()));
+            throw AppException.Conflict("name", BillingMessages.PlanNameTaken(name.Trim()));
     }
 
     private static PlanDto ToDto(Plan p, int schoolCount) => new(

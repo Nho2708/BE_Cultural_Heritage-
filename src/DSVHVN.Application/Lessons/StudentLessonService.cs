@@ -22,7 +22,8 @@ public interface ILessonCodeThrottle
 }
 
 /// <summary>
-/// Học sinh mở bài học bằng mã bài học (web học tập và app chế độ Học sinh). Chỉ đọc: mở bài không ghi vào CSDL.
+/// Học sinh mở bài học bằng mã bài học hoặc vào thẳng bài kiểm tra bằng mã bài kiểm tra (web học tập và app chế độ Học sinh). Mở bài ghi lại lượt mở của em
+/// (<c>lesson_visits</c>) để bài nằm trong "Bài học của em" ở mọi thiết bị, kể cả bài chưa có bài kiểm tra.
 /// <list type="bullet">
 /// <item>Phải đăng nhập (vai trò học sinh, không còn bị buộc đổi mật khẩu).</item>
 /// <item>Mã đúng khi: tồn tại, bài chưa xóa và đang Đã xuất bản, bài thuộc đúng lớp của em, lớp chưa xóa, trường chưa ngừng, em còn hoạt động.
@@ -40,21 +41,52 @@ public sealed class StudentLessonService(
     ILessonCodeThrottle throttle,
     TimeProvider clock)
 {
-    /// <summary>Em và bài học đã qua bước kiểm mã: dùng chung cho mở bài, ghi bài đã học xong và lấy câu ôn.</summary>
+    /// <summary>
+    /// Em và bài học đã qua bước kiểm mã: dùng chung cho mở bài, ghi bài đã học xong và lấy câu ôn. <paramref name="FocusQuizId"/> có giá trị khi em gõ mã bài kiểm tra.
+    /// </summary>
     internal sealed record ResolvedLesson(
-        long StudentId, long ClassId, byte Grade, string? ClassName, string? TeacherName, Lesson Lesson);
+        long StudentId, long ClassId, byte Grade, string? ClassName, string? TeacherName, Lesson Lesson, long? FocusQuizId = null);
 
+    /// <summary>
+    /// Mở bằng mã bài học hoặc mã bài kiểm tra. Với mã bài kiểm tra, kết quả vẫn là bài học chứa bài đó, kèm <see cref="StudentLessonDto.FocusQuizId"/> để giao diện vào thẳng bài kiểm tra.
+    /// </summary>
     public async Task<StudentLessonDto> OpenByCodeAsync(Actor actor, string? rawCode, CancellationToken ct)
     {
-        var resolved = await ResolveByCodeAsync(actor, rawCode, includeSections: true, ct);
-        return await BuildAsync(resolved.Lesson, resolved.Grade, resolved.ClassName, resolved.TeacherName, resolved.StudentId, ct);
+        var resolved = await ResolveByCodeAsync(actor, rawCode, includeSections: true, ct, allowQuizCode: true);
+        await RememberVisitAsync(resolved.StudentId, resolved.Lesson.Id, ct);
+        return await BuildAsync(resolved.Lesson, resolved.Grade, resolved.ClassName, resolved.TeacherName, resolved.StudentId, ct, resolved.FocusQuizId);
+    }
+
+    /// <summary>Mỗi em mỗi bài một dòng: mở lần đầu thì thêm, mở lại thì cập nhật giờ. Hai yêu cầu cùng thêm một lúc thì ràng buộc không trùng chỉ cho một dòng.</summary>
+    private async Task RememberVisitAsync(long studentId, long lessonId, CancellationToken ct)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+        var visit = await db.LessonVisits.SingleOrDefaultAsync(v => v.StudentId == studentId && v.LessonId == lessonId, ct);
+        if (visit is not null)
+        {
+            visit.LastOpenedAt = now;
+            await db.SaveChangesAsync(ct);
+            return;
+        }
+
+        visit = new LessonVisit { StudentId = studentId, LessonId = lessonId, FirstOpenedAt = now, LastOpenedAt = now };
+        db.LessonVisits.Add(visit);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            db.LessonVisits.Entry(visit).State = EntityState.Detached;
+            if (!await db.LessonVisits.AnyAsync(v => v.StudentId == studentId && v.LessonId == lessonId, ct)) throw;
+        }
     }
 
     /// <summary>
     /// Kiểm mã bài học của em: phải là học sinh, chưa bị chặn nhập mã; mã đúng khi bài chưa xóa, Đã xuất bản và thuộc lớp của em. Sai thì cùng một thông báo 404
-    /// và tính vào giới hạn nhập sai.
+    /// và tính vào giới hạn nhập sai. <paramref name="allowQuizCode"/> nhận thêm mã bài kiểm tra đã phát hành hoặc đã đóng của bài thuộc lớp em.
     /// </summary>
-    internal async Task<ResolvedLesson> ResolveByCodeAsync(Actor actor, string? rawCode, bool includeSections, CancellationToken ct)
+    internal async Task<ResolvedLesson> ResolveByCodeAsync(Actor actor, string? rawCode, bool includeSections, CancellationToken ct, bool allowQuizCode = false)
     {
         if (actor.Role != RoleCode.STUDENT) throw AppException.Forbidden(Messages.Forbidden);
 
@@ -71,9 +103,27 @@ public sealed class StudentLessonService(
             ?? throw AppException.Unauthorized(Messages.Forbidden);
 
         var query = db.Lessons.AsNoTracking()
-            .Where(l => l.AccessCode == code && l.DeletedAt == null && l.Status == ContentStatus.PUBLISHED && l.ClassId == student.ClassId);
+            .Where(l => l.DeletedAt == null && l.Status == ContentStatus.PUBLISHED && l.ClassId == student.ClassId);
         if (includeSections) query = query.Include(l => l.Sections);
-        var lesson = LessonCodes.IsWellFormed(code) ? await query.SingleOrDefaultAsync(ct) : null;
+
+        Lesson? lesson = null;
+        long? focusQuizId = null;
+        if (LessonCodes.IsWellFormed(code))
+        {
+            lesson = await query.SingleOrDefaultAsync(l => l.AccessCode == code, ct);
+        }
+        else if (allowQuizCode && QuizCodes.IsWellFormed(code))
+        {
+            var quiz = await db.Quizzes.AsNoTracking()
+                .Where(q => q.AccessCode == code && q.DeletedAt == null && (q.Status == QuizStatus.PUBLISHED || q.Status == QuizStatus.CLOSED))
+                .Select(q => new { q.Id, q.LessonId })
+                .SingleOrDefaultAsync(ct);
+            if (quiz is not null)
+            {
+                lesson = await query.SingleOrDefaultAsync(l => l.Id == quiz.LessonId, ct);
+                if (lesson is not null) focusQuizId = quiz.Id;
+            }
+        }
 
         if (lesson is null)
         {
@@ -82,7 +132,7 @@ public sealed class StudentLessonService(
             throw AppException.NotFound(Messages.LessonCodeInvalid);
         }
 
-        return new ResolvedLesson(student.Id, student.ClassId, student.Grade, student.ClassName, student.TeacherName, lesson);
+        return new ResolvedLesson(student.Id, student.ClassId, student.Grade, student.ClassName, student.TeacherName, lesson, focusQuizId);
     }
 
     /// <summary>
@@ -102,7 +152,7 @@ public sealed class StudentLessonService(
     }
 
     private async Task<StudentLessonDto> BuildAsync(
-        Lesson lesson, byte grade, string? className, string? teacherName, long? studentId, CancellationToken ct)
+        Lesson lesson, byte grade, string? className, string? teacherName, long? studentId, CancellationToken ct, long? focusQuizId = null)
     {
         var level = SchoolClass.SchoolLevelOf(grade);
         var frame = LessonFrames.For(level);
@@ -128,7 +178,7 @@ public sealed class StudentLessonService(
             lesson.Id, lesson.AccessCode ?? string.Empty, lesson.Title, className, teacherName, level, SchoolLevels.NameOf(level),
             new StudentLayoutDto(frame.Layout, frame.SequentialFlow, frame.Flow),
             lesson.Summary, LessonJson.ParseKeyPoints(lesson.KeyPoints), sections, heritages,
-            await LoadQuizzesAsync(lesson.Id, studentId, ct));
+            await LoadQuizzesAsync(lesson.Id, studentId, ct), focusQuizId);
     }
 
     /// <summary>Bài kiểm tra đã phát hành hoặc đã đóng của bài; DRAFT không hiện. Trạng thái tính riêng cho em từ lượt làm bài của em.</summary>

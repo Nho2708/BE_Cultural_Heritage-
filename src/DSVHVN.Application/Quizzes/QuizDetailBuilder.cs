@@ -55,7 +55,7 @@ public sealed class QuizDetailBuilder(IAppDbContext db, TimeProvider clock)
             : null;
 
         return new QuizDetailDto(
-            quiz.Id, quiz.Name, quiz.Description, lesson.Id, lesson.Title, lesson.Status, lesson.AccessCode, schoolClass.Id, schoolClass.Name,
+            quiz.Id, quiz.Name, quiz.Description, quiz.AccessCode, lesson.Id, lesson.Title, lesson.Status, lesson.AccessCode, schoolClass.Id, schoolClass.Name,
             schoolClass.Grade, level, SchoolLevels.NameOf(level), quiz.DifficultyLevel, quiz.TimeLimitMinutes, QuizRules.TimeLimitRuleOf(level),
             QuizRules.TimeLimitRuleText(level), quiz.OpenAt, quiz.CloseAt, quiz.ShuffleQuestions, quiz.ShowAnswersAfterSubmit,
             questions.Sum(x => x.Point), quiz.Status, QuizRules.StatusLabel(quiz.Status), state, QuizRules.OpenStateLabel(state), quiz.PublishedAt,
@@ -86,8 +86,11 @@ public sealed class QuizDetailBuilder(IAppDbContext db, TimeProvider clock)
             missing.Add($"{unusable.Count} câu hỏi không dùng được ({string.Join(" ", distinct)}). Hãy bỏ các câu này");
         }
 
-        if (quiz.OpenAt is null) missing.Add("giờ mở");
-        if (quiz.CloseAt is null) missing.Add("giờ đóng");
+        if (QuizRules.RequiresOpenWindow(level))
+        {
+            if (quiz.OpenAt is null) missing.Add("giờ mở");
+            if (quiz.CloseAt is null) missing.Add("giờ đóng");
+        }
         if (quiz.OpenAt is { } open && quiz.CloseAt is { } close && open >= close) missing.Add("giờ mở phải trước giờ đóng");
         if (quiz.CloseAt is { } closeAt && closeAt <= now) missing.Add("giờ đóng phải sau thời điểm hiện tại");
 

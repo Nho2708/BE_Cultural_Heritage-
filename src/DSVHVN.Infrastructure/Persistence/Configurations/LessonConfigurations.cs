@@ -97,6 +97,23 @@ internal sealed class LessonSectionConfiguration : IEntityTypeConfiguration<Less
 }
 
 /// <summary>Bảng <c>lesson_completions</c>: em ở lớp cấp 1 đã tới bước Nhận thẻ của bài học. Mỗi (học sinh, bài học) một dòng.</summary>
+internal sealed class LessonVisitConfiguration : IEntityTypeConfiguration<LessonVisit>
+{
+    public void Configure(EntityTypeBuilder<LessonVisit> b)
+    {
+        b.ToTable("lesson_visits");
+        b.Property(x => x.FirstOpenedAt).IsRequired();
+        b.Property(x => x.LastOpenedAt).IsRequired();
+
+        // Mỗi em mỗi bài một dòng; chặn ghi trùng khi hai yêu cầu cùng mở bài một lúc.
+        b.HasIndex(x => new { x.StudentId, x.LessonId }).IsPlainUnique("UX_lesson_visits_student_lesson");
+        b.HasIndex(x => x.LessonId).HasDatabaseName("IX_lesson_visits_lesson_id");
+
+        b.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).IsRequired().OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.Lesson).WithMany().HasForeignKey(x => x.LessonId).IsRequired().OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 internal sealed class LessonCompletionConfiguration : IEntityTypeConfiguration<LessonCompletion>
 {
     public void Configure(EntityTypeBuilder<LessonCompletion> b)

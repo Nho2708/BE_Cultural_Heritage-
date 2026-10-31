@@ -55,6 +55,8 @@ public interface IAppDbContext
     DbSet<LessonHeritage> LessonHeritages { get; }
     DbSet<LessonSection> LessonSections { get; }
     DbSet<LessonCompletion> LessonCompletions { get; }
+    DbSet<LessonVisit> LessonVisits { get; }
+    DbSet<DSVHVN.Domain.Notifications.StudentNotification> StudentNotifications { get; }
     DbSet<AiGeneration> AiGenerations { get; }
 
     DbSet<Question> Questions { get; }

@@ -18,10 +18,11 @@ namespace DSVHVN.Api.Controllers;
 public sealed class StudentLessonsController(StudentLessonService lessons, LessonProgressService progress) : ApiControllerBase
 {
     /// <summary>
-    /// Mở bài học bằng mã (gõ "bh 7f3k-2q" cũng nhận). Hợp lệ khi mã tồn tại, bài đang Đã xuất bản, thuộc lớp của em. Sai mọi điều kiện đều
+    /// Mở bài học bằng mã bài học (gõ "bh 7f3k-2q" cũng nhận) hoặc mã bài kiểm tra (KT + 6 ký tự, trả kèm <c>focusQuizId</c> để vào thẳng bài kiểm tra).
+    /// Hợp lệ khi mã tồn tại, bài đang Đã xuất bản, thuộc lớp của em. Sai mọi điều kiện đều
     /// trả cùng một thông báo 404 (không cho biết mã có ở lớp khác hay không) và tính vào giới hạn nhập sai: 10 lần mỗi tài khoản và 30 lần mỗi IP
     /// trong 10 phút, vượt thì 429. Hợp lệ thì trả bài theo khung và luồng của cấp lớp em, thẻ di sản và bài kiểm tra kèm trạng thái với em.
-    /// Mở bài không ghi vào CSDL.
+    /// Mở bài ghi lại lượt mở của em để bài nằm trong "Bài học của em".
     /// </summary>
     [HttpGet("{code}")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]

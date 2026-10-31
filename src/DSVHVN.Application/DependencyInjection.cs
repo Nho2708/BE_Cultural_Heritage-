@@ -15,6 +15,7 @@ using DSVHVN.Application.Organizations;
 using DSVHVN.Application.Overview;
 using DSVHVN.Application.Profile;
 using DSVHVN.Application.Questions;
+using DSVHVN.Application.Notifications;
 using DSVHVN.Application.Quizzes;
 using DSVHVN.Application.Recommendations;
 using DSVHVN.Application.SchoolInquiries;
@@ -97,6 +98,7 @@ public static class DependencyInjection
         services.AddScoped<StudentLessonService>();
         services.AddScoped<AlbumService>();
         services.AddScoped<LessonProgressService>();
+        services.AddScoped<StudentNotificationService>();
         services.AddScoped<QuizDetailBuilder>();
         services.AddScoped<QuizService>();
         services.AddScoped<QuizAutoCloser>();

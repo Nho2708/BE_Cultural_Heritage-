@@ -135,7 +135,7 @@ public sealed class BillingApiTests(ApiFactory factory) : IClassFixture<ApiFacto
         var (quote, quoteBody) = await Http.GetAsync<PurchaseQuoteDto>($"/api/v1/org/plans/{plan.Id}/quote", orgAdmin);
         Assert.Equal(HttpStatusCode.OK, quote.StatusCode);
         Assert.Equal($"Trường sẽ thanh toán 1.200.000 đồng cho gói {plan.Name} qua VNPay. " +
-                     "Gói mới có hiệu lực ngay, gói hiện tại kết thúc và không được hoàn phần chưa dùng. Tiếp tục?", quoteBody.Data!.Confirmation);
+                     "Gói mới có hiệu lực ngay. Gói Miễn phí sẽ kết thúc ngay khi gói mới có hiệu lực (không cộng dồn lượt AI cũ). Tiếp tục?", quoteBody.Data!.Confirmation);
 
         var start = await _k.CheckoutAsync(orgAdmin, plan.Id);
         Assert.Matches(new Regex($@"^HD{BillingTestKit.Today:yyyyMMdd}-\d{{6}}$"), start.Invoice.InvoiceNumber!);

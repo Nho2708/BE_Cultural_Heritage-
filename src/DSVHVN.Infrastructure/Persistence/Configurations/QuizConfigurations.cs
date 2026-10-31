@@ -16,11 +16,15 @@ internal sealed class QuizConfiguration : IEntityTypeConfiguration<Quiz>
             .HasEnumCheck<Quiz, QuizStatus>("quizzes", "status"));
         b.Property(x => x.Name).HasMaxLength(255);
         b.Property(x => x.Description);
+        b.Property(x => x.AccessCode).HasMaxLength(10);
         b.Property(x => x.DifficultyLevel).AsEnumText();
         b.Property(x => x.ShuffleQuestions).BitWithDefault(false);
         b.Property(x => x.ShowAnswersAfterSubmit).BitWithDefault(false);
         b.Property(x => x.TotalPoint).HasPrecision(6, 2);
         b.Property(x => x.Status).AsEnumText();
+
+        // UNIQUE có lọc: bài chưa phát hành chưa có mã.
+        b.HasIndex(x => x.AccessCode).IsUnique().HasFilter("[access_code] IS NOT NULL").HasDatabaseName("UX_quizzes_access_code");
 
         b.HasOne(x => x.Lesson).WithMany().HasForeignKey(x => x.LessonId).IsRequired().OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Creator).WithMany().HasForeignKey(x => x.CreatedBy).IsRequired().OnDelete(DeleteBehavior.Restrict);

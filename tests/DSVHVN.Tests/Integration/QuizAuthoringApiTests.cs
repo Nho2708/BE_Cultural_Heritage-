@@ -42,8 +42,8 @@ public sealed class QuizAuthoringApiTests(ApiFactory factory) : IClassFixture<Ap
         Assert.True(quiz.Access is { CanEditSettings: true, CanEditQuestions: true, CanDelete: true, CanClose: false, CanPublish: false, CanDuplicate: true });
         Assert.False(quiz.Readiness.IsReady);
         Assert.Contains("ít nhất một câu hỏi", quiz.Readiness.Missing);
-        Assert.Contains("giờ mở", quiz.Readiness.Missing);
-        Assert.Contains("giờ đóng", quiz.Readiness.Missing);
+        Assert.Equal(level != 1, quiz.Readiness.Missing.Contains("giờ mở"));
+        Assert.Equal(level != 1, quiz.Readiness.Missing.Contains("giờ đóng"));
         Assert.Equal(level == 3, quiz.Readiness.Missing.Any(m => m.Contains("phải đặt thời gian làm bài")));
     }
 

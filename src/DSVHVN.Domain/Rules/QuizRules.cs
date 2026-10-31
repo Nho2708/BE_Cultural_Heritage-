@@ -80,6 +80,11 @@ public static class QuizRules
     public static int? NormalizeTimeLimit(int level, int? minutes) => level == 1 ? null : minutes;
 
     /// <summary>
+    /// Cấp 1 không đặt giờ mở và đóng để em không bị áp lực: bài chơi mở ngay khi phát hành và nhận bài tới khi thầy cô đóng. Cấp 2 và cấp 3 bắt buộc đặt cả hai.
+    /// </summary>
+    public static bool RequiresOpenWindow(int level) => level != 1;
+
+    /// <summary>
     /// Câu dùng được ở cấp của lớp khi cấp nằm trong khoảng cấp phù hợp của câu và dạng của câu dùng được ở cấp đó
     /// (bảng dạng câu theo cấp).
     /// </summary>
@@ -131,6 +136,20 @@ public static class QuizRules
     public static string FormatVietnamTime(DateTime? utc) => utc is { } v
         ? (DateTime.SpecifyKind(v, DateTimeKind.Utc) + VietnamTime.Offset).ToString("HH:mm dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture)
         : "chưa đặt";
+}
+
+/// <summary>
+/// Mã bài kiểm tra: <c>KT</c> + 6 ký tự của cùng bảng 32 ký tự với mã bài học, sinh lúc phát hành lần đầu. Em gõ mã này ở ô nhập mã để vào thẳng bài kiểm tra.
+/// </summary>
+public static class QuizCodes
+{
+    public const string Prefix = "KT";
+    public const int Length = LessonCodes.Length;
+
+    public static string NewCode() => LessonCodes.NewCode(Prefix);
+
+    /// <summary>Mã đã chuẩn hóa có đúng hình dạng <c>KT</c> + 6 ký tự của bảng 32 ký tự hay không.</summary>
+    public static bool IsWellFormed(string? normalized) => LessonCodes.HasShape(normalized, Prefix);
 }
 
 /// <summary>

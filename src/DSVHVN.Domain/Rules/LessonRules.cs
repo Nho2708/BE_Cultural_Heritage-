@@ -315,11 +315,14 @@ public static class LessonCodes
     /// <summary>Mã bị trùng thì sinh mã khác và thử lại tối đa 5 lần.</summary>
     public const int MaxGenerateAttempts = 5;
 
-    public static string NewCode()
+    public static string NewCode() => NewCode(Prefix);
+
+    /// <summary>Sinh mã 8 ký tự với hai chữ đầu <paramref name="prefix"/> (mã bài học và mã bài kiểm tra dùng chung cách sinh).</summary>
+    public static string NewCode(string prefix)
     {
         Span<char> chars = stackalloc char[Length];
-        Prefix.CopyTo(chars);
-        for (var i = Prefix.Length; i < Length; i++)
+        prefix.CopyTo(chars);
+        for (var i = prefix.Length; i < Length; i++)
             chars[i] = StudentCredentials.CodeAlphabet[RandomNumberGenerator.GetInt32(StudentCredentials.CodeAlphabet.Length)];
         return new string(chars);
     }
@@ -327,7 +330,10 @@ public static class LessonCodes
     public static string Normalize(string? input) => StudentCredentials.NormalizeStudentCode(input);
 
     /// <summary>Mã đã chuẩn hóa có đúng hình dạng <c>BH</c> + 6 ký tự của bảng 32 ký tự hay không.</summary>
-    public static bool IsWellFormed(string? normalized) =>
-        normalized is { Length: Length } && normalized.StartsWith(Prefix, StringComparison.Ordinal)
-        && normalized.AsSpan(Prefix.Length).IndexOfAnyExcept(StudentCredentials.CodeAlphabet) < 0;
+    public static bool IsWellFormed(string? normalized) => HasShape(normalized, Prefix);
+
+    /// <summary>Mã đã chuẩn hóa dài 8 ký tự, bắt đầu bằng <paramref name="prefix"/>, phần còn lại thuộc bảng 32 ký tự.</summary>
+    public static bool HasShape(string? normalized, string prefix) =>
+        normalized is { Length: Length } && normalized.StartsWith(prefix, StringComparison.Ordinal)
+        && normalized.AsSpan(prefix.Length).IndexOfAnyExcept(StudentCredentials.CodeAlphabet) < 0;
 }

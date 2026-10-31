@@ -17,8 +17,11 @@ public static class RecommendationRules
     /// <summary>Di sản "nên ôn" của lớp: tỉ lệ sai từ 40%.</summary>
     public const decimal ClassWrongRatio = 0.4m;
 
-    /// <summary>Di sản "nên ôn" của lớp: ít nhất 10 câu trả lời.</summary>
+    /// <summary>Di sản "nên ôn" của lớp: ít nhất 10 câu trả lời khi tính trên nhiều bài kiểm tra.</summary>
     public const int ClassMinAnswers = 10;
+
+    /// <summary>Gợi ý riêng của một bài kiểm tra: một bài có ít câu nên chỉ cần có câu trả lời là xét, để khớp với kết quả của chính bài đó.</summary>
+    public const int QuizMinAnswers = 1;
 
     /// <summary>Bài học "nên ôn lại" của em: tỉ lệ đúng dưới 50% ở các di sản của bài.</summary>
     public const decimal ReviewLessonRatio = AttemptRules.MidRatio;
@@ -51,9 +54,11 @@ public static class RecommendationRules
     /// <summary>Tỉ lệ sai của lớp ở một di sản: số câu sai hoặc bỏ trống chia tổng số câu trả lời; 0 khi chưa có câu nào.</summary>
     public static decimal WrongRatio(int wrong, int answered) => answered <= 0 ? 0m : (decimal)wrong / answered;
 
-    /// <summary>Di sản nên ôn của lớp: tỉ lệ sai từ 40% và có ít nhất 10 câu trả lời.</summary>
-    public static bool ClassShouldReview(int wrong, int answered) =>
-        answered >= ClassMinAnswers && WrongRatio(wrong, answered) >= ClassWrongRatio;
+    /// <summary>
+    /// Di sản nên ôn của lớp: tỉ lệ sai từ 40% và có ít nhất 10 câu trả lời; xem riêng một bài kiểm tra (<paramref name="singleQuiz"/>) thì chỉ cần có câu trả lời.
+    /// </summary>
+    public static bool ClassShouldReview(int wrong, int answered, bool singleQuiz = false) =>
+        answered >= (singleQuiz ? QuizMinAnswers : ClassMinAnswers) && WrongRatio(wrong, answered) >= ClassWrongRatio;
 
     /// <summary>Phần trăm nguyên (làm tròn nửa lên) để ghi vào câu lý do của lớp.</summary>
     public static int WholePercent(int part, int whole) => whole <= 0 ? 0 : (int)Math.Round(part * 100m / whole, 0, MidpointRounding.AwayFromZero);

@@ -145,8 +145,8 @@ public static class DatabaseInitializer
             Name = Plan.FreePlanName,
             Price = 0m,
             DurationDays = section.GetValue("DurationDays", 30),
-            MaxTeachers = section.GetValue("MaxTeachers", 2),
-            MaxAiRequests = section.GetValue("MaxAiRequests", 20),
+            MaxTeachers = section.GetValue("MaxTeachers", 3),
+            MaxAiRequests = section.GetValue("MaxAiRequests", 50),
             IsActive = true,
         };
         db.Plans.Add(plan);

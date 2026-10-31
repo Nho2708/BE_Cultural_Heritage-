@@ -15,6 +15,17 @@ public sealed class BillingRulesTests
         Assert.Equal(expected, BillingRules.Classify(current, next));
 
     [Fact]
+    public void The_upgrade_note_only_mentions_refunds_when_a_paid_plan_is_replaced()
+    {
+        var free = new DSVHVN.Domain.Billing.Plan { Name = "Miễn phí", Price = 0m };
+        var basic = new DSVHVN.Domain.Billing.Plan { Name = "Cơ bản", Price = 500_000m };
+
+        Assert.DoesNotContain("hoàn", DSVHVN.Application.Billing.BillingMessages.EffectOf(PurchaseKind.UPGRADE, null, free));
+        Assert.Equal("Gói mới có hiệu lực ngay. Nâng cấp không hoàn tiền hoặc khấu trừ thời gian chưa dùng của gói Cơ bản hiện tại.",
+            DSVHVN.Application.Billing.BillingMessages.EffectOf(PurchaseKind.UPGRADE, null, basic));
+    }
+
+    [Fact]
     public void Start_date_is_today_unless_an_unexpired_plan_must_run_out_first_and_upgrades_always_start_today()
     {
         var today = new DateOnly(2026, 10, 8);

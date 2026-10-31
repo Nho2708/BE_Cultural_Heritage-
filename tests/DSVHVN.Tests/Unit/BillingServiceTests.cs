@@ -85,7 +85,7 @@ public sealed class BillingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Quote_for_an_upgrade_says_the_old_plan_ends_without_refund()
+    public async Task Quote_for_an_upgrade_from_the_free_plan_says_it_ends_and_old_ai_requests_do_not_carry_over()
     {
         var (_, actor) = await _b.NewOrgAsync();
 
@@ -93,7 +93,7 @@ public sealed class BillingServiceTests : IDisposable
 
         Assert.Equal(PurchaseKind.UPGRADE, quote.Kind);
         Assert.Equal("Trường sẽ thanh toán 1.990.000 đồng cho gói Nâng cao qua VNPay. " +
-                     "Gói mới có hiệu lực ngay, gói hiện tại kết thúc và không được hoàn phần chưa dùng. Tiếp tục?", quote.Confirmation);
+                     "Gói mới có hiệu lực ngay. Gói Miễn phí sẽ kết thúc ngay khi gói mới có hiệu lực (không cộng dồn lượt AI cũ). Tiếp tục?", quote.Confirmation);
         Assert.Equal((Day, Day.AddDays(364)), (quote.ExpectedStartDate, quote.ExpectedEndDate));
     }
 

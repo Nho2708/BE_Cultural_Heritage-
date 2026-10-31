@@ -12,7 +12,7 @@ namespace DSVHVN.Application.Attempts;
 /// <summary>
 /// Làm bài kiểm tra của học sinh (web học tập và chế độ Học sinh của app dùng chung một lượt, gắn với tài khoản).
 /// <list type="bullet">
-/// <item>Vào quiz từ trang bài học đã mở bằng mã, không có mã quiz và không nhập mã lần hai. Chỉ tạo lượt khi: em còn hoạt động, bài học của quiz
+/// <item>Vào quiz từ trang bài học đã mở bằng mã, hoặc vào thẳng bằng mã bài kiểm tra; không nhập mã lần hai. Chỉ tạo lượt khi: em còn hoạt động, bài học của quiz
 /// đang Đã xuất bản và thuộc lớp của em, quiz đang mở (đã tới giờ mở, chưa tới giờ đóng) và em chưa có lượt. Gói của trường hết hạn không chặn.</item>
 /// <item>Mỗi em một lượt mỗi quiz: ràng buộc không trùng chặn cả hai yêu cầu bắt đầu gửi đồng thời; đã có lượt đang làm thì vào tiếp đúng lượt đó
 /// (giờ vẫn tính từ lúc bắt đầu), đã nộp thì chỉ xem kết quả.</item>
