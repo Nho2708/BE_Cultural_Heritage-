@@ -127,6 +127,21 @@ jobs:
           mkdir -p artifacts
           dotnet ef migrations script --idempotent -o artifacts/migrations.sql $EF_ARGS
 
+      # Lúc triển khai, sqlcmd chạy script này trên CSDL đã có các migration trước. SQL Server dịch cả lô một lượt nên câu dùng cột mới trong cùng migration
+      # sẽ hỏng, dù database update và script trên CSDL trống vẫn chạy được. Vì vậy phải thử từ migration ngay trước migration mới nhất.
+      - name: Run the idempotent script like a deployment, from the previous migration
+        env:
+          ConnectionStrings__Default: Server=localhost,1433;Database=dsvhvn_ci_script;User Id=sa;Password=Ci_Only_Pa55word!;TrustServerCertificate=True;Encrypt=True
+        run: |
+          truoc=$(ls src/DSVHVN.Infrastructure/Persistence/Migrations/*.cs | grep -v -e Designer -e ModelSnapshot | sort | tail -2 | head -1 | xargs basename | sed 's/.cs$//')
+          dotnet ef database update "$truoc" $EF_ARGS
+          ma=$(docker ps -q --filter ancestor=mcr.microsoft.com/mssql/server:2019-latest)
+          docker cp artifacts/migrations.sql "$ma:/tmp/migrations.sql"
+          docker exec "$ma" bash -c '
+            s=/opt/mssql-tools18/bin/sqlcmd; c=-C
+            [ -x "$s" ] || { s=/opt/mssql-tools/bin/sqlcmd; c=; }
+            SQLCMDPASSWORD="Ci_Only_Pa55word!" "$s" $c -S localhost -U sa -b -I -f 65001 -d dsvhvn_ci_script -i /tmp/migrations.sql > /dev/null'
+
       - uses: actions/upload-artifact@v7
         with:
           name: migrations-sql
