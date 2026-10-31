@@ -51,6 +51,7 @@ public sealed class StudentLearningService(IAppDbContext db, AttemptLifecycle li
         }).ToList();
 
         var lessonsWithAttempts = db.Attempts.Where(a => a.StudentId == student.Id).Select(a => a.Quiz!.LessonId);
+        var openedLessons = db.LessonVisits.Where(v => v.StudentId == student.Id).Select(v => v.LessonId);
         var openQuizzes = await db.Quizzes.AsNoTracking()
             .Where(q => q.DeletedAt == null && q.Status == QuizStatus.PUBLISHED
                         && (q.OpenAt == null || q.OpenAt <= now) && (q.CloseAt == null || q.CloseAt > now)
@@ -61,7 +62,7 @@ public sealed class StudentLearningService(IAppDbContext db, AttemptLifecycle li
             .Select(q => new
             {
                 q.Id, q.Name, q.LessonId, LessonTitle = q.Lesson!.Title, q.OpenAt, q.CloseAt, q.TimeLimitMinutes, Questions = q.Questions.Count,
-                NeedsCode = !lessonsWithAttempts.Contains(q.LessonId),
+                NeedsCode = !lessonsWithAttempts.Contains(q.LessonId) && !openedLessons.Contains(q.LessonId),
             })
             .ToListAsync(ct);
 
@@ -71,16 +72,20 @@ public sealed class StudentLearningService(IAppDbContext db, AttemptLifecycle li
             .ToListAsync(ct);
         var finished = attempts.Where(a => a.Status != AttemptStatus.IN_PROGRESS).OrderByDescending(a => a.SubmittedAt).ThenByDescending(a => a.Id).ToList();
 
-        var lessonIds = attempts.Select(a => a.LessonId).Distinct().ToList();
+        // Bài học của em: bài em đã làm bài kiểm tra hoặc đã mở bằng mã, kể cả bài chưa có bài kiểm tra. Bài chỉ mở mà nay không còn xuất bản thì thôi không hiện.
+        var visits = await db.LessonVisits.AsNoTracking().Where(v => v.StudentId == student.Id).Select(v => new { v.LessonId, v.LastOpenedAt }).ToListAsync(ct);
+        var lessonIds = attempts.Select(a => a.LessonId).Concat(visits.Select(v => v.LessonId)).Distinct().ToList();
         var lessons = await db.Lessons.AsNoTracking().Where(l => lessonIds.Contains(l.Id) && l.DeletedAt == null)
-            .Select(l => new { l.Id, l.Title, l.AccessCode,
+            .Select(l => new { l.Id, l.Title, l.AccessCode, l.Status,
                 Published = db.Quizzes.Count(q => q.LessonId == l.Id && q.DeletedAt == null && (q.Status == QuizStatus.PUBLISHED || q.Status == QuizStatus.CLOSED)) })
             .ToListAsync(ct);
         var myLessons = lessons
+            .Where(l => l.Status == ContentStatus.PUBLISHED || attempts.Any(a => a.LessonId == l.Id))
             .Select(l => new StudentLessonRefDto(
                 l.Id, l.Title, l.AccessCode,
                 finished.Where(a => a.LessonId == l.Id).Select(a => a.QuizId).Distinct().Count(), l.Published,
-                attempts.Where(a => a.LessonId == l.Id).Max(a => a.SubmittedAt ?? a.StartedAt)))
+                attempts.Where(a => a.LessonId == l.Id).Select(a => a.SubmittedAt ?? a.StartedAt)
+                    .Concat(visits.Where(v => v.LessonId == l.Id).Select(v => (DateTime?)v.LastOpenedAt)).Max()))
             .OrderByDescending(l => l.LastAttemptAt).ThenBy(l => l.LessonId)
             .Take(MyLessonLimit).ToList();
 

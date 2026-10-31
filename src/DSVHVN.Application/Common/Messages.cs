@@ -281,15 +281,20 @@ public static class Messages
     // ---- Bài kiểm tra của bài học ----
 
     /// <summary>
-    /// Xác nhận trước khi phát hành và lời báo sau khi phát hành: danh sách câu và điểm bị khóa, học sinh lớp làm bài qua mã bài học trong khoảng giờ mở và đóng.
+    /// Xác nhận trước khi phát hành và lời báo sau khi phát hành: danh sách câu và điểm bị khóa, học sinh lớp vào bài bằng mã bài kiểm tra hoặc mã bài học
+    /// trong khoảng giờ mở và đóng; bài cấp 1 không đặt giờ thì làm được ngay.
     /// </summary>
     public static string QuizPublishNotice(string className, string quizName, string? lessonCode, DateTime? openAt, DateTime? closeAt) =>
-        $"Sau khi phát hành, danh sách câu hỏi và điểm sẽ bị khóa. Học sinh lớp {className} làm được bài kiểm tra \"{quizName}\" " +
-        $"qua mã bài học {lessonCode ?? "của bài"} từ {Domain.Rules.QuizRules.FormatVietnamTime(openAt)} đến {Domain.Rules.QuizRules.FormatVietnamTime(closeAt)}.";
+        $"Sau khi phát hành, danh sách câu hỏi và điểm sẽ bị khóa và bài có mã bài kiểm tra riêng. Học sinh lớp {className} làm được bài kiểm tra \"{quizName}\" " +
+        $"bằng mã đó hoặc qua mã bài học {lessonCode ?? "của bài"} {QuizWindowText(openAt, closeAt)}.";
 
-    public static AppMessage QuizPublished(string className, string quizName, string? lessonCode, DateTime? openAt, DateTime? closeAt) =>
-        new(MessageCodes.QuizPublished, $"Đã phát hành bài kiểm tra \"{quizName}\". Học sinh lớp {className} làm bài qua mã bài học {lessonCode ?? "của bài"} " +
-            $"từ {Domain.Rules.QuizRules.FormatVietnamTime(openAt)} đến {Domain.Rules.QuizRules.FormatVietnamTime(closeAt)}.");
+    public static AppMessage QuizPublished(string className, string quizName, string? quizCode, string? lessonCode, DateTime? openAt, DateTime? closeAt) =>
+        new(MessageCodes.QuizPublished, $"Đã phát hành bài kiểm tra \"{quizName}\". Học sinh lớp {className} làm bài bằng mã {quizCode} (hoặc qua mã bài học {lessonCode ?? "của bài"}) " +
+            $"{QuizWindowText(openAt, closeAt)}.");
+
+    private static string QuizWindowText(DateTime? openAt, DateTime? closeAt) => openAt is null && closeAt is null
+        ? "ngay sau khi phát hành, tới khi thầy cô đóng bài"
+        : $"từ {Domain.Rules.QuizRules.FormatVietnamTime(openAt)} đến {Domain.Rules.QuizRules.FormatVietnamTime(closeAt)}";
 
     public static AppMessage QuizClosed(string quizName, int expiredAttempts) => new(MessageCodes.QuizClosed, expiredAttempts == 0
         ? $"Đã đóng bài kiểm tra \"{quizName}\"."

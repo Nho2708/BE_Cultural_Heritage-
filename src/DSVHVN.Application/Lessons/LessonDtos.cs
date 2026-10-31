@@ -247,7 +247,7 @@ public sealed record StudentLayoutDto(string Layout, bool SequentialFlow, IReadO
 
 /// <summary>
 /// Bài học theo luồng của cấp lớp em: tiêu đề, lớp, giáo viên (không thông tin liên hệ), nội dung, ý chính, các phần theo khung của cấp,
-/// thẻ di sản đang xuất bản và danh sách bài kiểm tra kèm trạng thái với em.
+/// thẻ di sản đang xuất bản và danh sách bài kiểm tra kèm trạng thái với em. <see cref="FocusQuizId"/> có giá trị khi em gõ mã bài kiểm tra: giao diện vào thẳng bài đó.
 /// </summary>
 public sealed record StudentLessonDto(
     long Id,
@@ -262,7 +262,8 @@ public sealed record StudentLessonDto(
     IReadOnlyList<string> KeyPoints,
     IReadOnlyList<StudentSectionDto> Sections,
     IReadOnlyList<StudentHeritageCardDto> Heritages,
-    IReadOnlyList<StudentQuizDto> Quizzes);
+    IReadOnlyList<StudentQuizDto> Quizzes,
+    long? FocusQuizId = null);
 
 /// <summary>
 /// Xem thử của giáo viên ("Xem như học sinh"): đúng bài học như học sinh lớp đó thấy, kèm trạng thái hiện tại của bài (Nháp, Đã xuất bản, Lưu trữ)

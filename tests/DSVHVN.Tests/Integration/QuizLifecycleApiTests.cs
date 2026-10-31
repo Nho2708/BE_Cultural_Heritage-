@@ -38,7 +38,7 @@ public sealed class QuizLifecycleApiTests(ApiFactory factory) : IClassFixture<Ap
         var ready = await _k.ReadyQuizAsync(s, "Kiểm tra 15 phút", questions: 3);
         Assert.True(ready.Readiness.IsReady);
         Assert.True(ready.Access.CanPublish);
-        Assert.StartsWith("Sau khi phát hành, danh sách câu hỏi và điểm sẽ bị khóa.", ready.PublishNotice);
+        Assert.StartsWith("Sau khi phát hành, danh sách câu hỏi và điểm sẽ bị khóa và bài có mã bài kiểm tra riêng.", ready.PublishNotice);
         Assert.Contains($"mã bài học {s.AccessCode}", ready.PublishNotice);
 
         var result = await _k.PublishAsync(s.Token, ready.Id);
@@ -48,7 +48,7 @@ public sealed class QuizLifecycleApiTests(ApiFactory factory) : IClassFixture<Ap
         Assert.NotNull(quiz.PublishedAt);
         Assert.Equal(QuizOpenState.NOT_OPEN, quiz.OpenState);
         Assert.True(quiz.Access is { CanEditSettings: false, CanEditQuestions: false, CanDelete: false, CanPublish: false, CanClose: true, CanEditCloseTime: true, CanDuplicate: true });
-        Assert.Equal($"Đã phát hành bài kiểm tra \"Kiểm tra 15 phút\". Học sinh lớp {quiz.ClassName} làm bài qua mã bài học {s.AccessCode} từ {QuizRules.FormatVietnamTime(quiz.OpenAt)} đến {QuizRules.FormatVietnamTime(quiz.CloseAt)}.",
+        Assert.Equal($"Đã phát hành bài kiểm tra \"Kiểm tra 15 phút\". Học sinh lớp {quiz.ClassName} làm bài bằng mã {quiz.AccessCode} (hoặc qua mã bài học {s.AccessCode}) từ {QuizRules.FormatVietnamTime(quiz.OpenAt)} đến {QuizRules.FormatVietnamTime(quiz.CloseAt)}.",
             result.Message);
 
         var stored = await factory.WithDbAsync(db => db.Quizzes.AsNoTracking().SingleAsync(x => x.Id == ready.Id));

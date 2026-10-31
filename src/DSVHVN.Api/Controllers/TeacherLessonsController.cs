@@ -3,6 +3,7 @@ using DSVHVN.Api.Security;
 using DSVHVN.Application.Billing;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
+using DSVHVN.Application.Notifications;
 using DSVHVN.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +19,7 @@ namespace DSVHVN.Api.Controllers;
 [Authorize(Policy = Policies.Teacher)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
-public sealed class TeacherLessonsController(LessonService lessons, LessonAiService ai, StudentLessonService studentView) : ApiControllerBase
+public sealed class TeacherLessonsController(LessonService lessons, LessonAiService ai, StudentLessonService studentView, StudentNotificationService notifications) : ApiControllerBase
 {
     /// <summary>Danh sách bài học của giáo viên ở mọi lớp: tiêu đề, lớp, di sản, trạng thái, mã bài học, số bài kiểm tra. Lọc theo lớp, trạng thái, loại di sản, độ khó (EASY, MEDIUM, HARD), từ khóa trong tiêu đề. Độ khó không lưu: là mức khó chiếm nhiều câu nhất trong các bài kiểm tra của bài (hòa thì lấy mức cao hơn); bài chưa có bài kiểm tra nào có câu hiện "Chưa có bài kiểm tra" và không khớp bộ lọc nào.</summary>
     [HttpGet]
@@ -102,6 +103,21 @@ public sealed class TeacherLessonsController(LessonService lessons, LessonAiServ
     public async Task<ActionResult<ApiResponse<PublishLessonResultDto>>> Publish(long lessonId, CancellationToken ct)
     {
         var result = await lessons.PublishAsync(CurrentActor, lessonId, ct);
+        return OkEnvelope(result, result.Message);
+    }
+
+    /// <summary>
+    /// Gửi thông báo cho cả lớp về bài đã xuất bản (giao bài về nhà): em thấy ở nút Thông báo và mở bài ngay, không phải gõ mã. Lời nhắn tùy chọn, tối đa 500 ký tự.
+    /// Bài chưa xuất bản hoặc lớp chưa có học sinh là 422.
+    /// </summary>
+    [HttpPost("{lessonId:long}/notify-class")]
+    [ProducesResponseType<ApiResponse<NotifyClassResultDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<ApiResponse<NotifyClassResultDto>>> NotifyClass(long lessonId, NotifyClassRequest request, CancellationToken ct)
+    {
+        var result = await notifications.NotifyLessonAsync(CurrentActor, lessonId, request, ct);
         return OkEnvelope(result, result.Message);
     }
 

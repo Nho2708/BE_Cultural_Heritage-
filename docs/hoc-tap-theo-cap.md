@@ -49,7 +49,7 @@ Khuôn phản hồi chung `{ success, data, message, errorCode, traceId, errors 
 
 ## 3. Bắt đầu, một lượt, hạn nộp, tự nộp
 
-- **Điều kiện tạo lượt:** em còn hoạt động; quiz đã phát hành, chưa xóa, thuộc bài học chưa xóa **của lớp em**; bài học đang **Đã xuất bản**; quiz đang mở (`openAt` ≤ bây giờ < `closeAt`); em chưa có lượt. Quiz nháp, của lớp khác hoặc của bài học không xuất bản (khi em chưa có lượt) trả 404. Không có mã quiz và không nhập mã lần hai.
+- **Điều kiện tạo lượt:** em còn hoạt động; quiz đã phát hành, chưa xóa, thuộc bài học chưa xóa **của lớp em**; bài học đang **Đã xuất bản**; quiz đang mở (`openAt` ≤ bây giờ < `closeAt`; chưa đặt giờ thì không giới hạn phía đó, như bài chơi cấp 1); em chưa có lượt. Quiz nháp, của lớp khác hoặc của bài học không xuất bản (khi em chưa có lượt) trả 404. Không có mã quiz và không nhập mã lần hai.
 - **Một lượt mỗi em mỗi quiz:** ràng buộc `UX_attempts_quiz_student` chặn cả hai yêu cầu bắt đầu gửi đồng thời; yêu cầu thua thấy lượt của yêu cầu thắng (200). Web học tập và app dùng chung lượt vì lượt gắn với **tài khoản**.
 - **Hạn nộp** = `started_at` + thời gian làm, nhưng không muộn hơn `close_at`; quiz không giới hạn thời gian thì hạn nộp là `close_at`. Lớp **cấp 1 không có thời gian làm** dù quiz còn giữ giá trị cũ (lớp đổi cấp): hạn nộp là giờ đóng.
   Đồng hồ: cấp 1 không; cấp 2 khi quiz đặt thời gian làm; cấp 3 luôn có (đếm tới hạn nộp). `showsClock` cho giao diện biết.
@@ -147,3 +147,9 @@ Thẻ đã có trước (mới nhất trước), thẻ chưa có sau theo thứ 
 Mỗi câu `{ questionId, questionType, content, imageUrl, options[], correctIndex, explanation, heritageName, lessonTitle }`; thẻ chọn hình xáo tất định theo mã học sinh và mã câu (`correctIndex` theo thứ tự đã xáo), Đúng/Sai giữ "Đúng", "Sai". Chỉ đọc, không lưu gì, không tính sao; em chưa nộp bài nào thì `questions` rỗng.
 
 **Kiểm thử:** `AttemptRulesTests`, `AlbumRulesTests`, `PasswordPolicyTests`, `StudentRulesTests` (quy tắc thuần); `LevelOnePracticeApiTests` (kiểm từng câu, kết quả), `LevelOnePathApiTests` (trang học, ghi bài đã học xong, album, bước Nhớ lại), `LevelOnePasswordApiTests` (mật khẩu đơn giản, phiếu, đổi mật khẩu), `LevelOnePracticeSqlServerTests` (kiểu cột, ràng buộc, các yêu cầu đồng thời trên LocalDB).
+
+## 10. Bài học của em và thông báo
+
+- **Bài học của em** gồm bài em đã mở bằng mã (bảng `lesson_visits`, mỗi em mỗi bài một dòng, mở lại cập nhật `last_opened_at`) và bài đã có lượt làm bài, nên bài chưa có bài kiểm tra không bị mất khỏi trang học. Bài chỉ mở mà nay không còn xuất bản thì không hiện. Em đã mở bài thì bài kiểm tra của bài không còn nhãn "Cần mã bài học".
+- **Thông báo:** thầy cô bấm "Gửi thông báo cho lớp" ở bài học đã xuất bản (`POST /teacher/lessons/{id}/notify-class`) hoặc bài kiểm tra đang phát hành (`POST /teacher/quizzes/{id}/notify-class`), lời nhắn tùy chọn tối đa 500 ký tự. Mỗi em còn hoạt động trong lớp nhận một dòng ở bảng `student_notifications`.
+- Em xem ở nút Thông báo: `GET /student/notifications` (mới nhất trước, kèm `unreadCount`, có mã bài học để mở ngay), `POST /student/notifications/{id}/read`, `POST /student/notifications/read-all`. Thông báo của bài không còn xuất bản không hiện.

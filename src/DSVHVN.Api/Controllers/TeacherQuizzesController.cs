@@ -1,6 +1,7 @@
 using DSVHVN.Api.Common;
 using DSVHVN.Api.Security;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Notifications;
 using DSVHVN.Application.Quizzes;
 using DSVHVN.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -10,14 +11,14 @@ namespace DSVHVN.Api.Controllers;
 
 /// <summary>
 /// Khu Giáo viên: bài kiểm tra của bài học (màn hình Bài kiểm tra của tôi, Soạn và phát hành bài kiểm tra, Chọn câu từ ngân hàng). Bài kiểm tra gắn một bài
-/// học của chính giáo viên; lớp làm bài là lớp của bài học và không có mã riêng (học sinh vào bằng mã bài học). Giáo viên chỉ thấy và sửa bài kiểm tra do chính
+/// học của chính giáo viên; lớp làm bài là lớp của bài học; phát hành lần đầu thì sinh mã bài kiểm tra (KT + 6 ký tự) để học sinh vào thẳng, mã bài học vẫn mở được. Giáo viên chỉ thấy và sửa bài kiểm tra do chính
 /// mình tạo; bài của giáo viên khác hoặc trường khác trả 404. Quản trị trường, quản trị hệ thống và học sinh nhận 403.
 /// </summary>
 [Route("api/v1/teacher/quizzes")]
 [Authorize(Policy = Policies.Teacher)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
-public sealed class TeacherQuizzesController(QuizService quizzes) : ApiControllerBase
+public sealed class TeacherQuizzesController(QuizService quizzes, StudentNotificationService notifications) : ApiControllerBase
 {
     /// <summary>
     /// Danh sách bài kiểm tra của giáo viên: tên, bài học, lớp, trạng thái (Nháp, Đang phát hành, Đã đóng), giờ mở và đóng, số câu, tổng điểm, số đã nộp trên sĩ số.
@@ -42,6 +43,21 @@ public sealed class TeacherQuizzesController(QuizService quizzes) : ApiControlle
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
     public async Task<ActionResult<ApiResponse<QuizDetailDto>>> Create(CreateQuizRequest request, CancellationToken ct)
         => CreatedEnvelope(await quizzes.CreateAsync(CurrentActor, request, ct), Messages.Success("Tạo bài kiểm tra").Text);
+
+    /// <summary>
+    /// Gửi thông báo cho cả lớp về bài đang phát hành và chưa hết hạn nhận bài: em thấy ở nút Thông báo và vào bài ngay. Lời nhắn tùy chọn, tối đa 500 ký tự.
+    /// Bài Nháp, bài đã đóng hoặc lớp chưa có học sinh là 422.
+    /// </summary>
+    [HttpPost("{quizId:long}/notify-class")]
+    [ProducesResponseType<ApiResponse<NotifyClassResultDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<ApiResponse<NotifyClassResultDto>>> NotifyClass(long quizId, NotifyClassRequest request, CancellationToken ct)
+    {
+        var result = await notifications.NotifyQuizAsync(CurrentActor, quizId, request, ct);
+        return OkEnvelope(result, result.Message);
+    }
 
     /// <summary>
     /// Chi tiết để soạn: thiết lập, lớp và cấp của bài, quy tắc thời gian làm theo cấp, các câu theo thứ tự (câu không còn dùng được kèm lý do), tổng điểm,

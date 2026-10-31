@@ -95,7 +95,7 @@ Trường **không có gói hiệu lực** thì chặn **tạo bài**, **nhân b
 
 - Dạng `BH` + 6 ký tự lấy ngẫu nhiên bằng bộ sinh số an toàn từ 32 ký tự **không có 0, O, 1, I** (ví dụ `BH7F3K2Q`), khoảng một tỉ tổ hợp.
 - **Sinh ở lần xuất bản đầu**; bài Nháp chưa có mã. Mã **giữ nguyên** khi sửa bài, khi lưu trữ rồi xuất bản lại. Không có chức năng đổi mã. Bài nhân bản có mã riêng khi được xuất bản.
-- **Một mã mở cả bài học lẫn mọi bài kiểm tra** của bài; không có mã bài kiểm tra riêng.
+- **Mã bài học mở bài học và từ đó vào mọi bài kiểm tra** của bài; mỗi bài kiểm tra còn có mã riêng (`KT` + 6 ký tự) để vào thẳng, xem `bai-kiem-tra.md`.
 - Không trùng toàn hệ thống, **kể cả mã của bài đã xóa mềm** (không cấp lại): ràng buộc `UX_lessons_access_code` (UNIQUE có lọc `access_code IS NOT NULL`, không lọc xóa mềm).
   Sinh trùng thì thử mã khác, tối đa 5 lần; vẫn trùng thì báo lỗi hệ thống (500) và ghi log, bài giữ nguyên là Nháp.
 - Các lần xuất bản của cùng một lớp chạy **tuần tự** (khóa dòng lớp trong giao dịch), nên bấm xuất bản nhiều lần cùng lúc chỉ sinh một mã.

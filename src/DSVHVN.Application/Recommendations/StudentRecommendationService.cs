@@ -40,6 +40,7 @@ public sealed class StudentRecommendationService(IAppDbContext db, AttemptLifecy
             .Select(a => new { a.QuizId, a.Quiz!.LessonId, a.Status })
             .ToListAsync(ct);
         var attemptedLessons = attempts.Select(a => a.LessonId).ToHashSet();
+        var openedLessons = (await db.LessonVisits.AsNoTracking().Where(v => v.StudentId == student.Id).Select(v => v.LessonId).ToListAsync(ct)).ToHashSet();
         var attemptedQuizzes = attempts.Select(a => a.QuizId).ToHashSet();
         var finishedLessons = attempts.Where(a => a.Status != AttemptStatus.IN_PROGRESS).Select(a => a.LessonId).ToHashSet();
         // Em chưa có lượt nào: quiz nên làm tiếp và bài học mới xếp theo mức khó mục tiêu theo cấp trước (quy tắc gợi ý cá nhân hóa cho học sinh).
@@ -88,7 +89,7 @@ public sealed class StudentRecommendationService(IAppDbContext db, AttemptLifecy
             .Take(RecommendationRules.StudentSectionLimit)
             .Select(x =>
             {
-                var needsCode = !attemptedLessons.Contains(x.Quiz.LessonId);
+                var needsCode = !attemptedLessons.Contains(x.Quiz.LessonId) && !openedLessons.Contains(x.Quiz.LessonId);
                 var reason = x.Weak > 0 ? RecommendationRules.WeakQuizReason(student.Level, x.Weak)
                     : x.Quiz.CloseAt is { } close && close - now <= RecommendationRules.ClosingSoon ? RecommendationRules.ClosingSoonReason(close, now)
                     : RecommendationRules.OpenQuizReason;

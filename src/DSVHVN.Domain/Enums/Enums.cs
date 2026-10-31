@@ -121,6 +121,13 @@ public enum ReviewStatus
     REJECTED,
 }
 
+/// <summary><c>student_notifications.kind</c>: thông báo về một bài học hay một bài kiểm tra.</summary>
+public enum StudentNotificationKind
+{
+    LESSON,
+    QUIZ,
+}
+
 /// <summary><c>quizzes.status</c>: đang soạn, đã phát hành (khóa sửa câu hỏi), đã đóng.</summary>
 public enum QuizStatus
 {

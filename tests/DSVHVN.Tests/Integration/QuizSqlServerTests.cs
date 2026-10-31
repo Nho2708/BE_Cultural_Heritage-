@@ -28,7 +28,7 @@ public sealed class QuizSqlServerTests(SqlServerApiFactory factory) : IClassFixt
 
         Assert.Equal(new[]
         {
-            "id bigint NOT NULL", "lesson_id bigint NOT NULL", "created_by bigint NOT NULL", "name nvarchar NULL", "description nvarchar NULL",
+            "id bigint NOT NULL", "lesson_id bigint NOT NULL", "created_by bigint NOT NULL", "name nvarchar NULL", "description nvarchar NULL", "access_code nvarchar NULL",
             "difficulty_level nvarchar NULL", "time_limit_minutes int NULL", "open_at datetime2 NULL", "close_at datetime2 NULL",
             "shuffle_questions bit NOT NULL", "show_answers_after_submit bit NOT NULL", "total_point decimal NULL", "status nvarchar NULL",
             "published_at datetime2 NULL", "created_at datetime2 NULL", "updated_at datetime2 NULL", "deleted_at datetime2 NULL",

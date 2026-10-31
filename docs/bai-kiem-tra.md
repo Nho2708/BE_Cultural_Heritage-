@@ -3,7 +3,9 @@
 Phần backend của khu **Bài kiểm tra** của giáo viên (web quản trị): giáo viên tạo bài kiểm tra cho một bài học của mình, chọn câu từ ngân hàng (đúng cấp của lớp), đặt điểm,
 thứ tự, thời gian làm, giờ mở và giờ đóng, xáo câu, cho xem đáp án sau khi nộp; **phát hành** để khóa danh sách câu; **đóng** khi muốn dừng nhận bài; **nhân bản** để đổi câu hoặc dùng lại.
 Luồng này cũng làm hai việc ở phía bài học: **nhân bản bài học kèm bài kiểm tra** sang lớp khác và **lọc bài học theo độ khó** (tính từ các câu trong bài kiểm tra).
-Bài kiểm tra **không có mã riêng**: học sinh của lớp mở bài kiểm tra qua **mã bài học**, đã có từ luồng bài học.
+Phát hành lần đầu sinh **mã bài kiểm tra** (`KT` + 6 ký tự, cùng bảng chữ với mã bài học, cột `quizzes.access_code`, UNIQUE có lọc, nhân bản không chép mã): em gõ mã này ở ô nhập mã để vào thẳng bài kiểm tra; `GET /student/lessons/{code}` trả bài học chứa bài đó kèm `focusQuizId`. Mã sai hoặc của lớp khác trả cùng một thông báo và tính vào giới hạn nhập sai như mã bài học. **Mã bài học** vẫn mở bài học và từ đó vào được mọi bài kiểm tra của bài.
+
+Lớp **cấp 1** không đặt giờ mở và đóng để em không bị áp lực: bài chơi mở ngay khi phát hành và nhận bài tới khi thầy cô đóng. Cấp 2, 3 bắt buộc đặt đủ hai giờ. Giờ nhập theo đồng hồ 24 giờ (12:30 là giữa trưa, 00:30 là nửa đêm).
 
 | Mục | Giá trị |
 |---|---|

@@ -8,7 +8,8 @@ using DSVHVN.Domain.Questions;
 namespace DSVHVN.Domain.Quizzes;
 
 /// <summary>
-/// Bảng <c>quizzes</c>: quiz thuộc một bài học. Học sinh mở quiz bằng mã của bài học; lớp được làm quiz là lớp của bài học.
+/// Bảng <c>quizzes</c>: quiz thuộc một bài học; lớp được làm quiz là lớp của bài học. Học sinh vào quiz từ trang bài học (mở bằng mã bài học) hoặc vào thẳng
+/// bằng mã riêng <see cref="AccessCode"/> của quiz.
 /// </summary>
 public class Quiz : IHasCreatedAt, IHasUpdatedAt, ISoftDeletable
 {
@@ -23,6 +24,9 @@ public class Quiz : IHasCreatedAt, IHasUpdatedAt, ISoftDeletable
     public string? Name { get; set; }
 
     public string? Description { get; set; }
+
+    /// <summary>Mã bài kiểm tra (KT + 6 ký tự), sinh lúc phát hành lần đầu; quiz Nháp chưa có mã, nhân bản không chép mã.</summary>
+    public string? AccessCode { get; set; }
 
     public DifficultyLevel? DifficultyLevel { get; set; }
 

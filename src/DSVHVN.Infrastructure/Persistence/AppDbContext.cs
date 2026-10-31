@@ -69,6 +69,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
     public DbSet<LessonHeritage> LessonHeritages => Set<LessonHeritage>();
     public DbSet<LessonSection> LessonSections => Set<LessonSection>();
     public DbSet<LessonCompletion> LessonCompletions => Set<LessonCompletion>();
+    public DbSet<LessonVisit> LessonVisits => Set<LessonVisit>();
+    public DbSet<DSVHVN.Domain.Notifications.StudentNotification> StudentNotifications => Set<DSVHVN.Domain.Notifications.StudentNotification>();
     public DbSet<AiGeneration> AiGenerations => Set<AiGeneration>();
 
     // 5. Ngân hàng câu hỏi

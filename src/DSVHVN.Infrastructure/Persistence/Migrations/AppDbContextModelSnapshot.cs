@@ -2045,6 +2045,118 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonVisit", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("FirstOpenedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("first_opened_at");
+
+                    b.Property<DateTime>("LastOpenedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("last_opened_at");
+
+                    b.Property<long>("LessonId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<long>("StudentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("student_id");
+
+                    b.HasKey("Id")
+                        .HasName("PK_lesson_visits");
+
+                    b.HasIndex("LessonId")
+                        .HasDatabaseName("IX_lesson_visits_lesson_id");
+
+                    b.HasIndex("StudentId", "LessonId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_lesson_visits_student_lesson");
+
+                    b.ToTable("lesson_visits", (string)null);
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Notifications.StudentNotification", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(800)
+                        .HasColumnType("nvarchar(800)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("kind");
+
+                    b.Property<long>("LessonId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("lesson_id");
+
+                    b.Property<long?>("QuizId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("quiz_id");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("read_at");
+
+                    b.Property<long>("SentBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sent_by");
+
+                    b.Property<long>("StudentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("student_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id")
+                        .HasName("PK_student_notifications");
+
+                    b.HasIndex("LessonId");
+
+                    b.HasIndex("QuizId");
+
+                    b.HasIndex("SentBy");
+
+                    b.HasIndex("StudentId", "ReadAt")
+                        .HasDatabaseName("IX_student_notifications_student_read");
+
+                    b.ToTable("student_notifications", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_student_notifications_kind", "[kind] IN ('LESSON', 'QUIZ')");
+                        });
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Organizations.Organization", b =>
                 {
                     b.Property<long>("Id")
@@ -2494,6 +2606,11 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("AccessCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("access_code");
+
                     b.Property<DateTime?>("CloseAt")
                         .HasPrecision(3)
                         .HasColumnType("datetime2(3)")
@@ -2574,6 +2691,11 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK_quizzes");
+
+                    b.HasIndex("AccessCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_quizzes_access_code")
+                        .HasFilter("[access_code] IS NOT NULL");
 
                     b.HasIndex("CreatedBy");
 
@@ -3151,6 +3273,65 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("Event");
 
                     b.Navigation("Lesson");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Lessons.LessonVisit", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Lessons.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_lesson_visits_lesson_id");
+
+                    b.HasOne("DSVHVN.Domain.Classes.Student", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_lesson_visits_student_id");
+
+                    b.Navigation("Lesson");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Notifications.StudentNotification", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Lessons.Lesson", "Lesson")
+                        .WithMany()
+                        .HasForeignKey("LessonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_student_notifications_lesson_id");
+
+                    b.HasOne("DSVHVN.Domain.Quizzes.Quiz", "Quiz")
+                        .WithMany()
+                        .HasForeignKey("QuizId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_student_notifications_quiz_id");
+
+                    b.HasOne("DSVHVN.Domain.Identity.User", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SentBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_student_notifications_sent_by");
+
+                    b.HasOne("DSVHVN.Domain.Classes.Student", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_student_notifications_student_id");
+
+                    b.Navigation("Lesson");
+
+                    b.Navigation("Quiz");
+
+                    b.Navigation("Sender");
+
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Questions.Answer", b =>

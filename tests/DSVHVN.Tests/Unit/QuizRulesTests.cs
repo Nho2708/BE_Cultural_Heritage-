@@ -25,6 +25,24 @@ public sealed class QuizRulesTests
     public void A_point_is_above_zero_up_to_one_hundred_in_steps_of_a_quarter(string point, bool valid) =>
         Assert.Equal(valid, QuizRules.IsValidPoint(decimal.Parse(point, System.Globalization.CultureInfo.InvariantCulture)));
 
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(2, true)]
+    [InlineData(3, true)]
+    public void Only_primary_school_quizzes_skip_the_open_and_close_times(int level, bool required) =>
+        Assert.Equal(required, QuizRules.RequiresOpenWindow(level));
+
+    [Fact]
+    public void A_quiz_code_starts_with_KT_and_never_passes_as_a_lesson_code()
+    {
+        var code = QuizCodes.NewCode();
+
+        Assert.True(QuizCodes.IsWellFormed(code));
+        Assert.StartsWith("KT", code);
+        Assert.False(LessonCodes.IsWellFormed(code));
+        Assert.False(QuizCodes.IsWellFormed(LessonCodes.NewCode()));
+    }
+
     [Fact]
     public void The_default_point_and_the_limits_follow_the_rules()
     {

@@ -288,7 +288,7 @@ public sealed record StudentInProgressDto(
     DateTime? Deadline,
     int? RemainingSeconds);
 
-/// <summary>Bài kiểm tra còn mở em chưa làm. <see cref="NeedsLessonCode"/> bật (nhãn "Cần mã bài học") khi em chưa có lượt nào ở bài học này.</summary>
+/// <summary>Bài kiểm tra còn mở em chưa làm. <see cref="NeedsLessonCode"/> bật (nhãn "Cần mã bài học") khi em chưa mở bài học này và chưa có lượt nào ở bài.</summary>
 public sealed record StudentOpenQuizDto(
     long QuizId,
     string? Name,
@@ -301,7 +301,7 @@ public sealed record StudentOpenQuizDto(
     bool NeedsLessonCode,
     string? Label);
 
-/// <summary>Bài học của em, suy từ lượt làm bài (em đã nhập mã); kèm mã để mở lại.</summary>
+/// <summary>Bài học của em: bài em đã mở bằng mã hoặc đã có lượt làm bài, kể cả bài chưa có bài kiểm tra; kèm mã để mở lại.</summary>
 public sealed record StudentLessonRefDto(
     long LessonId,
     string? Title,

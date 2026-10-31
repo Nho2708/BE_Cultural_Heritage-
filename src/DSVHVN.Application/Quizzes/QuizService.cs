@@ -353,6 +353,7 @@ public sealed class QuizService(
             if (!check.IsReady) throw new AppException(422, Messages.NotReady("phát hành bài kiểm tra", check.Missing));
 
             RecalculateTotal(quiz.Questions, quiz);
+            quiz.AccessCode ??= await NewAccessCodeAsync(ct);
             quiz.Status = QuizStatus.PUBLISHED;
             quiz.PublishedAt = Now;
             audit.Record(AuditAction.QUIZ_PUBLISHED, AuditTargets.Quizzes, quiz.Id, actor,
@@ -372,7 +373,7 @@ public sealed class QuizService(
 
         var detail = await GetAsync(actor, quizId, ct);
         var message = published
-            ? Messages.QuizPublished(detail.ClassName ?? string.Empty, detail.Name ?? string.Empty, detail.LessonAccessCode, detail.OpenAt, detail.CloseAt).Text
+            ? Messages.QuizPublished(detail.ClassName ?? string.Empty, detail.Name ?? string.Empty, detail.AccessCode, detail.LessonAccessCode, detail.OpenAt, detail.CloseAt).Text
             : Messages.Success("Phát hành bài kiểm tra").Text;
         return new PublishQuizResultDto(detail, message);
     }
@@ -450,6 +451,17 @@ public sealed class QuizService(
         var result = await body(quiz);
         await tx.CommitAsync(ct);
         return result;
+    }
+
+    /// <summary>Mã bài kiểm tra chưa dùng (kể cả của bài đã xóa: mã không cấp lại). Ràng buộc không trùng chặn nốt trường hợp hai bài cùng sinh một mã.</summary>
+    private async Task<string> NewAccessCodeAsync(CancellationToken ct)
+    {
+        for (var attempt = 1; attempt <= LessonCodes.MaxGenerateAttempts; attempt++)
+        {
+            var code = QuizCodes.NewCode();
+            if (!await db.Quizzes.AnyAsync(q => q.AccessCode == code, ct)) return code;
+        }
+        throw new InvalidOperationException("Không sinh được mã bài kiểm tra không trùng.");
     }
 
     private static void EnsureDraft(Quiz quiz, string action)
