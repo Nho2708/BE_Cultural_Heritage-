@@ -1,0 +1,43 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state "Đang hoạt động" as STUDENT_ACTIVE {
+  state "Chờ đổi mật khẩu" as MUST_CHANGE : must_change_password = 1
+  state "Dùng bình thường" as NORMAL : must_change_password = 0
+  MUST_CHANGE --> NORMAL : Học sinh đổi mật khẩu\nbắt buộc
+  NORMAL --> MUST_CHANGE : Giáo viên đặt lại mật khẩu\n[lớp cấp 2, 3]
+  [*] --> MUST_CHANGE : Giáo viên thêm học sinh vào\nlớp cấp 2, 3 (tạo tài khoản,\nmật khẩu tạm)
+  [*] -right-> NORMAL : Giáo viên thêm học sinh vào\nlớp cấp 1 (tạo tài khoản,\nmật khẩu 6 chữ số)
+  MUST_CHANGE --> NORMAL : Giáo viên đặt lại mật khẩu\n[lớp cấp 1, tài khoản cũ\ncòn bị buộc đổi]
+  NORMAL --> NORMAL : Giáo viên đặt lại mật khẩu [lớp cấp 1:\nmật khẩu 6 chữ số mới,\nkhông buộc đổi]
+}
+STUDENT_ACTIVE : is_active = 1
+state "Bị vô hiệu" as STUDENT_INACTIVE : is_active = 0
+STUDENT_ACTIVE --> STUDENT_INACTIVE : Giáo viên vô hiệu\nhọc sinh [không có\nlượt làm bài dở]
+STUDENT_INACTIVE --> STUDENT_ACTIVE[H] : Giáo viên mở lại\nhọc sinh [lớp chưa\nđủ 60 học sinh\nđang hoạt động]
+STUDENT_ACTIVE --> [*] : Giáo viên xóa học sinh\n[không có lượt làm bài dở]\nhoặc xóa lớp [không còn\nbài kiểm tra đang mở]
+STUDENT_INACTIVE --> [*] : Giáo viên xóa\nhọc sinh hoặc\nxóa lớp
+@enduml

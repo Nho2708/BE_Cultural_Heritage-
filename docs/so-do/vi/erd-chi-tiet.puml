@@ -1,0 +1,660 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+
+skinparam nodesep 20
+skinparam ranksep 40
+skinparam packageStyle rectangle
+skinparam ClassFontSize 12
+skinparam ClassAttributeFontSize 11
+skinparam ClassStereotypeFontSize 11
+skinparam package {
+  FontStyle bold
+  FontSize 14
+  BorderColor #555555
+}
+hide circle
+
+package "Nhóm 1 · Auth / Tổ chức" as pkg_1 #F4F0F7 {
+  entity organizations #E1D5E7 {
+    *id : bigint <<PK>>
+    --
+    *name : nvarchar(255)
+    address : nvarchar(500)
+    phone : nvarchar(20)
+    email : nvarchar(255)
+    created_at : datetime2(3)
+    updated_at : datetime2(3)
+    deleted_at : datetime2(3)
+  }
+  entity roles #E1D5E7 {
+    *id : int <<PK>>
+    --
+    code : nvarchar(50) <<UK>>
+    name : nvarchar(100)
+  }
+  entity users #E1D5E7 {
+    *id : bigint <<PK>>
+    --
+    organization_id : bigint <<FK>>
+    *role_id : int <<FK>>
+    username : nvarchar(100) <<UK>>
+    email : nvarchar(255) <<UK>>
+    password_hash : nvarchar(255)
+    *must_change_password : bit
+    full_name : nvarchar(255)
+    phone : nvarchar(20)
+    avatar_url : nvarchar(500)
+    status : user_status
+    last_login_at : datetime2(3)
+    created_at : datetime2(3)
+    updated_at : datetime2(3)
+    deleted_at : datetime2(3)
+  }
+  entity password_reset_tokens #E1D5E7 {
+    *id : bigint <<PK>>
+    --
+    *user_id : bigint <<FK>>
+    token_hash : nvarchar(255) <<UK>>
+    expires_at : datetime2(3)
+    used_at : datetime2(3)
+    created_at : datetime2(3)
+  }
+  entity audit_logs #E1D5E7 {
+    *id : bigint <<PK>>
+    --
+    *created_at : datetime2(3)
+    user_id : bigint <<FK>>
+    *actor_role : nvarchar(20)
+    *action : nvarchar(50)
+    *target_type : nvarchar(50)
+    target_id : bigint
+    old_value : nvarchar(max)
+    new_value : nvarchar(max)
+    ip_address : nvarchar(45)
+  }
+}
+
+package "Nhóm 2 · Lớp / Học sinh" as pkg_2 #FFEDF6 {
+  entity classes #FFCCE6 {
+    *id : bigint <<PK>>
+    --
+    *organization_id : bigint <<FK>>
+    *teacher_id : bigint <<FK>>
+    name : nvarchar(100)
+    *grade : tinyint
+    school_year : nvarchar(20)
+    created_at : datetime2(3)
+    updated_at : datetime2(3)
+    deleted_at : datetime2(3)
+  }
+  entity students #FFCCE6 {
+    *id : bigint <<PK>>
+    --
+    *class_id : bigint <<FK>>
+    *user_id : bigint <<FK, UK>>
+    student_code : nvarchar(20) <<UK>>
+    full_name : nvarchar(255)
+    *is_active : bit
+    created_at : datetime2(3)
+    updated_at : datetime2(3)
+    deleted_at : datetime2(3)
+  }
+  entity student_notifications #FFCCE6 {
+    *id : bigint <<PK>>
+    --
+    *student_id : bigint <<FK>>
+    *kind : nvarchar(20)
+    *lesson_id : bigint <<FK>>
+    quiz_id : bigint <<FK>>
+    {field} *title : nvarchar(300)
+    *body : nvarchar(800)
+    *sent_by : bigint <<FK>>
+    created_at : datetime2(3)
+    read_at : datetime2(3)
+  }
+}
+
+package "Nhóm 3 · Di sản" as pkg_3 #F0F7F0 {
+  entity provinces #D5E8D4 {
+    *id : int <<PK>>
+    --
+    code : nvarchar(10) <<UK>>
+    name : nvarchar(100)
+    region : nvarchar(50)
+  }
+  entity heritages #D5E8D4 {
+    *id : bigint <<PK>>
+    --
+    province_id : int <<FK>>
+    name : nvarchar(255)
+    slug : nvarchar(255) <<UK>>
+    short_description : nvarchar(1000)
+    content : nvarchar(max)
+    heritage_type : heritage_type
+    recognition_level : recognition_level
+    recognized_year : int
+    address : nvarchar(500)
+    latitude : decimal(9,6)
+    longitude : decimal(9,6)
+    place_id : nvarchar(255)
+    thumbnail_url : nvarchar(500)
+    status : content_status
+    search_name : nvarchar(260)
+    search_text : nvarchar(max)
+    created_at : datetime2(3)
+    updated_at : datetime2(3)
+    deleted_at : datetime2(3)
+  }
+  entity timelines #D5E8D4 {
+    *id : bigint <<PK>>
+    --
+    *heritage_id : bigint <<FK>>
+    name : nvarchar(255)
+    description : nvarchar(max)
+    start_year : int
+    end_year : int
+    sort_order : int
+  }
+  entity events #D5E8D4 {
+    *id : bigint <<PK>>
+    --
+    *timeline_id : bigint <<FK>>
+    name : nvarchar(255)
+    description : nvarchar(max)
+    *start_year : int
+    start_month : smallint
+    start_day : smallint
+    end_year : int
+    end_month : smallint
+    end_day : smallint
+    sort_order : int
+  }
+  entity media #D5E8D4 {
+    *id : bigint <<PK>>
+    --
+    heritage_id : bigint <<FK>>
+    event_id : bigint <<FK>>
+    media_type : nvarchar(20)
+    url : nvarchar(500)
+    {field} caption : nvarchar(500)
+    credit : nvarchar(255)
+    sort_order : int
+  }
+  entity heritage_references #D5E8D4 {
+    *id : bigint <<PK>>
+    --
+    *heritage_id : bigint <<FK>>
+    {field} title : nvarchar(500)
+    url : nvarchar(500)
+    source_type : nvarchar(50)
+  }
+}
+
+package "Nhóm 4 · Bài học + AI" as pkg_4 #F2F7FE {
+  entity lessons #DAE8FC {
+    *id : bigint <<PK>>
+    --
+    *teacher_id : bigint <<FK>>
+    *class_id : bigint <<FK>>
+    {field} title : nvarchar(255)
+    summary : nvarchar(max)
+    key_points : nvarchar(max)
+    status : content_status
+    access_code : nvarchar(10) <<UK>>
+    created_at : datetime2(3)
+    updated_at : datetime2(3)
+    deleted_at : datetime2(3)
+  }
+  entity lesson_heritages #DAE8FC {
+    *lesson_id : bigint <<PK, FK>>
+    *heritage_id : bigint <<PK, FK>>
+  }
+  entity ai_generations #DAE8FC {
+    *id : bigint <<PK>>
+    --
+    task_type : ai_task_type
+    lesson_id : bigint <<FK>>
+    heritage_id : bigint <<FK>>
+    *requested_by : bigint <<FK>>
+    input_snapshot : nvarchar(max)
+    params : nvarchar(max)
+    model : nvarchar(100)
+    raw_output : nvarchar(max)
+    status : ai_task_status
+    error_message : nvarchar(1000)
+    created_at : datetime2(3)
+    completed_at : datetime2(3)
+  }
+  entity lesson_sections #DAE8FC {
+    *id : bigint <<PK>>
+    --
+    *lesson_id : bigint <<FK>>
+    *section_type : lesson_section_type
+    {field} title : nvarchar(255)
+    body : nvarchar(max)
+    image_url : nvarchar(500)
+    milestone_year : int
+    event_id : bigint <<FK>>
+    source_citation : nvarchar(500)
+    *sort_order : int
+    *created_at : datetime2(3)
+    updated_at : datetime2(3)
+  }
+}
+
+package "Nhóm 5 · Ngân hàng câu hỏi" as pkg_5 #FFF6ED {
+  entity questions #FFE6CC {
+    *id : bigint <<PK>>
+    --
+    *heritage_id : bigint <<FK>>
+    *created_by : bigint <<FK>>
+    ai_generation_id : bigint <<FK>>
+    content : nvarchar(max)
+    question_type : question_type
+    image_url : nvarchar(500)
+    passage : nvarchar(max)
+    passage_source : nvarchar(500)
+    *level_min : tinyint
+    *level_max : tinyint
+    difficulty_level : difficulty_level
+    explanation : nvarchar(max)
+    source : question_source
+    review_status : review_status
+    reviewed_by : bigint <<FK>>
+    reviewed_at : datetime2(3)
+    created_at : datetime2(3)
+    updated_at : datetime2(3)
+    deleted_at : datetime2(3)
+  }
+  entity answers #FFE6CC {
+    *id : bigint <<PK>>
+    --
+    *question_id : bigint <<FK>>
+    content : nvarchar(1000)
+    image_url : nvarchar(500)
+    match_content : nvarchar(1000)
+    correct_position : tinyint
+    blank_index : tinyint
+    *is_correct : bit
+    sort_order : int
+  }
+}
+
+package "Nhóm 6 · Quiz" as pkg_6 #FFFAED {
+  entity quizzes #FFF2CC {
+    *id : bigint <<PK>>
+    --
+    *lesson_id : bigint <<FK>>
+    *created_by : bigint <<FK>>
+    name : nvarchar(255)
+    access_code : nvarchar(10) <<UK>>
+    description : nvarchar(max)
+    difficulty_level : difficulty_level
+    time_limit_minutes : int
+    open_at : datetime2(3)
+    close_at : datetime2(3)
+    *shuffle_questions : bit
+    *show_answers_after_submit : bit
+    total_point : decimal(6,2)
+    status : quiz_status
+    published_at : datetime2(3)
+    created_at : datetime2(3)
+    updated_at : datetime2(3)
+    deleted_at : datetime2(3)
+  }
+  entity quiz_questions #FFF2CC {
+    *quiz_id : bigint <<PK, FK>>
+    *question_id : bigint <<PK, FK>>
+    --
+    point : decimal(5,2)
+    sort_order : int
+  }
+}
+
+package "Nhóm 7 · Làm bài / Kết quả" as pkg_7 #E3F5F6 {
+  entity attempts #B0E3E6 {
+    *id : bigint <<PK>>
+    --
+    *quiz_id : bigint <<FK, UK>>
+    *student_id : bigint <<FK, UK>>
+    started_at : datetime2(3)
+    submitted_at : datetime2(3)
+    duration_seconds : int
+    score : decimal(6,2)
+    total_point : decimal(6,2)
+    correct_count : int
+    total_questions : int
+    status : attempt_status
+  }
+  entity attempt_answers #B0E3E6 {
+    *id : bigint <<PK>>
+    --
+    *attempt_id : bigint <<FK, UK>>
+    *question_id : bigint <<FK, UK>>
+    answer_id : bigint <<FK>>
+    *is_correct : bit
+    *parts_total : smallint
+    *parts_correct : smallint
+    point_earned : decimal(5,2)
+    answered_at : datetime2(3)
+    *try_count : tinyint
+  }
+  entity attempt_answer_parts #B0E3E6 {
+    *id : bigint <<PK>>
+    --
+    *attempt_answer_id : bigint <<FK, UK>>
+    answer_id : bigint <<FK, UK>>
+    blank_index : tinyint <<UK>>
+    selected_answer_id : bigint <<FK>>
+    selected_position : tinyint
+    selected_bool : bit
+    response_text : nvarchar(255)
+    *is_correct : bit
+  }
+  entity lesson_completions #B0E3E6 {
+    *id : bigint <<PK>>
+    --
+    *student_id : bigint <<FK, UK>>
+    *lesson_id : bigint <<FK, UK>>
+    *completed_at : datetime2(3)
+  }
+  entity lesson_visits #B0E3E6 {
+    *id : bigint <<PK>>
+    --
+    *student_id : bigint <<FK, UK>>
+    *lesson_id : bigint <<FK, UK>>
+    *first_opened_at : datetime2(3)
+    *last_opened_at : datetime2(3)
+  }
+}
+
+package "Nhóm 8 · Thanh toán" as pkg_8 #FDEEED {
+  entity plans #F8CECC {
+    *id : int <<PK>>
+    --
+    name : nvarchar(100) <<UK>>
+    price : decimal(12,2)
+    duration_days : int
+    max_teachers : int
+    max_ai_requests : int
+    *is_active : bit
+  }
+  entity subscriptions #F8CECC {
+    *id : bigint <<PK>>
+    --
+    *organization_id : bigint <<FK, UK>>
+    *plan_id : int <<FK>>
+    start_date : date
+    end_date : date
+    status : subscription_status
+    created_at : datetime2(3)
+  }
+  entity invoices #F8CECC {
+    *id : bigint <<PK>>
+    --
+    *organization_id : bigint <<FK>>
+    *subscription_id : bigint <<FK>>
+    invoice_number : nvarchar(50) <<UK>>
+    amount : decimal(12,2)
+    description : nvarchar(500)
+    status : invoice_status
+    issued_at : datetime2(3)
+    due_at : datetime2(3)
+  }
+  entity payment_providers #F8CECC {
+    *id : int <<PK>>
+    --
+    code : nvarchar(50) <<UK>>
+    name : nvarchar(100)
+    *is_active : bit
+  }
+  entity payments #F8CECC {
+    *id : bigint <<PK>>
+    --
+    *invoice_id : bigint <<FK, UK>>
+    *provider_id : int <<FK, UK>>
+    provider_transaction_id : nvarchar(255) <<UK>>
+    amount : decimal(12,2)
+    status : payment_status
+    raw_response : nvarchar(max)
+    paid_at : datetime2(3)
+    created_at : datetime2(3)
+  }
+}
+
+package "Nhóm 9 · Đa ngôn ngữ và 3D" as pkg_9 #F7F6F6 {
+  entity heritage_translations #E7E6E6 {
+    *id : bigint <<PK>>
+    --
+    *heritage_id : bigint <<FK, UK>>
+    *language_code : language_code <<UK>>
+    *name : nvarchar(255)
+    short_description : nvarchar(1000)
+    content : nvarchar(max)
+    address : nvarchar(500)
+    *status : translation_status
+    *is_outdated : bit
+    ai_generation_id : bigint <<FK>>
+    reviewed_by : bigint <<FK>>
+    reviewed_at : datetime2(3)
+    *created_at : datetime2(3)
+    updated_at : datetime2(3)
+  }
+  entity timeline_translations #E7E6E6 {
+    *id : bigint <<PK>>
+    --
+    *timeline_id : bigint <<FK, UK>>
+    *language_code : language_code <<UK>>
+    *name : nvarchar(255)
+    description : nvarchar(max)
+    *created_at : datetime2(3)
+    updated_at : datetime2(3)
+  }
+  entity event_translations #E7E6E6 {
+    *id : bigint <<PK>>
+    --
+    *event_id : bigint <<FK, UK>>
+    *language_code : language_code <<UK>>
+    *name : nvarchar(255)
+    description : nvarchar(max)
+    *created_at : datetime2(3)
+    updated_at : datetime2(3)
+  }
+  entity media_translations #E7E6E6 {
+    *id : bigint <<PK>>
+    --
+    *media_id : bigint <<FK, UK>>
+    *language_code : language_code <<UK>>
+    {field} *caption : nvarchar(500)
+    *created_at : datetime2(3)
+    updated_at : datetime2(3)
+  }
+  entity heritage_summaries #E7E6E6 {
+    *id : bigint <<PK>>
+    --
+    *heritage_id : bigint <<FK, UK>>
+    *language_code : language_code <<UK>>
+    *short_text : nvarchar(2000)
+    *detailed_text : nvarchar(max)
+    *status : translation_status
+    *is_outdated : bit
+    ai_generation_id : bigint <<FK>>
+    reviewed_by : bigint <<FK>>
+    reviewed_at : datetime2(3)
+    *created_at : datetime2(3)
+    updated_at : datetime2(3)
+  }
+  entity heritage_models #E7E6E6 {
+    *id : bigint <<PK>>
+    --
+    *heritage_id : bigint <<FK, UK>>
+    {field} title : nvarchar(255)
+    *file_url : nvarchar(500)
+    *file_format : model_format
+    *file_size_bytes : bigint
+    poster_url : nvarchar(500)
+    *license_name : nvarchar(100)
+    license_url : nvarchar(500)
+    *author : nvarchar(255)
+    source_url : nvarchar(500)
+    *credit : nvarchar(500)
+    *status : content_status
+    sort_order : int
+    *created_at : datetime2(3)
+    updated_at : datetime2(3)
+    deleted_at : datetime2(3)
+  }
+  entity heritage_narrations #E7E6E6 {
+    *id : bigint <<PK>>
+    --
+    *heritage_id : bigint <<FK, UK>>
+    *language_code : language_code <<UK>>
+    *text_hash : char(64)
+    *audio_url : nvarchar(500)
+    *duration_ms : int
+    *sentences : nvarchar(max)
+    *voice : nvarchar(100)
+    *created_at : datetime2(3)
+    updated_at : datetime2(3)
+  }
+  entity speech_clips #E7E6E6 {
+    *id : bigint <<PK>>
+    --
+    *text_hash : char(64) <<UK>>
+    *voice : varchar(100) <<UK>>
+    *storage_key : varchar(500)
+    *duration_ms : int
+    *byte_size : int
+    *created_at : datetime2(3)
+  }
+}
+
+package "Nhóm 10 · Khách tham quan và quảng cáo" as pkg_10 #F8EFF3 {
+  entity guest_devices #EAD1DC {
+    *id : bigint <<PK>>
+    --
+    *device_key : nvarchar(64) <<UK>>
+    *platform : client_platform
+    *language_code : language_code
+    *location_allowed : bit
+    *created_at : datetime2(3)
+    last_seen_at : datetime2(3)
+  }
+  entity guest_activities #EAD1DC {
+    *id : bigint <<PK>>
+    --
+    *guest_device_id : bigint <<FK>>
+    *activity_type : guest_activity_type
+    heritage_id : bigint <<FK>>
+    search_query : nvarchar(255)
+    *language_code : language_code
+    *created_at : datetime2(3)
+  }
+  entity ad_unlocks #EAD1DC {
+    *id : bigint <<PK>>
+    --
+    *guest_device_id : bigint <<FK>>
+    *heritage_id : bigint <<FK>>
+    *platform : client_platform
+    *ad_network : ad_network <<UK>>
+    *transaction_id : nvarchar(255) <<UK>>
+    ad_unit_id : nvarchar(100)
+    *unlocked_at : datetime2(3)
+    *expires_at : datetime2(3)
+  }
+}
+
+organizations |o--o{ users
+roles ||--o{ users
+users ||--o{ password_reset_tokens
+users |o--o{ audit_logs
+organizations ||--o{ classes
+users ||--o{ classes
+classes ||--o{ students
+users ||--o| students
+provinces |o--o{ heritages
+heritages ||--o{ timelines
+timelines ||--o{ events
+heritages |o--o{ media
+events |o--o{ media
+heritages ||--o{ heritage_references
+users ||--o{ lessons
+classes ||--o{ lessons
+lessons ||--o{ lesson_heritages
+heritages ||--o{ lesson_heritages
+lessons |o--o{ ai_generations
+users ||--o{ ai_generations
+heritages ||--o{ questions
+users ||--o{ questions
+ai_generations |o--o{ questions
+users |o--o{ questions
+questions ||--o{ answers
+lessons ||--o{ quizzes
+users ||--o{ quizzes
+quizzes ||--o{ quiz_questions
+questions ||--o{ quiz_questions
+quizzes ||--o{ attempts
+students ||--o{ attempts
+attempts ||--o{ attempt_answers
+questions ||--o{ attempt_answers
+answers |o--o{ attempt_answers
+organizations ||--o{ subscriptions
+plans ||--o{ subscriptions
+organizations ||--o{ invoices
+subscriptions ||--o{ invoices
+invoices ||--o{ payments
+payment_providers ||--o{ payments
+heritages |o--o{ ai_generations
+lessons ||--o{ lesson_sections
+events |o--o{ lesson_sections
+attempt_answers ||--o{ attempt_answer_parts
+answers |o--o{ attempt_answer_parts
+answers |o--o{ attempt_answer_parts
+heritages ||--o{ heritage_translations
+ai_generations |o--o{ heritage_translations
+users |o--o{ heritage_translations
+timelines ||--o{ timeline_translations
+events ||--o{ event_translations
+media ||--o{ media_translations
+heritages ||--o{ heritage_summaries
+ai_generations |o--o{ heritage_summaries
+users |o--o{ heritage_summaries
+heritages ||--o{ heritage_models
+heritages ||--o{ heritage_narrations
+guest_devices ||--o{ guest_activities
+heritages |o--o{ guest_activities
+guest_devices ||--o{ ad_unlocks
+heritages ||--o{ ad_unlocks
+students ||--o{ student_notifications
+lessons ||--o{ student_notifications
+quizzes |o--o{ student_notifications
+users ||--o{ student_notifications
+students ||--o{ lesson_completions
+lessons ||--o{ lesson_completions
+students ||--o{ lesson_visits
+lessons ||--o{ lesson_visits
+
+@enduml

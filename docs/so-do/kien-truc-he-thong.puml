@@ -1,0 +1,96 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+skinparam nodesep 18
+skinparam ranksep 55
+skinparam componentStyle rectangle
+skinparam ArrowFontSize 11
+skinparam PackageStyle rectangle
+skinparam ActorFontSize 12
+
+actor "System Administrator, School Administrator, Teacher" as nguoiQuanTri
+actor "Student" as hocSinh
+actor "Visitor" as khach
+
+package "Client side" as phiaNguoiDung {
+  component "<b>Admin web</b>\nReact 19, Vite\n<size:10>quantri.diviet.id.vn</size>" as webQuanTri
+  component "<b>Learning web</b>\nReact 19, Vite\n<size:10>diviet.id.vn</size>" as webHocTap
+  component "<b>Mobile app</b>\nReact Native 0.86, Expo SDK 57\n<size:10>Android (APK)</size>" as app
+}
+
+node "<b>Google Cloud virtual machine</b>\nUbuntu 24.04, Docker Compose" as mayAo {
+  component "<b>Caddy 2.11</b>\nHTTPS entry point, automatic certificates" as edge
+  component "<b>Two static web apps</b>\nCaddy" as web
+  component "<b>Backend API (ASP.NET Core 9 Web API)</b>\nwith background jobs" as api
+  component "<b>AI Service, Python</b>\nFastAPI, VieNeu-TTS" as ai
+  database "<b>SQL Server 2019</b>\nExpress" as sql
+  folder "<b>On-disk file storage</b>" as kho
+}
+
+rectangle "Services called by the server" as ngoaiMayChu {
+  component "<b>LLM Provider</b>\nGoogle Gemini\n<size:10>or Anthropic Claude</size>" as llm
+  component "<b>Email Service (SMTP)</b>\nsupport@diviet.id.vn" as smtp
+  component "<b>Hugging Face</b>\n<size:10>downloads the voice model on first run</size>" as hf
+  component "<b>FPT.AI Text-to-Speech</b>\n<size:10>alternative provider, not enabled on the server</size>" as fpt
+}
+
+rectangle "Payment and advertising" as thanhToanQuangCao {
+  component "<b>VNPay Gateway (sandbox environment)</b>" as vnpay
+  component "<b>Google AdMob</b>\n+ Google UMP" as admob
+  component "<b>Google Ad Manager</b>\nGoogle Publisher Tag" as adManager
+}
+
+component "<b>Services called directly by the browser and the app</b>\n\n<b>OpenStreetMap</b>: map tiles\n<b>FOSSGIS OSRM</b>: routing\n<b>Google Maps</b>: directions link\n<b>Wikimedia Commons</b>: heritage images\n<b>Cloudinary</b>: intro videos\n<b>Google Fonts</b>: fonts" as ngoaiTrinhDuyet
+
+nguoiQuanTri --> webQuanTri
+hocSinh --> webHocTap
+hocSinh --> app
+khach --> webHocTap
+khach --> app
+
+webQuanTri --> edge : HTTPS, JSON /api/v1
+webHocTap --> edge : HTTPS, JSON /api/v1
+app --> edge : HTTPS, JSON /api/v1
+
+edge --> web : static pages
+edge --> api : /api, /files
+api --> sql : EF Core
+api --> kho : images, 3D models, narration files, voice files
+api --> ai : Internal HTTP, X-Internal-Key
+
+ai --> llm : prompts, JSON results
+ai --> hf : voice model
+api --> smtp : password-setting emails, forgot-password emails, inquiry emails
+api ..> fpt : text to read aloud
+
+webQuanTri --> vnpay : redirect the browser to the payment page
+vnpay --> edge : payment result IPN
+app --> admob : rewarded ad
+admob --> edge : server-side verification
+webHocTap --> adManager : rewarded ad
+
+webHocTap --> ngoaiTrinhDuyet
+app --> ngoaiTrinhDuyet
+@enduml

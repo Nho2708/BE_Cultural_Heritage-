@@ -1,0 +1,43 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state "Question not deleted" as QUESTION {
+  state PENDING : Pending review
+  state APPROVED : Approved
+  state REJECTED {
+    state "Rejected by the Teacher" as REJECTED_BY_TEACHER
+    state "Hidden by the\nSystem Administrator" as HIDDEN_BY_ADMIN
+  }
+  PENDING --> APPROVED : Teacher approves\nown question\n[passes current checks]
+  PENDING --> REJECTED_BY_TEACHER : Teacher rejects\nown question
+  REJECTED_BY_TEACHER --> APPROVED : Teacher approves again\n[passes current checks]
+  APPROVED --> HIDDEN_BY_ADMIN : System Administrator\nhides the question
+  HIDDEN_BY_ADMIN --> APPROVED : System Administrator\nrestores the question
+  [*] --> PENDING : Teacher generates\nquestions with AI\n[AI Service returns\na valid result]
+  [*] --> APPROVED : Teacher creates a\nmanual question or\nduplicates an\napproved question
+}
+QUESTION --> [*] : Teacher deletes\nown question\n[not used in any quiz,\nnot hidden by the\nSystem Administrator]
+@enduml

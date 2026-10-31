@@ -1,0 +1,43 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state "Câu hỏi chưa xóa" as QUESTION {
+  state PENDING : Chờ duyệt
+  state APPROVED : Đã duyệt
+  state REJECTED {
+    state "Bị giáo viên loại" as REJECTED_BY_TEACHER
+    state "Bị quản trị hệ thống ẩn" as HIDDEN_BY_ADMIN
+  }
+  PENDING --> APPROVED : Giáo viên duyệt câu\ncủa mình [câu đạt\nkiểm tra hiện hành]
+  PENDING --> REJECTED_BY_TEACHER : Giáo viên loại\ncâu của mình
+  REJECTED_BY_TEACHER --> APPROVED : Giáo viên duyệt lại\n[câu đạt kiểm tra\nhiện hành]
+  APPROVED --> HIDDEN_BY_ADMIN : Quản trị hệ thống\nẩn câu
+  HIDDEN_BY_ADMIN --> APPROVED : Quản trị hệ thống\nhiện lại câu
+  [*] --> PENDING : Giáo viên sinh\ncâu hỏi bằng AI\n[dịch vụ AI trả\nkết quả hợp lệ]
+  [*] --> APPROVED : Giáo viên tạo\ncâu thủ công hoặc\nnhân bản câu\nđã duyệt
+}
+QUESTION --> [*] : Giáo viên xóa\ncâu của mình\n[chưa nằm trong\nbài kiểm tra nào,\nkhông bị quản trị\nhệ thống ẩn]
+@enduml

@@ -1,0 +1,81 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|Student|
+|DiViet system|
+|AI Service|
+|Teacher|
+|Student|
+start
+:Enter a lesson code or quiz code,\nopen a notification, or pick a lesson\non the learning path (Level 1);
+|DiViet system|
+if (Code valid for\nthe student's class?) then (yes)
+else (no)
+  :Show code not valid;\nblock for a while\nafter many errors;
+  end
+endif
+|Student|
+switch (Class level?)
+case (level 1)
+  :Recall, listen to the story,\nlook at pictures;
+case (level 2)
+  :Read the text,\nview the timeline;
+case (level 3)
+  :Explore the\nsource documents;
+endswitch
+:Click Take quiz;
+|DiViet system|
+if (Quiz open and\nnot yet submitted?) then (yes)
+  :Create or resume\nthe attempt, record\nthe deadline;
+else (no)
+  :Show the result\nor opening time;
+  end
+endif
+|Student|
+if (Level 1 class?) then (yes)
+  :Check each question: first miss gives a hint,\nsecond miss shows the answer;\nthe first answer is scored;
+else (no)
+  :Answer each question;\neach answer is saved at once;
+endif
+if (Submitted before\nthe deadline?) then (yes)
+  :Click Submit;
+else (time is up)
+  |DiViet system|
+  :Auto-submit\nwhen time is up;
+endif
+|DiViet system|
+:Grade by question type,\nstore the score;
+:Show the result by level: stars and\nheritage cards, score or analysis;
+if (Level 2 or 3 class?) then (yes)
+  |AI Service|
+  :Rank related\nheritage sites;
+endif
+|Student|
+:View the result and recommendations\n(Level 1: heritage cards, album);
+|Teacher|
+:View class results:\nsubmitted, not started,\ncorrect rates;
+:View heritage to review,\ncreate a review lesson;
+stop
+@enduml

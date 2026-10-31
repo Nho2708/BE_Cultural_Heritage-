@@ -1,0 +1,75 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|System Administrator|
+|DiViet system|
+|AI Service|
+|Visitor|
+|System Administrator|
+start
+:Check the Department of\nCultural Heritage source;
+:Enter content, timeline,\nreferences, credited\nimages, 3D model;
+:Click Publish;
+|DiViet system|
+if (Content, cover image\nand reference present?) then (yes)
+  :Set as\npublished;
+else (no)
+  :List what is missing,\nkeep as draft;
+  end
+endif
+|System Administrator|
+:Click Translate and\nsummarize with AI;
+|AI Service|
+:Summarize in Vietnamese;\ntranslate into English,\nKorean, Chinese, Japanese;
+|DiViet system|
+if (All languages\nsucceeded?) then (yes)
+  :Vietnamese, English await\nreview; Korean, Chinese,\nJapanese shown as\nmachine translation;
+else (no)
+  :Save nothing,\nkeep the old version;
+  end
+endif
+|System Administrator|
+if (Vietnamese and\nEnglish correct?) then (approve)
+  |DiViet system|
+  :Show publicly;
+  |AI Service|
+  :Retranslate Korean,\nChinese, Japanese from\nthe approved English;
+else (reject)
+  |DiViet system|
+  :Hide it;\nmust translate again;
+  end
+endif
+|Visitor|
+:Choose a language;\nsearch with or\nwithout diacritics;
+|DiViet system|
+:Search the Vietnamese\nand translated text;
+|Visitor|
+:View the map,\ntimeline and\ndetail page;
+|DiViet system|
+:Show the chosen\nlanguage; fall back to\nVietnamese if missing;
+|Visitor|
+:Switch language,\nkeep browsing;
+stop
+@enduml

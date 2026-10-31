@@ -1,0 +1,78 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+skinparam nodesep 25
+skinparam ranksep 55
+skinparam componentStyle rectangle
+skinparam ArrowFontSize 11
+skinparam PackageStyle rectangle
+
+actor "Thành viên nhóm" as thanhVien
+
+node "<b>Máy phát triển</b>\nWindows" as mayDev {
+  component "<b>Môi trường phát triển</b>\n.NET 9, Node.js, Python, SQL Server LocalDB" as moiTruongDev
+  component "<b>Công cụ tạo thuyết minh</b>\nVieNeu-TTS, MeloTTS" as congCuThuyetMinh
+}
+
+rectangle "<b>GitHub</b>" as github {
+  component "<b>Ba kho mã</b>\nbackend, frontend, Dịch vụ AI\n<size:10>nhánh main được bảo vệ</size>" as khoMa
+  component "<b>GitHub Actions: CI</b>\ndựng, kiểm thử, quét bảo mật" as ci
+  component "<b>GitHub Actions: CD</b>\ndựng ảnh gắn mã commit" as cd
+  component "<b>GitHub Releases</b>\ntệp APK Android" as releases
+}
+
+node "<b>Máy demo dự phòng</b>\nWindows, IIS" as mayDemo {
+  component "<b>Runner tự host</b>" as runner
+}
+
+rectangle "<b>Google Cloud</b> (asia-southeast1)" as gcp {
+  component "<b>Workload Identity Federation</b>" as wif
+  component "<b>Artifact Registry</b>\nảnh api, ai, web" as registry
+  node "<b>Máy ảo Google Cloud</b>\nUbuntu 24.04, e2-standard-2" as mayAo {
+    component "<b>Docker Compose</b>\nedge (Caddy), web, api, ai, sql, volume mô hình giọng đọc" as compose
+    component "<b>Script triển khai</b>\nsao lưu, áp migration, kiểm sức khỏe, trả bản trước" as scriptTrienKhai
+    component "<b>systemd, journald</b>\nsao lưu 01:30 hằng đêm, nhật ký giữ 30 ngày" as heThong
+  }
+  database "<b>Cloud Storage</b>\nbản sao lưu giữ 30 ngày" as bucket
+}
+
+rectangle "<b>Hugging Face</b>\nmô hình giọng đọc" as hf
+
+thanhVien --> moiTruongDev
+moiTruongDev --> khoMa : Pull Request
+khoMa --> ci : mỗi Pull Request
+ci --> khoMa : tự gộp khi CI đạt
+khoMa --> cd : CI đạt trên main
+cd --> runner : gói bản dựng
+cd --> wif : OIDC
+cd --> registry : đẩy ảnh
+cd --> scriptTrienKhai : SSH qua IAP
+registry --> compose : kéo ảnh
+scriptTrienKhai --> compose
+heThong --> bucket : bản sao lưu hằng đêm
+moiTruongDev --> releases : tệp APK Android
+congCuThuyetMinh --> compose : tệp MP3 qua API quản trị
+compose ..> hf : tải mô hình lần chạy đầu
+@enduml

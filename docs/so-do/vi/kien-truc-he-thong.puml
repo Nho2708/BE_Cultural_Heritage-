@@ -1,0 +1,96 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+skinparam nodesep 18
+skinparam ranksep 55
+skinparam componentStyle rectangle
+skinparam ArrowFontSize 11
+skinparam PackageStyle rectangle
+skinparam ActorFontSize 12
+
+actor "Quản trị hệ thống, Quản trị trường, Giáo viên" as nguoiQuanTri
+actor "Học sinh" as hocSinh
+actor "Khách tham quan" as khach
+
+package "Phía người dùng" as phiaNguoiDung {
+  component "<b>Web quản trị</b>\nReact 19, Vite\n<size:10>quantri.diviet.id.vn</size>" as webQuanTri
+  component "<b>Web học tập</b>\nReact 19, Vite\n<size:10>diviet.id.vn</size>" as webHocTap
+  component "<b>App mobile</b>\nReact Native 0.86, Expo SDK 57\n<size:10>Android (APK)</size>" as app
+}
+
+node "<b>Máy ảo Google Cloud</b>\nUbuntu 24.04, Docker Compose" as mayAo {
+  component "<b>Caddy 2.11</b>\ncửa vào HTTPS, tự cấp chứng chỉ" as edge
+  component "<b>Hai web tĩnh</b>\nCaddy" as web
+  component "<b>Backend API (ASP.NET Core 9 Web API)</b>\nkèm tác vụ nền" as api
+  component "<b>Dịch vụ AI, Python</b>\nFastAPI, VieNeu-TTS" as ai
+  database "<b>SQL Server 2019</b>\nExpress" as sql
+  folder "<b>Kho tệp trên đĩa</b>" as kho
+}
+
+rectangle "Dịch vụ do máy chủ gọi" as ngoaiMayChu {
+  component "<b>Nhà cung cấp LLM</b>\nGoogle Gemini\n<size:10>hoặc Anthropic Claude</size>" as llm
+  component "<b>Dịch vụ email (SMTP)</b>\nsupport@diviet.id.vn" as smtp
+  component "<b>Hugging Face</b>\n<size:10>tải mô hình giọng đọc lần chạy đầu</size>" as hf
+  component "<b>FPT.AI Text-to-Speech</b>\n<size:10>phương án thay thế, máy chủ chưa bật</size>" as fpt
+}
+
+rectangle "Thanh toán và quảng cáo" as thanhToanQuangCao {
+  component "<b>Cổng VNPay (môi trường thử nghiệm)</b>" as vnpay
+  component "<b>Google AdMob</b>\n+ Google UMP" as admob
+  component "<b>Google Ad Manager</b>\nGoogle Publisher Tag" as adManager
+}
+
+component "<b>Dịch vụ do trình duyệt và app gọi trực tiếp</b>\n\n<b>OpenStreetMap</b>: ảnh nền bản đồ\n<b>FOSSGIS OSRM</b>: tìm đường\n<b>Google Maps</b>: liên kết chỉ đường\n<b>Wikimedia Commons</b>: ảnh di sản\n<b>Cloudinary</b>: video giới thiệu\n<b>Google Fonts</b>: phông chữ" as ngoaiTrinhDuyet
+
+nguoiQuanTri --> webQuanTri
+hocSinh --> webHocTap
+hocSinh --> app
+khach --> webHocTap
+khach --> app
+
+webQuanTri --> edge : HTTPS, JSON /api/v1
+webHocTap --> edge : HTTPS, JSON /api/v1
+app --> edge : HTTPS, JSON /api/v1
+
+edge --> web : trang tĩnh
+edge --> api : /api, /files
+api --> sql : EF Core
+api --> kho : ảnh, mô hình 3D, tệp thuyết minh, tệp giọng đọc
+api --> ai : HTTP nội bộ, X-Internal-Key
+
+ai --> llm : lời nhắc, kết quả JSON
+ai --> hf : mô hình giọng đọc
+api --> smtp : thư đặt mật khẩu, thư báo quên mật khẩu, thư liên hệ
+api ..> fpt : văn bản cần đọc
+
+webQuanTri --> vnpay : chuyển trình duyệt sang trang thanh toán
+vnpay --> edge : IPN kết quả thanh toán
+app --> admob : quảng cáo có thưởng
+admob --> edge : xác minh phía máy chủ
+webHocTap --> adManager : quảng cáo có thưởng
+
+webHocTap --> ngoaiTrinhDuyet
+app --> ngoaiTrinhDuyet
+@enduml

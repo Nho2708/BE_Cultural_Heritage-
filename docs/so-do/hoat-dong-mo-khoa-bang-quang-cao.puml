@@ -1,0 +1,78 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|Visitor|
+|DiViet system|
+|Google AdMob / Ad Manager|
+|Visitor|
+start
+:Click Summary or Listen;
+|DiViet system|
+if (Approved Vietnamese\nsummary exists?) then (yes)
+else (not yet)
+  :Show that no\nsummary exists yet;
+  end
+endif
+if (Device already unlocked\nthis heritage, still valid?) then (not yet)
+  |Visitor|
+  :Click Watch ad;
+  |Google AdMob / Ad Manager|
+  :Play the rewarded ad;
+  if (Watched to the end?) then (yes)
+    :Confirm the reward: AdMob calls\nthe server on the app, the browser\nsends a one-time code on the web;
+  else (no)
+    |Visitor|
+    :Show Try again later;\nfull content stays readable;
+    end
+  endif
+  |DiViet system|
+  if (Verification valid?) then (yes)
+    :Record a 24-hour unlock for\nthis heritage on this device;
+  else (no)
+    :Reject and log;
+    end
+  endif
+else (already)
+endif
+:Show the detailed summary\nin the chosen language;
+|Visitor|
+:Click Listen;
+|DiViet system|
+if (Narration file\navailable?) then (yes)
+  :Play the pre-generated\naudio file;
+else (no)
+  :Read aloud with\nthe device voice;
+endif
+|Visitor|
+:Click View 3D, free;
+|DiViet system|
+if (Model loaded?) then (yes)
+  :Open the 3D viewer;
+else (no)
+  :Show the heritage images;
+endif
+:Record history by device ID,\nupdate Picks for You;
+stop
+@enduml

@@ -1,0 +1,78 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|Khách tham quan|
+|Hệ thống DiViet|
+|Google AdMob / Ad Manager|
+|Khách tham quan|
+start
+:Bấm Tóm tắt hoặc Nghe;
+|Hệ thống DiViet|
+if (Có tóm tắt tiếng Việt\nđã duyệt?) then (có)
+else (chưa)
+  :Báo chưa có\ntóm tắt;
+  end
+endif
+if (Thiết bị đã mở khóa\ndi sản này, còn hạn?) then (chưa)
+  |Khách tham quan|
+  :Bấm Xem quảng cáo;
+  |Google AdMob / Ad Manager|
+  :Phát quảng cáo có thưởng;
+  if (Khách xem hết?) then (có)
+    :Xác nhận phần thưởng:\nAdMob gọi máy chủ trên app,\ntrình duyệt báo mã trên web;
+  else (không)
+    |Khách tham quan|
+    :Báo Thử lại sau,\nvẫn đọc nội dung đầy đủ;
+    end
+  endif
+  |Hệ thống DiViet|
+  if (Xác minh hợp lệ?) then (có)
+    :Ghi lượt mở khóa 24 giờ\ncho di sản trên thiết bị;
+  else (không)
+    :Từ chối, ghi nhật ký;
+    end
+  endif
+else (rồi)
+endif
+:Hiện tóm tắt chi tiết\ntheo ngôn ngữ đã chọn;
+|Khách tham quan|
+:Bấm Nghe;
+|Hệ thống DiViet|
+if (Có tệp thuyết minh?) then (có)
+  :Phát tệp âm thanh\ntạo sẵn;
+else (không)
+  :Đọc bằng giọng\ncủa thiết bị;
+endif
+|Khách tham quan|
+:Bấm Xem 3D, miễn phí;
+|Hệ thống DiViet|
+if (Tải được mô hình?) then (có)
+  :Mở trình xem 3D;
+else (không)
+  :Hiện bộ ảnh di sản;
+endif
+:Ghi lịch sử theo mã thiết bị,\ncập nhật Gợi ý cho bạn;
+stop
+@enduml

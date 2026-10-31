@@ -1,0 +1,37 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state "Bài học chưa xóa" as LESSON {
+  state DRAFT : Nháp
+  state PUBLISHED : Đã xuất bản
+  state ARCHIVED : Lưu trữ
+  DRAFT --> PUBLISHED : Giáo viên xuất bản\n[đủ nội dung theo cấp,\ncó di sản đã xuất bản]
+  PUBLISHED --> ARCHIVED : Giáo viên lưu trữ\n[không còn bài\nkiểm tra đang mở]
+  ARCHIVED --> PUBLISHED : Giáo viên xuất bản lại\n[đủ nội dung theo cấp]
+  [*] --> DRAFT : Giáo viên tạo bài học\nhoặc nhân bản sang lớp khác
+}
+LESSON --> [*] : Giáo viên xóa bài học\n[chưa có bài kiểm tra]
+@enduml

@@ -1,0 +1,77 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|Đại diện trường|
+|Quản trị hệ thống|
+|Hệ thống DiViet|
+|Quản trị trường|
+|Cổng VNPay|
+|Đại diện trường|
+start
+:Gửi mẫu liên hệ\nDành cho nhà trường;
+|Hệ thống DiViet|
+:Gửi thư liên hệ\ntới quản trị hệ thống;
+|Quản trị hệ thống|
+:Thỏa thuận với trường,\nnhập trường và\nquản trị trường;
+|Hệ thống DiViet|
+if (Email, tên đăng nhập\nchưa dùng?) then (có)
+  :Tạo trường, gói Miễn phí,\nemail đặt mật khẩu;
+else (không)
+  :Báo trùng\ntại ô;
+  end
+endif
+|Quản trị trường|
+:Đặt mật khẩu\ntừ liên kết, đăng nhập;
+:Thêm giáo viên;
+|Hệ thống DiViet|
+if (Gói còn chỗ\ngiáo viên?) then (có)
+  :Tạo tài khoản,\nemail cho giáo viên;
+else (không)
+  :Nhắc nâng\ncấp gói;
+endif
+|Quản trị trường|
+:Chọn gói: mua,\ngia hạn, nâng cấp;
+|Hệ thống DiViet|
+if (Tạo được đơn?) then (có)
+  :Tạo hóa đơn,\ngiao dịch chờ;
+else (không)
+  :Báo đã có đơn chờ;
+  end
+endif
+|Quản trị trường|
+:Thanh toán\ntrên trang VNPay;
+|Cổng VNPay|
+:Gửi kết quả\ncó chữ ký về máy chủ;
+|Hệ thống DiViet|
+if (Chữ ký, số tiền đúng,\nthanh toán thành công?) then (có)
+  :Kích hoạt gói,\nhóa đơn đã trả;
+else (không)
+  :Ghi thất bại,\ncho thanh toán lại;
+  end
+endif
+|Quản trị trường|
+:Trang kết quả chỉ đọc\ntrạng thái hóa đơn;
+stop
+@enduml

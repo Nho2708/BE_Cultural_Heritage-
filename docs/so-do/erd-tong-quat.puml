@@ -1,0 +1,370 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+
+skinparam nodesep 10
+skinparam ranksep 14
+skinparam packageStyle rectangle
+skinparam ClassFontSize 18
+skinparam ClassAttributeFontSize 17
+skinparam ClassStereotypeFontSize 17
+skinparam package {
+  FontStyle bold
+  FontSize 20
+  BorderColor #555555
+}
+hide circle
+
+package "Group 1 · Auth / Organization" as pkg_1 #F4F0F7 {
+  entity organizations #E1D5E7 {
+    id (PK)
+  }
+  entity roles #E1D5E7 {
+    id (PK)
+  }
+  entity users #E1D5E7 {
+    id (PK)
+    --
+    organization_id (FK)
+    role_id (FK)
+  }
+  entity password_reset_tokens #E1D5E7 {
+    id (PK)
+    --
+    user_id (FK)
+  }
+  entity audit_logs #E1D5E7 {
+    id (PK)
+    --
+    user_id (FK)
+  }
+}
+
+package "Group 2 · Classes / Students" as pkg_2 #FFEDF6 {
+  entity classes #FFCCE6 {
+    id (PK)
+    --
+    organization_id (FK)
+    teacher_id (FK)
+  }
+  entity students #FFCCE6 {
+    id (PK)
+    --
+    class_id (FK)
+    user_id (FK)
+  }
+  entity student_notifications #FFCCE6 {
+    id (PK)
+    --
+    student_id (FK)
+    lesson_id (FK)
+    quiz_id (FK)
+    sent_by (FK)
+  }
+}
+
+package "Group 3 · Heritage" as pkg_3 #F0F7F0 {
+  entity provinces #D5E8D4 {
+    id (PK)
+  }
+  entity heritages #D5E8D4 {
+    id (PK)
+    --
+    province_id (FK)
+  }
+  entity timelines #D5E8D4 {
+    id (PK)
+    --
+    heritage_id (FK)
+  }
+  entity events #D5E8D4 {
+    id (PK)
+    --
+    timeline_id (FK)
+  }
+  entity media #D5E8D4 {
+    id (PK)
+    --
+    heritage_id (FK)
+    event_id (FK)
+  }
+  entity heritage_references #D5E8D4 {
+    id (PK)
+    --
+    heritage_id (FK)
+  }
+}
+
+package "Group 4 · Lessons + AI" as pkg_4 #F2F7FE {
+  entity lessons #DAE8FC {
+    id (PK)
+    --
+    teacher_id (FK)
+    class_id (FK)
+  }
+  entity lesson_heritages #DAE8FC {
+    lesson_id (PK, FK)
+    heritage_id (PK, FK)
+  }
+  entity ai_generations #DAE8FC {
+    id (PK)
+    --
+    lesson_id (FK)
+    heritage_id (FK)
+    requested_by (FK)
+  }
+  entity lesson_sections #DAE8FC {
+    id (PK)
+    --
+    lesson_id (FK)
+    event_id (FK)
+  }
+}
+
+package "Group 5 · Question Bank" as pkg_5 #FFF6ED {
+  entity questions #FFE6CC {
+    id (PK)
+    --
+    heritage_id (FK)
+    created_by (FK)
+    ai_generation_id (FK)
+    reviewed_by (FK)
+  }
+  entity answers #FFE6CC {
+    id (PK)
+    --
+    question_id (FK)
+  }
+}
+
+package "Group 6 · Quiz" as pkg_6 #FFFAED {
+  entity quizzes #FFF2CC {
+    id (PK)
+    --
+    lesson_id (FK)
+    created_by (FK)
+  }
+  entity quiz_questions #FFF2CC {
+    quiz_id (PK, FK)
+    question_id (PK, FK)
+  }
+}
+
+package "Group 7 · Attempts / Results" as pkg_7 #E3F5F6 {
+  entity attempts #B0E3E6 {
+    id (PK)
+    --
+    quiz_id (FK)
+    student_id (FK)
+  }
+  entity attempt_answers #B0E3E6 {
+    id (PK)
+    --
+    attempt_id (FK)
+    question_id (FK)
+    answer_id (FK)
+  }
+  entity attempt_answer_parts #B0E3E6 {
+    id (PK)
+    --
+    attempt_answer_id (FK)
+    answer_id (FK)
+    selected_answer_id (FK)
+  }
+  entity lesson_completions #B0E3E6 {
+    id (PK)
+    --
+    student_id (FK)
+    lesson_id (FK)
+  }
+  entity lesson_visits #B0E3E6 {
+    id (PK)
+    --
+    student_id (FK)
+    lesson_id (FK)
+  }
+}
+
+package "Group 8 · Payments" as pkg_8 #FDEEED {
+  entity plans #F8CECC {
+    id (PK)
+  }
+  entity subscriptions #F8CECC {
+    id (PK)
+    --
+    organization_id (FK)
+    plan_id (FK)
+  }
+  entity invoices #F8CECC {
+    id (PK)
+    --
+    organization_id (FK)
+    subscription_id (FK)
+  }
+  entity payment_providers #F8CECC {
+    id (PK)
+  }
+  entity payments #F8CECC {
+    id (PK)
+    --
+    invoice_id (FK)
+    provider_id (FK)
+  }
+}
+
+package "Group 9 · Multilingual and 3D" as pkg_9 #F7F6F6 {
+  entity heritage_translations #E7E6E6 {
+    id (PK)
+    --
+    heritage_id (FK)
+    ai_generation_id (FK)
+    reviewed_by (FK)
+  }
+  entity timeline_translations #E7E6E6 {
+    id (PK)
+    --
+    timeline_id (FK)
+  }
+  entity event_translations #E7E6E6 {
+    id (PK)
+    --
+    event_id (FK)
+  }
+  entity media_translations #E7E6E6 {
+    id (PK)
+    --
+    media_id (FK)
+  }
+  entity heritage_summaries #E7E6E6 {
+    id (PK)
+    --
+    heritage_id (FK)
+    ai_generation_id (FK)
+    reviewed_by (FK)
+  }
+  entity heritage_models #E7E6E6 {
+    id (PK)
+    --
+    heritage_id (FK)
+  }
+  entity heritage_narrations #E7E6E6 {
+    id (PK)
+    --
+    heritage_id (FK)
+  }
+  entity speech_clips #E7E6E6 {
+    id (PK)
+  }
+}
+
+package "Group 10 · Visitors and Ads" as pkg_10 #F8EFF3 {
+  entity guest_devices #EAD1DC {
+    id (PK)
+  }
+  entity guest_activities #EAD1DC {
+    id (PK)
+    --
+    guest_device_id (FK)
+    heritage_id (FK)
+  }
+  entity ad_unlocks #EAD1DC {
+    id (PK)
+    --
+    guest_device_id (FK)
+    heritage_id (FK)
+  }
+}
+
+organizations |o--o{ users
+roles ||--o{ users
+users ||--o{ password_reset_tokens
+users |o--o{ audit_logs
+organizations ||--o{ classes
+users ||--o{ classes
+classes ||--o{ students
+users ||--o| students
+provinces |o--o{ heritages
+heritages ||--o{ timelines
+timelines ||--o{ events
+heritages |o--o{ media
+events |o--o{ media
+heritages ||--o{ heritage_references
+users ||--o{ lessons
+classes ||--o{ lessons
+lessons ||--o{ lesson_heritages
+heritages ||--o{ lesson_heritages
+lessons |o--o{ ai_generations
+users ||--o{ ai_generations
+heritages ||--o{ questions
+users ||--o{ questions
+ai_generations |o--o{ questions
+users |o--o{ questions
+questions ||--o{ answers
+lessons ||--o{ quizzes
+users ||--o{ quizzes
+quizzes ||--o{ quiz_questions
+questions ||--o{ quiz_questions
+quizzes ||--o{ attempts
+students ||--o{ attempts
+attempts ||--o{ attempt_answers
+questions ||--o{ attempt_answers
+answers |o--o{ attempt_answers
+organizations ||--o{ subscriptions
+plans ||--o{ subscriptions
+organizations ||--o{ invoices
+subscriptions ||--o{ invoices
+invoices ||--o{ payments
+payment_providers ||--o{ payments
+heritages |o--o{ ai_generations
+lessons ||--o{ lesson_sections
+events |o--o{ lesson_sections
+attempt_answers ||--o{ attempt_answer_parts
+answers |o--o{ attempt_answer_parts
+answers |o--o{ attempt_answer_parts
+heritages ||--o{ heritage_translations
+ai_generations |o--o{ heritage_translations
+users |o--o{ heritage_translations
+timelines ||--o{ timeline_translations
+events ||--o{ event_translations
+media ||--o{ media_translations
+heritages ||--o{ heritage_summaries
+ai_generations |o--o{ heritage_summaries
+users |o--o{ heritage_summaries
+heritages ||--o{ heritage_models
+heritages ||--o{ heritage_narrations
+guest_devices ||--o{ guest_activities
+heritages |o--o{ guest_activities
+guest_devices ||--o{ ad_unlocks
+heritages ||--o{ ad_unlocks
+students ||--o{ student_notifications
+lessons ||--o{ student_notifications
+quizzes |o--o{ student_notifications
+users ||--o{ student_notifications
+students ||--o{ lesson_completions
+lessons ||--o{ lesson_completions
+students ||--o{ lesson_visits
+lessons ||--o{ lesson_visits
+
+@enduml

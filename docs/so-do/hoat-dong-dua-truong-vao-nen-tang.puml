@@ -1,0 +1,77 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|School Representative|
+|System Administrator|
+|DiViet system|
+|School Administrator|
+|VNPay Gateway|
+|School Representative|
+start
+:Send the contact form\non For Schools;
+|DiViet system|
+:Email the contact\nto system administrators;
+|System Administrator|
+:Agree with the school,\nenter the school and\nits administrator;
+|DiViet system|
+if (Email and username\nnot in use?) then (yes)
+  :Create the school and\nFree plan, email a\nset-password link;
+else (no)
+  :Show the\nduplicate field;
+  end
+endif
+|School Administrator|
+:Set the password\nfrom the link, log in;
+:Add a teacher;
+|DiViet system|
+if (Plan has room\nfor a teacher?) then (yes)
+  :Create the account,\nemail the teacher;
+else (no)
+  :Suggest a\nplan upgrade;
+endif
+|School Administrator|
+:Choose a plan: buy,\nrenew or upgrade;
+|DiViet system|
+if (Order allowed?) then (yes)
+  :Create the invoice and\na pending transaction;
+else (no)
+  :Show that an order\nis already pending;
+  end
+endif
+|School Administrator|
+:Pay on the\nVNPay page;
+|VNPay Gateway|
+:Send the signed result\nto the server;
+|DiViet system|
+if (Signature and amount valid,\npayment successful?) then (yes)
+  :Activate the plan,\nmark the invoice paid;
+else (no)
+  :Record the failure,\nallow paying again;
+  end
+endif
+|School Administrator|
+:Result page only reads\nthe invoice status;
+stop
+@enduml

@@ -1,0 +1,36 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state UNPAID : Chưa thanh toán
+state PAID : Đã thanh toán
+state CANCELLED : Đã hủy
+[*] --> UNPAID : Quản trị trường mua,\ngia hạn hoặc nâng cấp\ngói trả phí
+UNPAID --> PAID : IPN VNPay thành công\n[chữ ký hợp lệ,\nđúng số tiền]
+UNPAID --> CANCELLED : Quản trị trường\nhủy yêu cầu mua
+UNPAID --> CANCELLED : Tác vụ nền: quá hạn\n24 giờ [không còn\ngiao dịch chờ]
+CANCELLED --> PAID : IPN VNPay thành công\nđến muộn [giao dịch do\nhệ thống đánh thất bại]
+PAID --> [*]
+@enduml

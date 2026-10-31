@@ -1,0 +1,75 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|Teacher|
+|DiViet system|
+|AI Service|
+|Teacher|
+start
+:Create a draft lesson:\nchoose a class and heritage;
+|DiViet system|
+if (Use AI, plan active\nand AI runs left?) then (yes)
+  |AI Service|
+  :Draft content in the\nstructure of the level;
+  |DiViet system|
+  if (AI answered in time?) then (yes)
+    :Show the draft,\ncount one AI run;
+  else (no)
+    :Do not count the run;
+  endif
+else (no)
+endif
+|Teacher|
+:Edit or write the content,\nclick Publish;
+|DiViet system|
+if (Ready to\npublish?) then (yes)
+  :Publish, generate\nthe lesson code;
+else (no)
+  :List what is missing,\nkeep as draft;
+  end
+endif
+|Teacher|
+:Generate questions with AI:\ncount and types for the level;
+|AI Service|
+:Generate questions\nby type and level;
+|DiViet system|
+:Check the structure, save\nquestions awaiting review;
+|Teacher|
+:Edit, then Approve\nor Reject questions;
+|DiViet system|
+:Approved questions join\nthe shared question bank;
+|Teacher|
+:Build a quiz from questions for the level,\nset the times (not for Level 1), click Release;
+|DiViet system|
+if (Ready to\nrelease?) then (yes)
+  :Generate the quiz code,\nshow the quiz on the lesson page;
+else (no)
+  :List what is missing;
+  end
+endif
+|Teacher|
+:Give the code to the class or send\na notification with a message;
+stop
+@enduml
