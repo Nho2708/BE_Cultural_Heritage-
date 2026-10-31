@@ -111,7 +111,7 @@ public sealed class BillingQueries(IAppDbContext db, PlanGuard planGuard, TimePr
               "giáo viên mới cho tới khi số giáo viên giảm xuống dưới hạn mức."
             : null;
         return new PurchaseQuoteDto(plan.Id, plan.Name, kind, plan.Price ?? 0m, start, end,
-            BillingMessages.PaymentConfirm(plan.Price ?? 0m, plan.Name ?? string.Empty, kind, start).Text, warning);
+            BillingMessages.PaymentConfirm(plan.Price ?? 0m, plan.Name ?? string.Empty, kind, start, snapshot.Effective?.Plan).Text, warning);
     }
 
     /// <summary>

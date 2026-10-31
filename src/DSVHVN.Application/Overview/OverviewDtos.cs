@@ -110,7 +110,10 @@ public sealed record SystemPlanUsageDto(int PlanId, string? PlanName, decimal? P
 /// </summary>
 public sealed record SystemRevenueDto(bool Available, string Message, decimal Total, decimal ThisMonth, decimal Today, int SucceededPayments);
 
-/// <summary>Tổng quan hệ thống (tab Tổng quan của quản trị hệ thống): trường, giáo viên, học sinh, nội dung, lượt AI, số trường theo từng gói, doanh thu từ giao dịch VNPay thành công.</summary>
+/// <summary>
+/// Tổng quan hệ thống (tab Tổng quan của quản trị hệ thống): trường, giáo viên, học sinh, nội dung, lượt AI, số trường theo từng gói, doanh thu từ giao dịch VNPay thành công,
+/// số giao dịch thất bại trong 7 ngày gần nhất (cho mục Cần chú ý).
+/// </summary>
 public sealed record SystemOverviewDto(
     DateTime GeneratedAt,
     SystemSchoolsDto Schools,
@@ -119,7 +122,8 @@ public sealed record SystemOverviewDto(
     SystemContentDto Content,
     SystemAiDto Ai,
     IReadOnlyList<SystemPlanUsageDto> Plans,
-    SystemRevenueDto Revenue);
+    SystemRevenueDto Revenue,
+    int RecentFailedPayments);
 
 /// <summary>Một kỳ của biểu đồ theo thời gian (ngày <c>yyyy-MM-dd</c> hoặc tháng <c>yyyy-MM</c>, giờ Việt Nam); <c>Revenue</c> là doanh thu từ giao dịch thành công trả trong kỳ.</summary>
 public sealed record SystemTrendPointDto(

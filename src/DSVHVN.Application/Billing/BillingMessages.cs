@@ -1,4 +1,5 @@
 using DSVHVN.Application.Common;
+using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Rules;
 
 namespace DSVHVN.Application.Billing;
@@ -26,14 +27,18 @@ public static class BillingMessages
     // ---- Danh mục đã chốt ----
 
     /// <summary>Hộp xác nhận trước khi chuyển sang VNPay; <c>{hieu_luc}</c> theo loại mua.</summary>
-    public static AppMessage PaymentConfirm(decimal amount, string planName, PurchaseKind kind, DateOnly? startDate) => new(
+    public static AppMessage PaymentConfirm(decimal amount, string planName, PurchaseKind kind, DateOnly? startDate, Plan? currentPlan = null) => new(
         BillingMessageCodes.PaymentConfirm,
-        $"Trường sẽ thanh toán {BillingRules.FormatMoney(amount)} đồng cho gói {planName} qua VNPay. {EffectOf(kind, startDate)} Tiếp tục?");
+        $"Trường sẽ thanh toán {BillingRules.FormatMoney(amount)} đồng cho gói {planName} qua VNPay. {EffectOf(kind, startDate, currentPlan)} Tiếp tục?");
 
-    /// <summary>Phần <c>{hieu_luc}</c> của hộp xác nhận.</summary>
-    public static string EffectOf(PurchaseKind kind, DateOnly? startDate) => kind switch
+    /// <summary>Phần <c>{hieu_luc}</c> của hộp xác nhận. Nâng cấp từ gói Miễn phí không có tiền để hoàn nên chỉ báo gói Miễn phí kết thúc.</summary>
+    public static string EffectOf(PurchaseKind kind, DateOnly? startDate, Plan? currentPlan = null) => kind switch
     {
         PurchaseKind.RENEW when startDate is { } start => $"Gói mới bắt đầu từ ngày {BillingRules.FormatDate(start)}.",
+        PurchaseKind.UPGRADE when currentPlan is { Price: 0m } =>
+            "Gói mới có hiệu lực ngay. Gói Miễn phí sẽ kết thúc ngay khi gói mới có hiệu lực (không cộng dồn lượt AI cũ).",
+        PurchaseKind.UPGRADE when currentPlan is not null =>
+            $"Gói mới có hiệu lực ngay. Nâng cấp không hoàn tiền hoặc khấu trừ thời gian chưa dùng của gói {currentPlan.Name} hiện tại.",
         PurchaseKind.UPGRADE => "Gói mới có hiệu lực ngay, gói hiện tại kết thúc và không được hoàn phần chưa dùng.",
         _ => "Gói có hiệu lực từ ngày thanh toán.",
     };
@@ -65,6 +70,8 @@ public static class BillingMessages
         "hoặc kích hoạt gói Miễn phí. Học sinh vẫn học và làm bài kiểm tra đã phát hành bình thường.");
 
     // ---- Thao tác bị chặn (khuôn chung) ----
+
+    public static AppMessage PlanNameTaken(string planName) => new(MessageCodes.Duplicate, $"Tên gói \"{planName}\" đã tồn tại trong hệ thống.");
 
     public static AppMessage PlanNotOnSale(string planName) => new(BillingMessageCodes.PlanNotOnSale,
         $"Không thể mua gói. Gói {planName} hiện không được bán.");

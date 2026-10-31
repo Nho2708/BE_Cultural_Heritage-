@@ -125,6 +125,19 @@ public sealed class TeacherRecommendationApiTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task A_single_quiz_suggests_its_wrong_heritage_even_with_fewer_than_ten_answers()
+    {
+        var s = await SceneAsync();
+
+        // Di sản C sai hết trên tám câu: cả lớp chưa đủ mười câu nên chưa gợi ý, xem riêng bài của di sản đó thì gợi ý.
+        Assert.DoesNotContain(s.C.Heritage.Id, (await _k.ClassRecommendationsAsync(s.Token, s.ClassId, Query())).HeritagesToReview.Select(r => r.HeritageId));
+
+        var fromQuiz = await _k.QuizRecommendationsAsync(s.Token, s.QC.Id);
+
+        Assert.Equal([s.C.Heritage.Id], fromQuiz.HeritagesToReview.Select(r => r.HeritageId));
+    }
+
+    [Fact]
     public async Task Filtering_by_the_submission_time_leaves_only_the_attempts_in_the_period()
     {
         var s = await SceneAsync(oldSubmittedAt: DateTime.UtcNow.AddDays(-10));

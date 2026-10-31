@@ -65,7 +65,8 @@ public sealed class SystemOverviewService(IAppDbContext db, TimeProvider clock)
             new SystemTeachersDto(teacherTotal, teacherActive),
             activeStudents, content, aiDto,
             await PlanUsageAsync(today, ct),
-            await RevenueAsync(today, ct));
+            await RevenueAsync(today, ct),
+            await db.Payments.AsNoTracking().CountAsync(p => p.Status == PaymentStatus.FAILED && p.CreatedAt >= now.AddDays(-OverviewRules.RecentFailedPaymentDays), ct));
     }
 
     /// <summary>

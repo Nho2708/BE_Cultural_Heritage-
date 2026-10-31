@@ -11,6 +11,9 @@ public static class OverviewRules
     /// <summary>Gói còn tối đa bấy nhiêu ngày (tính cả hôm nay) thì tổng quan trường cảnh báo "sắp hết hạn".</summary>
     public const int ExpiringSoonDays = 14;
 
+    /// <summary>Giao dịch thanh toán thất bại trong bấy nhiêu ngày gần nhất thì tổng quan hệ thống nhắc ở mục Cần chú ý.</summary>
+    public const int RecentFailedPaymentDays = 7;
+
     /// <summary>Biểu đồ theo thời gian mặc định lấy 30 ngày gần nhất (tính cả hôm nay), tối đa 366 ngày một lần xem.</summary>
     public const int DefaultTrendDays = 30;
     public const int MaxTrendDays = 366;

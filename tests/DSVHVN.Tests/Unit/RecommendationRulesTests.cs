@@ -44,6 +44,14 @@ public sealed class RecommendationRulesTests
     public void A_heritage_is_for_the_class_to_review_from_forty_percent_wrong_and_at_least_ten_answers(int wrong, int answered, bool expected) =>
         Assert.Equal(expected, RecommendationRules.ClassShouldReview(wrong, answered));
 
+    [Theory]
+    [InlineData(4, 5, true)]       // 80% sai trên năm câu của một bài
+    [InlineData(1, 1, true)]
+    [InlineData(1, 3, false)]      // 33%
+    [InlineData(0, 0, false)]
+    public void A_single_quiz_has_no_minimum_number_of_answers(int wrong, int answered, bool expected) =>
+        Assert.Equal(expected, RecommendationRules.ClassShouldReview(wrong, answered, singleQuiz: true));
+
     [Fact]
     public void The_class_reason_names_the_wrong_percent_and_the_number_of_answers()
     {

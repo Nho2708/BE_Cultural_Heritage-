@@ -321,6 +321,7 @@ public sealed class OverviewApiTests(ApiFactory factory) : IClassFixture<ApiFact
         Assert.Equal("00", await billing.PayAsync(failed, responseCode: "24", transactionStatus: "02"));   // người mua hủy: giao dịch thất bại
 
         var after = await SystemAsync(admin);
+        Assert.Equal(1, after.RecentFailedPayments - before.RecentFailedPayments);
         Assert.True(after.Revenue.Available);
         Assert.Contains("VNPay", after.Revenue.Message);
         Assert.Contains("Google", after.Revenue.Message);

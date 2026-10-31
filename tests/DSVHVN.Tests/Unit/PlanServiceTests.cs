@@ -75,7 +75,7 @@ public sealed class PlanServiceTests : IDisposable
         var ex = await Fails(s => s.CreateAsync(Req(name: "  co BAN "), _b.Admin, default));
 
         Assert.Equal(409, ex.StatusCode);
-        Assert.Equal("Tên gói \"co BAN\" đã được sử dụng cho một tài khoản khác.", ex.Errors!["name"]);
+        Assert.Equal("Tên gói \"co BAN\" đã tồn tại trong hệ thống.", ex.Errors!["name"]);
     }
 
     [Fact]
