@@ -1,0 +1,85 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|Giáo viên|
+|Hệ thống DiViet|
+|Học sinh|
+|Giáo viên|
+start
+:Tạo lớp: tên, khối 1–12,\nnăm học;
+|Hệ thống DiViet|
+if (Tên lớp chưa trùng\ntrong năm học?) then (có)
+  :Lưu lớp, khối quyết định\ncấp 1, 2 hoặc 3;
+else (không)
+  :Báo lỗi\ntại ô;
+  end
+endif
+|Giáo viên|
+if (Cách thêm học sinh?) then (từng em)
+  :Nhập họ tên, bấm Lưu;
+else (danh sách)
+  :Tải tệp Excel, CSV\nhoặc dán danh sách;
+  |Hệ thống DiViet|
+  :Xem trước, đánh dấu\ndòng lỗi và trùng tên;
+  |Giáo viên|
+  :Bấm Lưu;
+endif
+|Hệ thống DiViet|
+if (Còn dòng hợp lệ?) then (có)
+  :Cấp mã học sinh, mật khẩu\n(cấp 1: 6 chữ số, cấp 2, 3: mật khẩu tạm),\nhiện phiếu đăng nhập một lần;
+else (không)
+  :Không lưu gì;
+  end
+endif
+|Giáo viên|
+:In và phát phiếu;
+|Học sinh|
+:Đăng nhập bằng mã học sinh\nvà mật khẩu trên phiếu;
+|Hệ thống DiViet|
+if (Đúng thông tin,\ntài khoản hoạt động?) then (có)
+else (không)
+  |Hệ thống DiViet|
+  :Em bấm Quên mật khẩu trên web:\ngửi thư báo thầy cô;
+  |Giáo viên|
+  :Đặt lại mật khẩu, in phiếu mới,\nem đăng nhập lại;
+endif
+|Hệ thống DiViet|
+if (Đang bị buộc đổi\nmật khẩu?) then (có, lớp cấp 2, 3)
+  |Học sinh|
+  :Nhập mật khẩu mới hai lần;
+  |Hệ thống DiViet|
+  if (Đúng quy tắc 8–64 ký tự,\nhoa, thường, số?) then (có)
+    :Lưu mật khẩu;
+  else (không)
+    :Báo lỗi, nhập lại;
+    end
+  endif
+else (không)
+endif
+:Cấp phiên theo cấp của lớp;
+|Học sinh|
+:Vào Trang học\ncủa em;
+stop
+@enduml

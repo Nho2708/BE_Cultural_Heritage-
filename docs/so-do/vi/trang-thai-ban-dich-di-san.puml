@@ -1,0 +1,48 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state "Bản dịch một ngôn ngữ của di sản" as TRANSLATION_ROW {
+  state PENDING : Chờ duyệt
+  state APPROVED : Đã duyệt
+  state REJECTED : Bị từ chối
+  state MACHINE : Bản dịch máy
+  [*] --> PENDING : [tiếng Anh]
+  [*] --> MACHINE : [tiếng Hàn, Trung, Nhật]
+  PENDING --> APPROVED : Quản trị hệ thống\nduyệt
+  PENDING --> REJECTED : Quản trị hệ thống\ntừ chối
+  APPROVED --> REJECTED : Quản trị hệ thống\ntừ chối (gỡ khỏi\ntrang công khai)
+  APPROVED --> PENDING : Quản trị hệ thống\nsửa bản dịch hoặc\ndịch lại bằng AI
+  REJECTED --> PENDING : Quản trị hệ thống\nsửa bản dịch hoặc\ndịch lại bằng AI
+  MACHINE --> MACHINE : Quản trị hệ thống\ndịch lại bằng AI hoặc\nduyệt bản dịch tiếng Anh
+  --
+  state "Còn khớp" as CURRENT : is_outdated = 0
+  state "Cần dịch lại" as OUTDATED : is_outdated = 1
+  [*] --> CURRENT
+  CURRENT --> OUTDATED : Quản trị hệ thống sửa\nchữ tiếng Việt của di sản,\ngiai đoạn, sự kiện,\nchú thích ảnh
+  OUTDATED --> CURRENT : Quản trị hệ thống\ndịch lại bằng AI
+}
+[*] --> TRANSLATION_ROW : Quản trị hệ thống bấm\nDịch và tóm tắt bằng AI\n[di sản chưa ẩn,\ncó nội dung tiếng Việt]
+@enduml

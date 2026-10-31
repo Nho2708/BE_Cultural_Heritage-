@@ -1,0 +1,85 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|Teacher|
+|DiViet system|
+|Student|
+|Teacher|
+start
+:Create a class: name,\ngrade 1–12, school year;
+|DiViet system|
+if (Class name unique\nin the school year?) then (yes)
+  :Save the class; the grade\nsets level 1, 2 or 3;
+else (no)
+  :Show the error\nat the field;
+  end
+endif
+|Teacher|
+if (How to add students?) then (one by one)
+  :Enter the full name,\nclick Save;
+else (list)
+  :Upload an Excel or CSV file\nor paste a list;
+  |DiViet system|
+  :Preview, marking error rows\nand duplicate names;
+  |Teacher|
+  :Click Save;
+endif
+|DiViet system|
+if (Any valid rows?) then (yes)
+  :Issue student codes and passwords\n(Level 1: 6 digits; Level 2, 3: temporary\npassword), show login slips once;
+else (no)
+  :Save nothing;
+  end
+endif
+|Teacher|
+:Print and hand out\nthe login slips;
+|Student|
+:Log in with the student code\nand the password on the slip;
+|DiViet system|
+if (Credentials correct,\naccount active?) then (yes)
+else (no)
+  |DiViet system|
+  :Student clicks Forgot password\non the web: email the teacher;
+  |Teacher|
+  :Reset the password, print a new slip;\nthe student logs in again;
+endif
+|DiViet system|
+if (Forced to change\nthe password?) then (yes, Level 2 or 3 class)
+  |Student|
+  :Enter the new password twice;
+  |DiViet system|
+  if (8–64 characters with upper case,\nlower case and a digit?) then (yes)
+    :Save the password;
+  else (no)
+    :Show the error,\nenter again;
+    end
+  endif
+else (no)
+endif
+:Start a session for the class level;
+|Student|
+:Go to\nMy Learning Page;
+stop
+@enduml

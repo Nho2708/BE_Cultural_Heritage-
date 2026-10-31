@@ -1,0 +1,78 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+skinparam nodesep 25
+skinparam ranksep 55
+skinparam componentStyle rectangle
+skinparam ArrowFontSize 11
+skinparam PackageStyle rectangle
+
+actor "Team member" as thanhVien
+
+node "<b>Development machine</b>\nWindows" as mayDev {
+  component "<b>Development environment</b>\n.NET 9, Node.js, Python, SQL Server LocalDB" as moiTruongDev
+  component "<b>Narration generator</b>\nVieNeu-TTS, MeloTTS" as congCuThuyetMinh
+}
+
+rectangle "<b>GitHub</b>" as github {
+  component "<b>Three repositories</b>\nbackend, frontend, AI Service\n<size:10>protected main branch</size>" as khoMa
+  component "<b>GitHub Actions: CI</b>\nbuild, test, security scan" as ci
+  component "<b>GitHub Actions: CD</b>\nbuilds images tagged with the commit" as cd
+  component "<b>GitHub Releases</b>\nAndroid APK file" as releases
+}
+
+node "<b>Backup demo machine</b>\nWindows, IIS" as mayDemo {
+  component "<b>Self-hosted runner</b>" as runner
+}
+
+rectangle "<b>Google Cloud</b> (asia-southeast1)" as gcp {
+  component "<b>Workload Identity Federation</b>" as wif
+  component "<b>Artifact Registry</b>\napi, ai, web images" as registry
+  node "<b>Google Cloud virtual machine</b>\nUbuntu 24.04, e2-standard-2" as mayAo {
+    component "<b>Docker Compose</b>\nedge (Caddy), web, api, ai, sql, voice model volume" as compose
+    component "<b>Deployment script</b>\nbackup, migration, health check, roll back to the previous image" as scriptTrienKhai
+    component "<b>systemd, journald</b>\nnightly backup at 01:30, logs kept 30 days" as heThong
+  }
+  database "<b>Cloud Storage</b>\nbackups kept 30 days" as bucket
+}
+
+rectangle "<b>Hugging Face</b>\nvoice model" as hf
+
+thanhVien --> moiTruongDev
+moiTruongDev --> khoMa : Pull Request
+khoMa --> ci : every pull request
+ci --> khoMa : auto-merge when CI passes
+khoMa --> cd : CI passed on main
+cd --> runner : build package
+cd --> wif : OIDC
+cd --> registry : push images
+cd --> scriptTrienKhai : SSH through IAP
+registry --> compose : pull images
+scriptTrienKhai --> compose
+heThong --> bucket : nightly backup
+moiTruongDev --> releases : Android APK file
+congCuThuyetMinh --> compose : MP3 files through the admin API
+compose ..> hf : downloads the model on first run
+@enduml

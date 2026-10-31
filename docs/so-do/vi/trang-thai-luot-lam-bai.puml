@@ -1,0 +1,38 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state IN_PROGRESS : Đang làm
+state SUBMITTED : Đã nộp
+state EXPIRED : Hết giờ,\nhệ thống tự nộp
+[*] --> IN_PROGRESS : Học sinh bắt đầu làm bài\n[bài kiểm tra đang mở,\nchưa có lượt làm]
+IN_PROGRESS --> IN_PROGRESS : Học sinh cấp 1 kiểm một câu (lần đầu\nđược chấm, các lần sau không\nđổi câu đã lưu)
+IN_PROGRESS --> SUBMITTED : Học sinh nộp bài [trong hạn nộp\ncộng 30 giây; cấp 1 không\ncó hạn nộp]
+IN_PROGRESS --> EXPIRED : Học sinh nộp, lưu câu, kiểm câu\nhoặc mở lại bài [quá\nhạn nộp cộng 30 giây]
+IN_PROGRESS --> EXPIRED : Tác vụ nền mỗi phút\n[quá hạn nộp\ncộng 30 giây]
+IN_PROGRESS --> EXPIRED : Bài kiểm tra bị đóng\n(giáo viên đóng hoặc\ntác vụ nền tự đóng)
+SUBMITTED --> [*]
+EXPIRED --> [*]
+@enduml

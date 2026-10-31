@@ -1,0 +1,36 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state DRAFT : Nháp
+state PUBLISHED : Đang phát hành
+state CLOSED : Đã đóng
+[*] --> DRAFT : Giáo viên tạo hoặc\nnhân bản bài kiểm tra
+DRAFT --> PUBLISHED : Giáo viên phát hành, sinh mã KT lần đầu\n[bài học đã xuất bản, 1–50 câu dùng được,\ntrường có gói hiệu lực; cấp 2, 3 đặt đủ giờ mở\nvà giờ đóng, giờ mở trước giờ đóng;\ncấp 1 không đặt giờ]
+PUBLISHED --> CLOSED : Giáo viên đóng\nbài kiểm tra
+PUBLISHED --> CLOSED : Tác vụ nền: quá giờ đóng\n30 giây [bài có giờ đóng]
+DRAFT --> [*] : Giáo viên xóa\nbản nháp
+CLOSED --> [*]
+@enduml

@@ -1,0 +1,1259 @@
+// DSVHVN (FA26SE171) — cơ sở dữ liệu phiên bản 4, SQL Server 2019. Lập 05/10/2026 từ phiên bản 3. Dán vào https://dbdiagram.io.
+// Phiên bản 4 mở rộng cho khách tham quan và học theo cấp: bản dịch nội dung di sản 5 ngôn ngữ, tóm tắt di sản theo ngôn ngữ,
+// mô hình 3D, thiết bị và lịch sử của khách, lượt mở khóa bằng quảng cáo Google có thưởng, khung nội dung bài học theo cấp,
+// 8 dạng câu hỏi và chấm điểm từng phần. Bảng của phiên bản 3 giữ nguyên tên; chỉ thêm cột, thêm giá trị enum.
+// Nhật ký chi tiết: doc/database/00-mo-hinh-du-lieu.md mục "Cập nhật v4".
+
+Project DSVHVN_v4 {
+  database_type: 'SQL Server'
+  Note: '''
+43 bảng / 10 nhóm / 69 khóa ngoại / 22 enum. Nền là phiên bản 3 (27 bảng / 8 nhóm / 40 khóa ngoại / 15 enum, đã tạo thật, code đang dùng).
+Thay đổi so với phiên bản 3 (mở rộng chốt 03/10/2026: khách tham quan, 5 ngôn ngữ, giọng đọc, 3D, quảng cáo Google có thưởng, học khác nhau theo cấp):
+- Thêm 11 bảng: heritage_translations, timeline_translations, event_translations, media_translations, heritage_summaries, heritage_models
+  (nhóm 9 Đa ngôn ngữ và 3D); guest_devices, guest_activities, ad_unlocks (nhóm 10 Khách tham quan và quảng cáo);
+  lesson_sections (nhóm 4, khung nội dung bài học theo cấp); attempt_answer_parts (nhóm 7, câu trả lời từng phần).
+- Bảng cũ thêm cột: ai_generations.heritage_id (lesson_id thành được NULL); questions.image_url, passage, passage_source, level_min, level_max;
+  answers.image_url, match_content, correct_position, blank_index; attempt_answers.parts_total, parts_correct.
+- Enum cũ thêm giá trị: question_type thêm 6 dạng; ai_task_type thêm HERITAGE_TRANSLATION, HERITAGE_SUMMARY.
+- Bổ sung sau khi tạo database thật (đồng bộ với các migration 06/10 và 20/10/2026): bảng heritage_narrations (nhóm 9, thuyết minh tạo sẵn
+  của bản tóm tắt ngắn theo ngôn ngữ); heritages thêm search_name, search_text (cột tìm kiếm không dấu); heritage_models.author thành bắt buộc;
+  thêm 4 UNIQUE có bộ lọc và 5 chỉ mục thường của gói, thanh toán, mô hình 3D, nhật ký.
+- Bổ sung theo các migration 25/10 và 31/10/2026: bảng lesson_completions, lesson_visits (nhóm 7, bài học đã xong và lượt mở bài của học sinh),
+  student_notifications (nhóm 2, thông báo thầy cô bấm gửi cho học sinh), speech_clips (nhóm 9, bộ nhớ đệm giọng đọc của máy chủ);
+  quizzes thêm access_code (mã bài kiểm tra KT + 6 ký tự); attempt_answers thêm try_count (số lần thử của bài chơi cấp 1).
+- Không có bảng chiến dịch quảng cáo, không lưu doanh thu quảng cáo (xem ở bảng điều khiển của Google), không lưu vị trí của khách.
+Ngôn ngữ: tiếng Việt là bản gốc nằm trong bảng gốc (heritages, timelines, events, media); bảng bản dịch chỉ chứa en, ko, zh, ja.
+Web quản trị và khu học của học sinh chỉ tiếng Việt: bài học, câu hỏi, lớp không có bản dịch.
+Cấp học KHÔNG lưu: cấp = hàm của classes.grade (1–5 cấp 1, 6–9 cấp 2, 10–12 cấp 3); bài học và quiz lấy cấp của lớp.
+Gợi ý (học sinh, lớp, khách), tiến độ/thành thạo, huy hiệu, sao TÍNH từ dữ liệu có sẵn — không có bảng riêng.
+
+Ánh xạ kiểu (file mô tả CSDL gốc viết kiểu PostgreSQL → SQL Server 2019):
+- timestamp → datetime2(3), lưu UTC. Không dùng "timestamp" vì trên SQL Server đó là rowversion.
+- varchar(n) → nvarchar(n); text → nvarchar(max). Chuỗi tiếng Hàn, Trung, Nhật lưu được trong nvarchar (Unicode).
+- json → nvarchar(max) chứa chuỗi JSON (key_points có thể map List<string> của EF Core 9).
+- boolean → bit NOT NULL DEFAULT 0|1. T-SQL viết is_active = 1.
+- enum → nvarchar(20) + CHECK IN (...), EF HasConversion<string>. Riêng language_code lưu mã ngôn ngữ chữ thường (vi, en, ko, zh, ja).
+- bigint, int, smallint, tinyint, decimal(p,s), date: giữ nguyên.
+
+Chưa quy định ở bảng cũ (giữ đúng file mô tả gốc): NULL/NOT NULL của đa số cột nghiệp vụ; giá trị mặc định của created_at.
+Bảng mới của phiên bản 4 ghi đủ not null cho cột bắt buộc.
+Khóa ngoại: không ghi ON DELETE = NO ACTION. Quy ước hiện thực: mọi FK DeleteBehavior.Restrict, dữ liệu nghiệp vụ chỉ xóa mềm qua deleted_at.
+Ngoại lệ Cascade (4): password_reset_tokens.user_id; timeline_translations.timeline_id, event_translations.event_id, media_translations.media_id
+(giai đoạn, sự kiện, ảnh không có deleted_at, bị xóa hẳn khi biên tập di sản; bản dịch của chúng đi theo).
+Dữ liệu riêng tư của khách (guest_activities) xóa hẳn: khách tự xóa hoặc tác vụ nền xóa khi quá thời hạn lưu.
+CSDL tạo với collation Vietnamese_CI_AI.
+
+10 UNIQUE có bộ lọc (DBML không có cú pháp WHERE — ghi trong note của index, EF Core khai báo bằng HasFilter):
+- UX_users_username: WHERE deleted_at IS NULL; UX_users_email: WHERE email IS NOT NULL AND deleted_at IS NULL.
+- UX_lessons_access_code: WHERE access_code IS NOT NULL (bài học chưa xuất bản chưa có mã).
+- UX_payments_provider_txn: WHERE provider_transaction_id IS NOT NULL (nhiều giao dịch PENDING chưa có mã cổng).
+- UX_plans_name: WHERE name IS NOT NULL; UX_subscriptions_one_pending: WHERE status = 'PENDING' (mỗi tổ chức một đăng ký chờ);
+  UX_payments_one_pending_per_invoice: WHERE status = 'PENDING' (mỗi hóa đơn một giao dịch chờ);
+  UX_heritage_models_visible: WHERE status = 'PUBLISHED' AND deleted_at IS NULL (mỗi di sản một mô hình đang hiện).
+- UX_attempt_answer_parts_answer: WHERE answer_id IS NOT NULL; UX_attempt_answer_parts_blank: WHERE blank_index IS NOT NULL.
+
+Lưu ý khi xuất SQL bằng dbml2sql --mssql, phải vá trước khi chạy (script kiểm: .claude/scripts/db/kiem_dbml_v4.ps1):
+(1) enum ra nvarchar(255) → sửa về nvarchar(20); (2) chuỗi trong sp_addextendedproperty thiếu tiền tố N;
+(3) 10 unique index trên ra KHÔNG có bộ lọc → thêm mệnh đề WHERE; (4) chạy sqlcmd với -I (QUOTED_IDENTIFIER ON, bắt buộc cho index có bộ lọc).
+'''
+}
+
+// ==================== ENUM (22 kiểu: 15 của phiên bản 3 + 7 mới) ====================
+Enum user_status {
+  ACTIVE [note: 'Hoạt động']
+  LOCKED [note: 'Bị khóa']
+  INACTIVE [note: 'Ngừng sử dụng']
+}
+
+Enum content_status {
+  DRAFT [note: 'Đang soạn']
+  PUBLISHED [note: 'Heritages: hiển thị công khai; lessons: đã hoàn chỉnh, có access_code để học sinh của lớp mở bài học và quiz của bài']
+  ARCHIVED [note: 'Ẩn / lưu trữ']
+}
+
+Enum heritage_type {
+  TANGIBLE [note: 'Vật thể']
+  INTANGIBLE [note: 'Phi vật thể']
+  NATURAL [note: 'Thiên nhiên']
+  MIXED [note: 'Hỗn hợp']
+  DOCUMENTARY [note: 'Tư liệu']
+}
+
+Enum recognition_level {
+  UNESCO
+  NATIONAL_SPECIAL [note: 'Quốc gia đặc biệt']
+  NATIONAL [note: 'Quốc gia']
+  PROVINCIAL [note: 'Cấp tỉnh']
+  NONE [note: 'Chưa xếp hạng']
+}
+
+Enum ai_task_type {
+  LESSON_SUMMARY [note: 'Soạn nội dung bài học theo cấp của lớp: tóm tắt, ý chính và các phần nội dung (lesson_sections)']
+  QUIZ_GENERATION [note: 'Tạo câu hỏi theo các dạng hợp với cấp của lớp']
+  HERITAGE_TRANSLATION [note: 'Dịch nội dung di sản (di sản, giai đoạn, sự kiện, chú thích ảnh) sang en, ko, zh, ja']
+  HERITAGE_SUMMARY [note: 'Tóm tắt di sản theo ngôn ngữ, bản ngắn và bản chi tiết']
+}
+
+Enum ai_task_status {
+  PROCESSING [note: 'Đang xử lý']
+  SUCCEEDED [note: 'Thành công']
+  FAILED [note: 'Lỗi']
+}
+
+// 8 dạng câu hỏi. Dạng dùng được ở cấp nào kiểm ở tầng code: cấp 1 chọn hình, Đúng/Sai có hình, ghép cặp, sắp xếp;
+// cấp 2 một đáp án đúng, Đúng/Sai, sắp xếp sự kiện, điền từ; cấp 3 một đáp án đúng, nhiều mệnh đề Đúng/Sai, đọc tư liệu.
+// Vẫn không có dạng "chọn nhiều đáp án đúng trong một danh sách": nhiều mệnh đề Đúng/Sai thay thế và chấm được từng phần.
+Enum question_type {
+  SINGLE_CHOICE [note: 'Một đáp án đúng. Phương án trong answers, đúng một phương án is_correct = 1']
+  TRUE_FALSE [note: 'Đúng/Sai; có thể kèm hình (questions.image_url). Hai phương án trong answers']
+  IMAGE_CHOICE [note: 'Chọn hình đúng: mỗi phương án là một hình (answers.image_url), đúng một phương án is_correct = 1']
+  MATCHING [note: 'Ghép cặp: mỗi dòng answers là một cặp đúng, vế trái content/image_url, vế phải match_content; chấm từng cặp']
+  ORDERING [note: 'Sắp xếp: mỗi dòng answers là một bước hoặc sự kiện, thứ tự đúng ở correct_position; chấm từng vị trí']
+  FILL_BLANK [note: 'Điền từ: nội dung câu có chỗ trống [1], [2]...; answers ghi đáp án chấp nhận theo blank_index (nhiều dòng cùng chỗ trống = nhiều cách viết được chấp nhận; dòng is_correct = 0 không có blank_index là từ gây nhiễu của ngân hàng từ); chấm từng chỗ trống']
+  MULTI_TRUE_FALSE [note: 'Nhiều mệnh đề Đúng/Sai trong một câu: mỗi dòng answers là một mệnh đề, is_correct = mệnh đề đúng; chấm từng mệnh đề']
+  SOURCE_READING [note: 'Đọc tư liệu rồi trả lời: đoạn tư liệu ở questions.passage (nguồn ở passage_source), câu con chỉ có một đáp án đúng, các phương án nằm ở answers, đúng một phương án is_correct = 1; không có câu con điền từ']
+}
+
+Enum difficulty_level {
+  EASY
+  MEDIUM
+  HARD
+}
+
+Enum question_source {
+  MANUAL [note: 'Giáo viên tự tạo']
+  AI [note: 'AI tạo']
+}
+
+Enum review_status {
+  PENDING [note: 'Chờ duyệt']
+  APPROVED [note: 'Đã duyệt']
+  REJECTED [note: 'Bị loại']
+}
+
+Enum quiz_status {
+  DRAFT [note: 'Đang soạn, sửa được']
+  PUBLISHED [note: 'Đã phát hành, khóa sửa câu hỏi']
+  CLOSED [note: 'Đã đóng']
+}
+
+Enum attempt_status {
+  IN_PROGRESS [note: 'Đang làm']
+  SUBMITTED [note: 'Đã nộp']
+  EXPIRED [note: 'Hết giờ, hệ thống tự nộp']
+}
+
+// Có PENDING cho gói đã chọn nhưng chưa trả tiền.
+Enum subscription_status {
+  PENDING [note: 'Chờ thanh toán: vừa chọn gói, hóa đơn UNPAID; IPN thành công → ACTIVE, quá hạn thanh toán → CANCELLED']
+  ACTIVE [note: 'Đang hiệu lực']
+  EXPIRED [note: 'Hết hạn']
+  CANCELLED [note: 'Đã hủy']
+}
+
+Enum invoice_status {
+  UNPAID [note: 'Chưa thanh toán']
+  PAID [note: 'Đã thanh toán']
+  CANCELLED [note: 'Đã hủy']
+}
+
+Enum payment_status {
+  PENDING [note: 'Chờ']
+  SUCCEEDED [note: 'Thành công']
+  FAILED [note: 'Thất bại']
+  REFUNDED [note: 'Đã hoàn tiền']
+}
+
+// ---- Enum mới của phiên bản 4
+// Mã ngôn ngữ chữ thường theo ISO 639-1; giao diện và giọng đọc ánh xạ zh sang chữ Trung giản thể (zh-Hans, giọng zh-CN).
+Enum language_code {
+  vi [note: 'Tiếng Việt — bản gốc']
+  en [note: 'Tiếng Anh — AI dịch, quản trị hệ thống duyệt']
+  ko [note: 'Tiếng Hàn — AI dịch tự động, nhãn "bản dịch máy"']
+  zh [note: 'Tiếng Trung giản thể — AI dịch tự động, nhãn "bản dịch máy"']
+  ja [note: 'Tiếng Nhật — AI dịch tự động, nhãn "bản dịch máy"']
+}
+
+// Trạng thái của bản dịch và bản tóm tắt. Bản tiếng Việt, tiếng Anh qua duyệt; tiếng Hàn, Trung, Nhật luôn là bản dịch máy (CHECK theo ngôn ngữ).
+Enum translation_status {
+  MACHINE [note: 'Bản dịch máy, hiện ngay kèm nhãn "bản dịch máy" (chỉ ko, zh, ja)']
+  PENDING [note: 'Chờ duyệt (vi, en): chưa hiện cho khách; tiếng Anh chưa duyệt thì hiện tiếng Việt kèm thông báo']
+  APPROVED [note: 'Đã duyệt (vi, en), hiện cho khách']
+  REJECTED [note: 'Bị từ chối (vi, en): không hiện, chờ AI làm lại']
+}
+
+Enum client_platform {
+  ANDROID [note: 'App mobile trên Android']
+  IOS [note: 'App mobile trên iOS']
+  WEB [note: 'Phần công khai của web học tập']
+}
+
+// Hai mạng quảng cáo có thưởng của Google. Không có bảng chiến dịch: quảng cáo do Google phân phối.
+Enum ad_network {
+  ADMOB [note: 'Google AdMob trong app (bản dựng phát triển qua EAS); phần thưởng xác minh phía máy chủ có chữ ký của Google']
+  AD_MANAGER [note: 'Google Ad Manager trên web (quảng cáo có thưởng của Google Publisher Tag); trình duyệt báo phần thưởng, giới hạn tần suất']
+}
+
+Enum guest_activity_type {
+  SEARCH [note: 'Tìm kiếm (lưu từ khóa)']
+  VIEW [note: 'Xem trang chi tiết di sản']
+  READ_SUMMARY [note: 'Đọc tóm tắt di sản (sau cổng quảng cáo); tính trọng số gấp đôi trong gợi ý']
+  LISTEN [note: 'Nghe thuyết minh (giọng đọc của thiết bị hoặc trình duyệt)']
+  VIEW_3D [note: 'Xem mô hình 3D']
+}
+
+Enum model_format {
+  GLB [note: 'glTF 2.0 nhị phân một tệp, tối đa 15 MB; định dạng duy nhất được nhận']
+}
+
+// Khung nội dung bài học theo cấp. Phần nào dùng ở cấp nào kiểm ở tầng code: cấp 1 STORY, IMAGE; cấp 2 READING, IMAGE, MILESTONE;
+// cấp 3 READING, SOURCE_EXCERPT, MILESTONE, REFLECTION.
+Enum lesson_section_type {
+  STORY [note: 'Đoạn chuyện kể ngắn cho thiếu nhi, câu đơn giản, đọc bằng giọng đọc của thiết bị (cấp 1)']
+  IMAGE [note: 'Hình kèm chú thích (cấp 1, 2)']
+  READING [note: 'Đoạn bài đọc (cấp 2, 3)']
+  MILESTONE [note: 'Mốc thời gian: năm + nội dung, có thể nối tới một sự kiện của di sản (cấp 2, 3)']
+  SOURCE_EXCERPT [note: 'Trích tư liệu gốc, bắt buộc ghi nguồn (cấp 3)']
+  REFLECTION [note: 'Câu hỏi gợi suy nghĩ, không chấm điểm (cấp 3)']
+}
+
+// ---- Nhóm 1. Nhóm Auth / Tổ chức ·
+Table organizations {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  name nvarchar(255) [not null, note: 'Tên trường / đơn vị. Bắt buộc.']
+  address nvarchar(500) [note: 'Địa chỉ của đơn vị.']
+  phone nvarchar(20) [note: 'Số điện thoại liên hệ.']
+  email nvarchar(255) [note: 'Email liên hệ của đơn vị.']
+  created_at datetime2(3) [note: 'Thời điểm tạo bản ghi.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+  deleted_at datetime2(3) [note: 'Thời điểm xóa mềm. NULL nghĩa là chưa bị xóa.']
+
+  Note: 'Lưu thông tin các trường học / đơn vị sử dụng nền tảng. Mỗi giáo viên, lớp học và gói thanh toán đều thuộc về một tổ chức.'
+}
+
+// ---- Nhóm 1. Nhóm Auth / Tổ chức ·
+Table roles {
+  id int [pk, increment, note: 'Khóa chính, tự tăng.']
+  code nvarchar(50) [unique, note: 'Mã vai trò dùng trong code: ADMIN (quản trị hệ thống), ORG_ADMIN (quản trị trường), TEACHER (giáo viên), STUDENT (học sinh). ORG_ADMIN chính là educator — quản trị của trường. Không trùng.']
+  name nvarchar(100) [note: 'Tên hiển thị của vai trò.']
+
+  Note: 'Danh mục vai trò trong hệ thống, dùng để phân quyền chức năng.'
+}
+
+// ---- Nhóm 1. Nhóm Auth / Tổ chức ·
+Table users {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  organization_id bigint [note: 'Tổ chức mà người dùng thuộc về (trỏ tới organizations). NULL với ADMIN của hệ thống.']
+  role_id int [not null, note: 'Vai trò của người dùng (trỏ tới roles).']
+  username nvarchar(100) [note: 'Tên đăng nhập. Với học sinh: username = students.student_code. Không trùng. (UK — xem index UX_users_username, lọc WHERE deleted_at IS NULL)']
+  email nvarchar(255) [note: 'Email đăng nhập, cũng dùng để gửi link quên mật khẩu. NULL với học sinh (học sinh quên mật khẩu thì giáo viên đặt lại). Không trùng khi có giá trị (UK — xem index UX_users_email).']
+  password_hash nvarchar(255) [note: 'Mật khẩu đã được băm có muối PBKDF2. Tuyệt đối không lưu mật khẩu gốc.']
+  must_change_password bit [not null, default: 0, note: 'Buộc đổi mật khẩu ở lần đăng nhập tới: bật khi giáo viên tạo tài khoản học sinh hoặc đặt lại mật khẩu cho học sinh.']
+  full_name nvarchar(255) [note: 'Họ tên hiển thị.']
+  phone nvarchar(20) [note: 'Số điện thoại cá nhân.']
+  avatar_url nvarchar(500) [note: 'Đường dẫn ảnh đại diện.']
+  status user_status [note: 'Trạng thái tài khoản: ACTIVE (hoạt động), LOCKED (bị khóa), INACTIVE (ngừng sử dụng). [enum user_status — lưu nvarchar(20) + CHECK IN (...)]']
+  last_login_at datetime2(3) [note: 'Lần đăng nhập gần nhất.']
+  created_at datetime2(3) [note: 'Thời điểm tạo tài khoản.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+  deleted_at datetime2(3) [note: 'Thời điểm xóa mềm.']
+
+  indexes {
+    username [unique, name: 'UX_users_username', note: 'UNIQUE CÓ LỌC: WHERE deleted_at IS NULL. Chỉ tài khoản chưa xóa mềm không được trùng; EF: HasIndex(u => u.Username).IsUnique.HasFilter("[deleted_at] IS NULL"). Người lớn đăng nhập bằng email hoặc username; học sinh đăng nhập bằng mã học sinh (username = mã học sinh)']
+    email [unique, name: 'UX_users_email', note: 'UNIQUE CÓ LỌC: WHERE email IS NOT NULL AND deleted_at IS NULL (học sinh không có email; xóa mềm rồi tạo lại cùng email được).']
+  }
+
+  Note: 'Tài khoản đăng nhập của quản trị hệ thống, quản trị trường (educator), giáo viên và học sinh. Phục vụ các chức năng đăng nhập, đăng xuất, quản lý thông tin cá nhân và xem dashboard.'
+}
+
+// ---- Nhóm 1. Nhóm Auth / Tổ chức ·
+Table password_reset_tokens {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  user_id bigint [not null, note: 'Người dùng yêu cầu đặt lại mật khẩu, hoặc tài khoản mới cần đặt mật khẩu lần đầu (trỏ tới users).']
+  token_hash nvarchar(255) [unique, note: 'Hash của token gửi qua email. Khi người dùng bấm link, hệ thống hash token nhận được rồi so sánh với cột này.']
+  expires_at datetime2(3) [note: 'Thời điểm token hết hạn: đặt mật khẩu lần đầu 48 giờ, quên mật khẩu 30 phút sau khi tạo.']
+  used_at datetime2(3) [note: 'Thời điểm token đã được dùng. Khác NULL nghĩa là token không dùng lại được nữa.']
+  created_at datetime2(3) [note: 'Thời điểm tạo token.']
+
+  Note: 'Lưu token cho chức năng quên mật khẩu, dùng cho cả đặt mật khẩu lần đầu của tài khoản mới. Khi người dùng yêu cầu đặt lại mật khẩu (hoặc khi tài khoản được tạo), hệ thống tạo token, gửi link qua email và chỉ lưu bản hash của token. Học sinh không có email nên không dùng bảng này: học sinh quên mật khẩu thì giáo viên đặt lại. (Có trong file mô tả gốc nhưng thiếu trên ERD draw.io — bổ sung ở đây.)'
+}
+
+// ---- Nhóm 1. Nhóm Auth / Tổ chức · bảng thêm so với thiết kế gốc, đáp ứng yêu cầu nhật ký thao tác quan trọng của đề tài;
+// 21 mã action liệt kê ở ghi chú cột action
+Table audit_logs {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  created_at datetime2(3) [not null, note: 'Thời điểm thực hiện thao tác (UTC).']
+  user_id bigint [note: 'Người thực hiện (trỏ tới users). NULL khi hệ thống tự thực hiện (IPN của VNPay, xác minh phần thưởng của AdMob, tác vụ nền đổi trạng thái gói, đóng quiz).']
+  actor_role nvarchar(20) [not null, note: 'Vai trò của người thực hiện tại thời điểm ghi (bản sao roles.code): ADMIN, ORG_ADMIN, TEACHER, STUDENT; SYSTEM khi user_id NULL. Lưu bản sao để nhật ký không đổi khi vai trò đổi sau này.']
+  action nvarchar(50) [not null, note: '''Mã thao tác — 25 mã (chuỗi, không có CHECK: thêm mã không đổi CSDL); màn xem nhật ký hiện nhãn tiếng Việt:
+LOGIN — đăng nhập web quản trị thành công (không ghi đăng nhập của học sinh);
+LOGIN_LOCKED_OUT — tạm khóa đăng nhập do sai mật khẩu 5 lần, cả người lớn và học sinh;
+ORG_CREATED — ADMIN tạo trường, kèm gói Miễn phí;
+ORG_DEACTIVATED — ADMIN ngừng trường;
+ACCOUNT_CREATED — tạo tài khoản ORG_ADMIN hoặc TEACHER;
+ACCOUNT_LOCKED, ACCOUNT_UNLOCKED — khóa / mở khóa tài khoản;
+ACCOUNT_DELETED — xóa mềm tài khoản giáo viên;
+HERITAGE_PUBLISHED, HERITAGE_ARCHIVED — xuất bản / ẩn di sản;
+STUDENT_ACCOUNTS_CREATED — giáo viên thêm học sinh hoặc nhập danh sách và tạo tài khoản (một dòng mỗi lần, đối tượng là lớp, new_value ghi số học sinh, không ghi mật khẩu tạm);
+STUDENT_PASSWORD_RESET — giáo viên đặt lại mật khẩu học sinh (một dòng mỗi lần, new_value ghi danh sách id học sinh);
+STUDENT_DEACTIVATED — vô hiệu (students.is_active = 0) hoặc xóa mềm học sinh;
+STUDENT_REACTIVATED — mở lại học sinh đã vô hiệu;
+QUIZ_PUBLISHED, QUIZ_CLOSED — phát hành / đóng quiz; đóng bởi giáo viên hoặc tác vụ nền;
+QUESTION_HIDDEN — ADMIN ẩn câu hỏi, review_status chuyển REJECTED;
+PLAN_UPDATED — tạo, sửa giá, hạn mức, bật/tắt bán gói dịch vụ trong plans;
+SUBSCRIPTION_CHANGED — mua, gia hạn, nâng cấp, hủy gói; kích hoạt gói Miễn phí;
+BILLING_STATUS_CHANGED — hệ thống đổi trạng thái gói, hóa đơn, giao dịch (IPN, tác vụ nền);
+IPN_REJECTED — IPN của cổng thanh toán bị từ chối: sai chữ ký, sai số tiền, trùng giao dịch;
+TRANSLATION_APPROVED, TRANSLATION_REJECTED — quản trị hệ thống duyệt / từ chối bản dịch hoặc bản tóm tắt tiếng Việt, tiếng Anh của di sản (new_value ghi ngôn ngữ, đối tượng và lý do từ chối nếu có);
+HERITAGE_MODEL_CHANGED — thêm, thay, gỡ, ẩn mô hình 3D (new_value ghi thao tác);
+AD_REWARD_REJECTED — phần thưởng quảng cáo bị từ chối: chữ ký AdMob sai, đơn vị quảng cáo lạ, thiếu hoặc sai tham số, thời điểm lệch quá 1 giờ, mã giao dịch web sai chữ ký hoặc hết hạn, web vượt giới hạn tần suất; new_value ghi lý do, nền tảng, mạng quảng cáo (lượt hợp lệ và lần gọi lại trùng mã giao dịch không ghi: đã có ad_unlocks).
+Không có mã đổi vai trò vì không có chức năng đổi vai trò.
+KHÔNG ghi: lượt gọi AI (đã có ai_generations), lượt làm bài và việc chấm bài (attempt_answers là chứng cứ), việc mở bài học,
+đăng nhập thành công của học sinh (đã có users.last_login_at), xem trang công khai, hoạt động của khách (đã có guest_activities), khiếu nại điểm.''']
+  target_type nvarchar(50) [not null, note: 'Loại đối tượng bị tác động, ghi bằng tên bảng: users, organizations, heritages, classes, students, quizzes, questions, plans, subscriptions, invoices, payments, heritage_translations, heritage_summaries, heritage_models, ad_unlocks. Thêm học sinh, nhập danh sách và đặt lại mật khẩu nhiều em một lần ghi đối tượng là lớp (classes); thao tác trên một học sinh ghi students.']
+  target_id bigint [note: 'Id của đối tượng bị tác động trong bảng target_type. Không khai báo FK vì trỏ tới nhiều bảng.']
+  old_value "nvarchar(max)" [note: 'Giá trị trước thay đổi (chuỗi JSON ngắn, ví dụ {"status":"ACTIVE"}). NULL nếu không có.']
+  new_value "nvarchar(max)" [note: 'Giá trị sau thay đổi (chuỗi JSON ngắn). NULL nếu không có.']
+  ip_address nvarchar(45) [note: 'Địa chỉ IP của yêu cầu (đủ độ dài IPv6). NULL khi hệ thống tự thực hiện.']
+
+  indexes {
+    created_at [name: 'IX_audit_logs_created_at', note: 'Xem và lọc nhật ký theo thời gian']
+  }
+
+  Note: ''' Nhật ký các thao tác quan trọng (quản trị, tài khoản học sinh, phát hành quiz, thanh toán), đáp ứng yêu cầu "audit log of key actions" của đề tài.
+CHỈ THÊM: không sửa, không xóa dòng nào (ứng dụng chỉ INSERT; code chặn Update/Delete); lưu tối thiểu 12 tháng; chỉ quản trị hệ thống xem.
+ai_generations là nhật ký riêng cho AI; audit_logs là nhật ký thao tác. Không có organization_id: suy ra qua user_id → users.organization_id.
+Bảng này không có trong thiết kế gốc — cần thêm vào file mô tả CSDL và ERD.'''
+}
+
+// ---- Nhóm 2. Nhóm Lớp / Học sinh ·
+Table classes {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  organization_id bigint [not null, note: 'Trường mà lớp thuộc về (trỏ tới organizations).']
+  teacher_id bigint [not null, note: 'Giáo viên phụ trách lớp (trỏ tới users).']
+  name nvarchar(100) [note: 'Tên lớp, ví dụ 8A1.']
+  grade tinyint [not null, note: 'Khối lớp 1–12. Suy ra cấp học: 1–5 cấp 1, 6–9 cấp 2, 10–12 cấp 3. Cấp quyết định khung nội dung bài học, dạng câu hỏi, luồng học, bố cục và cách hiện kết quả cho học sinh của lớp; AI soạn đúng cấp này. Giáo viên sửa được khối lớp. Đổi sang cấp khác khi lớp đã có bài học thì cảnh báo và cần xác nhận (kiểm ở tầng code): bài học và quiz đã tạo giữ nguyên, quiz DRAFT còn câu không dùng được ở cấp mới thì không phát hành được, điểm đã chấm không đổi, cách hiện kết quả theo cấp mới.']
+  school_year nvarchar(20) [note: 'Năm học, ví dụ 2026-2027.']
+  created_at datetime2(3) [note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+  deleted_at datetime2(3) [note: 'Thời điểm xóa mềm.']
+
+  checks {
+    `grade BETWEEN 1 AND 12` [name: 'CK_classes_grade']
+  }
+
+  Note: 'Lớp học do giáo viên quản lý. Giáo viên tạo bài học (kèm quiz) dành riêng cho lớp; học sinh của lớp mở bằng một mã.'
+}
+
+// ---- Nhóm 2. Nhóm Lớp / Học sinh ·
+Table students {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  class_id bigint [not null, note: 'Lớp của học sinh (trỏ tới classes).']
+  user_id bigint [not null, unique, note: 'Tài khoản đăng nhập của học sinh (trỏ tới users, vai trò STUDENT), do giáo viên tạo khi thêm học sinh vào lớp.']
+  student_code nvarchar(20) [unique, note: 'Mã học sinh do hệ thống tự sinh (ví dụ HS8K2QX7). Học sinh đăng nhập bằng mã này + mật khẩu; giữ để phân biệt học sinh trùng tên. Không trùng trên toàn hệ thống.']
+  full_name nvarchar(255) [note: 'Họ tên học sinh, hiển thị trong kết quả cho giáo viên.']
+  is_active bit [not null, default: 1, note: 'Học sinh còn hoạt động không. FALSE thì học sinh không đăng nhập và làm bài được nữa. [gốc: boolean]']
+  created_at datetime2(3) [note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+  deleted_at datetime2(3) [note: 'Thời điểm xóa mềm.']
+
+  Note: 'Danh sách học sinh của lớp. Mỗi học sinh có một tài khoản (user_id) do giáo viên tạo và một mã học sinh (student_code) dùng để đăng nhập cùng mật khẩu và để phân biệt học sinh trùng tên; nhờ đó giáo viên theo dõi được kết quả của từng học sinh qua thời gian.'
+}
+
+// ---- Nhóm 3. Nhóm Di sản ·
+Table provinces {
+  id int [pk, increment, note: 'Khóa chính, tự tăng.']
+  code nvarchar(10) [unique, note: 'Mã tỉnh/thành (có thể dùng mã hành chính nhà nước).']
+  name nvarchar(100) [note: 'Tên tỉnh/thành.']
+  region nvarchar(50) [note: 'Vùng miền (Bắc / Trung / Nam), dùng để lọc nhanh.']
+
+  Note: 'Danh mục tỉnh/thành, dùng để lọc di sản theo địa phương và theo vùng miền trên bản đồ.'
+}
+
+// ---- Nhóm 3. Nhóm Di sản ·
+Table heritages {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  province_id int [note: 'Tỉnh/thành nơi có di sản (trỏ tới provinces). Có thể NULL với di sản phi vật thể trải rộng nhiều tỉnh.']
+  name nvarchar(255) [note: 'Tên di sản, ví dụ Hoàng thành Thăng Long.']
+  slug nvarchar(255) [unique, note: 'Chuỗi dùng làm URL thân thiện, ví dụ hoang-thanh-thang-long.']
+  short_description nvarchar(1000) [note: 'Mô tả ngắn, hiển thị trên thẻ di sản và popup bản đồ.']
+  content "nvarchar(max)" [note: 'Nội dung chi tiết đầy đủ. Đây là tài liệu AI dùng để tóm tắt bài học và tạo câu hỏi. [gốc: text]']
+  heritage_type heritage_type [note: 'Loại di sản: TANGIBLE (vật thể), INTANGIBLE (phi vật thể), NATURAL (thiên nhiên), MIXED (hỗn hợp), DOCUMENTARY (tư liệu). [enum heritage_type — lưu nvarchar(20) + CHECK IN (...)]']
+  recognition_level recognition_level [note: 'Cấp xếp hạng: UNESCO, NATIONAL_SPECIAL (quốc gia đặc biệt), NATIONAL (quốc gia), PROVINCIAL (cấp tỉnh), NONE (chưa xếp hạng). [enum recognition_level — lưu nvarchar(20) + CHECK IN (...)]']
+  recognized_year int [note: 'Năm được công nhận / xếp hạng.']
+  address nvarchar(500) [note: 'Địa chỉ cụ thể.']
+  latitude decimal(9,6) [note: 'Vĩ độ để ghim trên bản đồ. NULL với di sản phi vật thể.']
+  longitude decimal(9,6) [note: 'Kinh độ để ghim trên bản đồ.']
+  place_id nvarchar(255) [note: 'Mã tham chiếu bên ngoài (Google Place ID hoặc Wikidata QID) nếu có.']
+  thumbnail_url nvarchar(500) [note: 'Ảnh đại diện của di sản.']
+  status content_status [note: 'Trạng thái nội dung: DRAFT (đang soạn), PUBLISHED (hiển thị công khai), ARCHIVED (ẩn). [enum content_status — lưu nvarchar(20) + CHECK IN (...)]']
+  search_name nvarchar(260) [note: 'Tên di sản đã gấp để tìm kiếm: chữ thường, không dấu, có dấu cách đứng đầu; dùng xếp kết quả khớp tên lên trước. NULL được phép: ứng dụng tự tính mỗi khi lưu di sản và điền cho dữ liệu cũ lúc khởi động.']
+  search_text "nvarchar(max)" [note: 'Tên, mô tả ngắn, địa chỉ, nội dung đã gấp (chữ thường, không dấu) và nối lại để tìm từ khóa. Cần vì collation Vietnamese_CI_AI chỉ bỏ dấu thanh, còn coi ă, â, ê, ô, ơ, ư, đ là chữ riêng nên "thang long" sẽ không tìm ra "Thăng Long".']
+  created_at datetime2(3) [note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+  deleted_at datetime2(3) [note: 'Thời điểm xóa mềm.']
+
+  Note: 'Bảng trung tâm lưu thông tin từng di sản (bản gốc tiếng Việt). Dữ liệu hiển thị trên bản đồ (tọa độ), trang chi tiết (nội dung) và là nguồn cho AI. Bản dịch ở heritage_translations, tóm tắt theo ngôn ngữ ở heritage_summaries, mô hình 3D ở heritage_models, thuyết minh tạo sẵn ở heritage_narrations. Sửa name, short_description, content, address thì bản dịch và tóm tắt của di sản được đánh dấu is_outdated = 1.'
+}
+
+// ---- Nhóm 3. Nhóm Di sản ·
+Table timelines {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  heritage_id bigint [not null, note: 'Di sản mà giai đoạn này thuộc về (trỏ tới heritages).']
+  name nvarchar(255) [note: 'Tên giai đoạn.']
+  description "nvarchar(max)" [note: 'Mô tả giai đoạn. [gốc: text]']
+  start_year int [note: 'Năm bắt đầu. Năm âm nghĩa là trước Công nguyên.']
+  end_year int [note: 'Năm kết thúc.']
+  sort_order int [note: 'Thứ tự hiển thị trên timeline.']
+
+  Note: 'Các giai đoạn lịch sử của một di sản, ví dụ "Thời Lý - Trần". Mỗi giai đoạn chứa nhiều sự kiện, dùng để dựng giao diện timeline.'
+}
+
+// ---- Nhóm 3. Nhóm Di sản ·
+Table events {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  timeline_id bigint [not null, note: 'Giai đoạn chứa sự kiện (trỏ tới timelines).']
+  name nvarchar(255) [note: 'Tên sự kiện.']
+  description "nvarchar(max)" [note: 'Mô tả sự kiện. [gốc: text]']
+  start_year int [not null, note: 'Năm bắt đầu. Bắt buộc có để xếp được lên timeline.']
+  start_month smallint [note: 'Tháng bắt đầu (1-12), có thể NULL.']
+  start_day smallint [note: 'Ngày bắt đầu (1-31), có thể NULL.']
+  end_year int [note: 'Năm kết thúc. NULL nếu sự kiện chỉ diễn ra trong một thời điểm.']
+  end_month smallint [note: 'Tháng kết thúc.']
+  end_day smallint [note: 'Ngày kết thúc.']
+  sort_order int [note: 'Thứ tự hiển thị khi nhiều sự kiện cùng năm.']
+
+  Note: 'Các sự kiện cụ thể trong một giai đoạn lịch sử. Ngày/tháng cho phép NULL vì nhiều sự kiện lịch sử chỉ biết đến năm.'
+}
+
+// ---- Nhóm 3. Nhóm Di sản ·
+Table media {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  heritage_id bigint [note: 'Di sản được minh họa (trỏ tới heritages). NULL nếu media thuộc sự kiện.']
+  event_id bigint [note: 'Sự kiện được minh họa (trỏ tới events). NULL nếu media thuộc di sản.']
+  media_type nvarchar(20) [note: 'Loại media: IMAGE, VIDEO, AUDIO.']
+  url nvarchar(500) [note: 'Đường dẫn tới file media.']
+  caption nvarchar(500) [note: 'Chú thích hiển thị dưới media.']
+  credit nvarchar(255) [note: 'Nguồn / tác giả / bản quyền của media.']
+  sort_order int [note: 'Thứ tự hiển thị trong gallery.']
+
+  checks {
+    `(heritage_id IS NOT NULL AND event_id IS NULL) OR (heritage_id IS NULL AND event_id IS NOT NULL)` [name: 'CK_media_owner']
+  }
+
+  Note: 'Ảnh, video, audio minh họa cho di sản hoặc cho sự kiện. Mỗi dòng thuộc về đúng một trong hai: di sản hoặc sự kiện. CHECK CK_media_owner. — Viết dạng AND/OR; KHÔNG dùng (heritage_id IS NULL) <> (event_id IS NULL) vì T-SQL không so sánh được biểu thức IS NULL (Msg 102).'
+}
+
+// ---- Nhóm 3. Nhóm Di sản ·
+Table heritage_references {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  heritage_id bigint [not null, note: 'Di sản được tham chiếu (trỏ tới heritages).']
+  title nvarchar(500) [note: 'Tên tài liệu / bài viết.']
+  url nvarchar(500) [note: 'Đường dẫn tới nguồn (nếu có).']
+  source_type nvarchar(50) [note: 'Loại nguồn: BOOK (sách), WEBSITE, GOV_DOC (văn bản nhà nước)...']
+
+  Note: 'Tài liệu tham khảo, nguồn trích dẫn của nội dung di sản, giúp đảm bảo tính chính xác của dữ liệu.'
+}
+
+// ---- Nhóm 4. Nhóm Bài học + AI ·
+Table lessons {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  teacher_id bigint [not null, note: 'Giáo viên tạo bài học (trỏ tới users).']
+  class_id bigint [not null, note: 'Lớp mà bài học dành riêng cho (trỏ tới classes). Mỗi bài học thuộc đúng một lớp; dùng cho lớp khác thì nhân bản bài học.']
+  title nvarchar(255) [note: 'Tên bài học.']
+  summary "nvarchar(max)" [note: 'Nội dung tóm tắt bài học, viết theo cấp của lớp (kể chuyện cho cấp 1, ý chính cho cấp 2, phân tích cho cấp 3). Ban đầu do AI sinh, sau đó giáo viên chỉnh sửa và lưu. [gốc: text]']
+  key_points "nvarchar(max)" [note: 'Danh sách ý chính / kiến thức quan trọng, lưu dạng mảng JSON. [gốc: json — lưu chuỗi JSON]']
+  status content_status [note: 'DRAFT (đang soạn), PUBLISHED (đã hoàn chỉnh; có access_code cho học sinh của lớp), ARCHIVED (lưu trữ). [enum content_status — lưu nvarchar(20) + CHECK IN (...)]']
+  access_code nvarchar(10) [note: 'Mã do hệ thống sinh LẦN ĐẦU xuất bản bài học (bỏ ký tự dễ nhầm 0/O/1/I, thử lại khi trùng). Giáo viên đưa MỘT mã này cho lớp; học sinh của lớp (đã đăng nhập) nhập mã để mở CẢ bài học lẫn quiz của bài — không nhập mã hai lần. Mã chỉ có tác dụng với học sinh đã đăng nhập và thuộc lớp của bài.']
+  created_at datetime2(3) [note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+  deleted_at datetime2(3) [note: 'Thời điểm xóa mềm.']
+
+  indexes {
+    access_code [unique, name: 'UX_lessons_access_code', note: 'UNIQUE CÓ LỌC: WHERE access_code IS NOT NULL (bài chưa xuất bản chưa có mã).']
+  }
+
+  Note: 'Bài học do giáo viên tạo dựa trên một hoặc nhiều di sản. Lưu nội dung tóm tắt (do AI sinh và giáo viên đã chỉnh sửa) và các ý chính để học sinh ôn tập. Quiz luôn thuộc về một bài học. — Mỗi bài học dành riêng cho một lớp; giáo viên đưa một mã bài học (access_code) cho lớp, học sinh của lớp đăng nhập rồi nhập mã để mở cả bài học và quiz của bài. Bài học là riêng của giáo viên tạo; dùng cho lớp khác thì nhân bản bài học. Cấp của bài học = cấp của lớp (classes.grade), không lưu riêng; các phần nội dung theo cấp ở lesson_sections.'
+}
+
+// ---- Nhóm 4. Nhóm Bài học + AI ·
+Table lesson_heritages {
+  lesson_id bigint [note: 'Bài học (trỏ tới lessons). Cùng heritage_id tạo thành khóa chính kép.']
+  heritage_id bigint [note: 'Di sản (trỏ tới heritages).']
+
+  indexes {
+    (lesson_id, heritage_id) [pk]
+  }
+
+  Note: 'Bảng trung gian nối bài học với di sản (quan hệ nhiều - nhiều): một bài học có thể dựa trên nhiều di sản, một di sản có thể dùng trong nhiều bài học.'
+}
+
+// ---- Nhóm 4. Nhóm Bài học + AI · bảng thêm ở phiên bản 4: khung nội dung bài học theo cấp
+Table lesson_sections {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  lesson_id bigint [not null, note: 'Bài học chứa phần này (trỏ tới lessons).']
+  section_type lesson_section_type [not null, note: 'Loại phần: STORY, IMAGE, READING, MILESTONE, SOURCE_EXCERPT, REFLECTION. Loại dùng được theo cấp của lớp kiểm ở tầng code. [enum lesson_section_type — lưu nvarchar(20) + CHECK IN (...)]']
+  title nvarchar(255) [note: 'Tiêu đề của phần (tùy chọn).']
+  body "nvarchar(max)" [note: 'Nội dung chữ: đoạn chuyện, đoạn bài đọc, nội dung mốc, đoạn trích tư liệu, câu hỏi gợi suy nghĩ, chú thích hình.']
+  image_url nvarchar(500) [note: 'Hình của phần. Bắt buộc với IMAGE; NULL hoặc tùy chọn với loại khác.']
+  milestone_year int [note: 'Năm của mốc thời gian, bắt buộc với MILESTONE. Năm âm = trước Công nguyên. NULL với loại khác.']
+  event_id bigint [note: 'Sự kiện của di sản mà mốc lấy từ (trỏ tới events). NULL khi giáo viên tự viết mốc hoặc phần không phải mốc.']
+  source_citation nvarchar(500) [note: 'Nguồn của đoạn trích, bắt buộc với SOURCE_EXCERPT. NULL với loại khác.']
+  sort_order int [not null, note: 'Thứ tự của phần trong luồng học của bài.']
+  created_at datetime2(3) [not null, note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+
+  indexes {
+    (lesson_id, sort_order) [name: 'IX_lesson_sections_lesson_order', note: 'Đọc các phần của bài theo thứ tự']
+  }
+
+  checks {
+    `(section_type <> 'MILESTONE' OR milestone_year IS NOT NULL) AND (section_type <> 'SOURCE_EXCERPT' OR source_citation IS NOT NULL) AND (section_type <> 'IMAGE' OR image_url IS NOT NULL)` [name: 'CK_lesson_sections_required']
+  }
+
+  Note: '''Các phần nội dung của bài học theo khung của cấp, xếp theo sort_order thành luồng học:
+cấp 1 chuyện kể (nghe bằng giọng đọc) → hình → chơi (quiz) → nhận sao; cấp 2 bài đọc → mốc thời gian → bài kiểm tra → giải thích;
+cấp 3 bài đọc + trích tư liệu gốc có nguồn → câu hỏi gợi suy nghĩ → bài kiểm tra có giờ → phân tích kết quả.
+AI soạn (ai_generations LESSON_SUMMARY), giáo viên sửa rồi xuất bản. Nhân bản bài học chép luôn các phần. Chỉ tiếng Việt.
+Lý do tách bảng thay vì một cột JSON: giáo viên sửa, xếp lại từng phần; mốc nối được tới sự kiện của di sản; CHECK bắt buộc nguồn cho đoạn trích.'''
+}
+
+// ---- Nhóm 4. Nhóm Bài học + AI ·
+Table ai_generations {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  task_type ai_task_type [note: 'Loại tác vụ: LESSON_SUMMARY (soạn nội dung bài học theo cấp), QUIZ_GENERATION (tạo câu hỏi), HERITAGE_TRANSLATION (dịch di sản), HERITAGE_SUMMARY (tóm tắt di sản theo ngôn ngữ). [enum ai_task_type — lưu nvarchar(20) + CHECK IN (...)]']
+  lesson_id bigint [note: 'Bài học liên quan (trỏ tới lessons), với LESSON_SUMMARY, QUIZ_GENERATION. NULL khi dịch, tóm tắt di sản.']
+  heritage_id bigint [note: 'Di sản được dịch hoặc tóm tắt (trỏ tới heritages), với HERITAGE_TRANSLATION, HERITAGE_SUMMARY. NULL với tác vụ của bài học.']
+  requested_by bigint [not null, note: 'Người yêu cầu (trỏ tới users): giáo viên với tác vụ bài học, quản trị hệ thống với tác vụ di sản.']
+  input_snapshot "nvarchar(max)" [note: 'Bản sao nội dung đã gửi cho AI tại thời điểm gọi (vì nội dung di sản có thể bị sửa sau này). [gốc: text]']
+  params "nvarchar(max)" [note: 'Tham số yêu cầu, ví dụ cấp học, số câu hỏi, độ khó, dạng câu hỏi, ngôn ngữ đích. [gốc: json — lưu chuỗi JSON]']
+  model nvarchar(100) [note: 'Tên model AI đã dùng.']
+  raw_output "nvarchar(max)" [note: 'Kết quả thô AI trả về, trước khi parse thành câu hỏi / tóm tắt. [gốc: text]']
+  status ai_task_status [note: 'PROCESSING (đang xử lý), SUCCEEDED (thành công), FAILED (lỗi). [enum ai_task_status — lưu nvarchar(20) + CHECK IN (...)]']
+  error_message nvarchar(1000) [note: 'Thông báo lỗi nếu thất bại.']
+  created_at datetime2(3) [note: 'Thời điểm gửi yêu cầu.']
+  completed_at datetime2(3) [note: 'Thời điểm AI trả kết quả.']
+
+  checks {
+    `(lesson_id IS NOT NULL AND heritage_id IS NULL AND task_type IN ('LESSON_SUMMARY', 'QUIZ_GENERATION')) OR (lesson_id IS NULL AND heritage_id IS NOT NULL AND task_type IN ('HERITAGE_TRANSLATION', 'HERITAGE_SUMMARY'))` [name: 'CK_ai_generations_subject']
+  }
+
+  Note: 'Nhật ký mỗi lần gọi AI. Giúp truy vết một câu hỏi, một bản tóm tắt hay một bản dịch được AI sinh ra từ tài liệu nào, với tham số gì, và hỗ trợ debug khi AI trả kết quả sai. Mỗi dòng thuộc đúng một bài học hoặc một di sản (CHECK CK_ai_generations_subject). Hạn mức AI của trường chỉ đếm dòng có lesson_id (tác vụ của giáo viên); dịch, tóm tắt di sản do quản trị hệ thống gọi, không tính hạn mức trường.'
+}
+
+// ---- Nhóm 5. Nhóm Ngân hàng câu hỏi ·
+Table questions {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  heritage_id bigint [not null, note: 'Di sản mà câu hỏi nói về (trỏ tới heritages), dùng để lọc câu hỏi trong ngân hàng.']
+  created_by bigint [not null, note: 'Giáo viên tạo câu hỏi, hoặc giáo viên đã yêu cầu AI tạo (trỏ tới users).']
+  ai_generation_id bigint [note: 'Lần gọi AI đã sinh ra câu hỏi (trỏ tới ai_generations). NULL nếu giáo viên tự tạo.']
+  content "nvarchar(max)" [note: 'Nội dung câu hỏi. Dạng điền từ ghi chỗ trống bằng [1], [2]... [gốc: text]']
+  question_type question_type [note: 'Dạng câu hỏi (8 dạng): SINGLE_CHOICE, TRUE_FALSE, IMAGE_CHOICE, MATCHING, ORDERING, FILL_BLANK, MULTI_TRUE_FALSE, SOURCE_READING. Cấu trúc đáp án của từng dạng ở ghi chú enum question_type. [enum question_type — lưu nvarchar(20) + CHECK IN (...)]']
+  image_url nvarchar(500) [note: 'Hình minh họa của câu hỏi (Đúng/Sai có hình của cấp 1, câu hỏi về hình). NULL nếu không có.']
+  passage "nvarchar(max)" [note: 'Đoạn tư liệu học sinh đọc trước khi trả lời. Bắt buộc với SOURCE_READING (CHECK CK_questions_passage); NULL với dạng khác.']
+  passage_source nvarchar(500) [note: 'Nguồn của đoạn tư liệu (tên văn bản, tác giả, năm). NULL nếu không có tư liệu.']
+  level_min tinyint [not null, default: 1, note: 'Cấp học thấp nhất câu hỏi dùng được (1–3). Mặc định lấy cấp của lớp khi giáo viên soạn hoặc AI sinh cho bài học.']
+  level_max tinyint [not null, default: 3, note: 'Cấp học cao nhất câu hỏi dùng được (1–3). Quiz của lớp cấp c chỉ nhận câu có level_min <= c <= level_max và dạng câu dùng được ở cấp c (kiểm ở tầng code).']
+  difficulty_level difficulty_level [note: 'Độ khó: EASY, MEDIUM, HARD. [enum difficulty_level — lưu nvarchar(20) + CHECK IN (...)]']
+  explanation "nvarchar(max)" [note: 'Giải thích vì sao đáp án đúng, hiển thị cho học sinh sau khi nộp (nếu quiz cho phép). [gốc: text]']
+  source question_source [note: 'Nguồn gốc: MANUAL (giáo viên tự tạo) hoặc AI. [enum question_source — lưu nvarchar(20) + CHECK IN (...)]']
+  review_status review_status [note: 'Trạng thái duyệt: PENDING (chờ duyệt), APPROVED (đã duyệt), REJECTED (bị loại). Câu MANUAL mặc định APPROVED, câu AI mặc định PENDING. [enum review_status — lưu nvarchar(20) + CHECK IN (...)]']
+  reviewed_by bigint [note: 'Giáo viên đã duyệt câu hỏi, hoặc quản trị hệ thống đã ẩn câu (trỏ tới users). NULL khi chưa duyệt.']
+  reviewed_at datetime2(3) [note: 'Thời điểm duyệt.']
+  created_at datetime2(3) [note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+  deleted_at datetime2(3) [note: 'Thời điểm xóa mềm.']
+
+  checks {
+    `level_min BETWEEN 1 AND 3 AND level_max BETWEEN 1 AND 3 AND level_min <= level_max` [name: 'CK_questions_levels']
+    `question_type <> 'SOURCE_READING' OR passage IS NOT NULL` [name: 'CK_questions_passage']
+  }
+
+  Note: 'Lưu nội dung câu hỏi, dạng câu, cấp học phù hợp và trạng thái duyệt. Chỉ những câu đã APPROVED mới được thêm vào quiz. Câu hỏi chỉ tiếng Việt (không có bản dịch).'
+}
+
+// ---- Nhóm 5. Nhóm Ngân hàng câu hỏi ·
+Table answers {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  question_id bigint [not null, note: 'Câu hỏi chứa phương án này (trỏ tới questions).']
+  content nvarchar(1000) [note: 'Nội dung phần trả lời: phương án (một đáp án đúng, Đúng/Sai, đọc tư liệu), nhãn của hình (chọn hình), vế trái (ghép cặp), bước (sắp xếp), đáp án chấp nhận hoặc từ gây nhiễu (điền từ), mệnh đề (nhiều mệnh đề Đúng/Sai).']
+  image_url nvarchar(500) [note: 'Hình của phương án (chọn hình đúng) hoặc của vế trái (ghép cặp hình – tên). NULL nếu không có.']
+  match_content nvarchar(1000) [note: 'Vế phải của cặp đúng (ghép cặp). NULL với dạng khác.']
+  correct_position tinyint [note: 'Vị trí đúng 1..n trong thứ tự đúng (sắp xếp). NULL với dạng khác.']
+  blank_index tinyint [note: 'Chỗ trống mà đáp án này điền vào (điền từ, 1..n). NULL với dạng khác và với từ gây nhiễu.']
+  is_correct bit [not null, default: 0, note: 'Một đáp án đúng, Đúng/Sai, chọn hình, đọc tư liệu: phương án đúng (đúng một dòng = 1); nhiều mệnh đề Đúng/Sai: mệnh đề này đúng; điền từ: đáp án được chấp nhận (0 = từ gây nhiễu); ghép cặp, sắp xếp: luôn 1. Kiểm ở tầng code. [gốc: boolean]']
+  sort_order int [note: 'Thứ tự hiển thị phần trả lời (A, B, C, D). Ghép cặp và sắp xếp được xáo khi hiển thị.']
+
+  checks {
+    `(correct_position IS NULL OR correct_position BETWEEN 1 AND 20) AND (blank_index IS NULL OR blank_index BETWEEN 1 AND 20)` [name: 'CK_answers_positions']
+  }
+
+  Note: 'Các phần trả lời của từng câu hỏi, đủ cho 8 dạng câu (cấu trúc theo dạng ở ghi chú enum question_type). Cột của dạng khác để NULL.'
+}
+
+// ---- Nhóm 6. Nhóm Quiz ·
+Table quizzes {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  lesson_id bigint [not null, note: 'Bài học mà quiz thuộc về (trỏ tới lessons). Qua bài học sẽ biết quiz liên quan đến di sản nào.']
+  created_by bigint [not null, note: 'Giáo viên tạo quiz (trỏ tới users).']
+  name nvarchar(255) [note: 'Tên quiz.']
+  access_code nvarchar(10) [note: 'Mã bài kiểm tra: KT + 6 ký tự, sinh lần đầu phát hành. Học sinh gõ ở cùng ô nhập mã bài học để vào thẳng bài kiểm tra. NULL khi chưa phát hành.']
+  description "nvarchar(max)" [note: 'Mô tả / hướng dẫn làm bài, hiển thị cho học sinh trước khi bắt đầu. [gốc: text]']
+  difficulty_level difficulty_level [note: 'Độ khó chung của quiz. [enum difficulty_level — lưu nvarchar(20) + CHECK IN (...)]']
+  time_limit_minutes int [note: 'Thời gian làm bài tối đa (phút). NULL nghĩa là không giới hạn.']
+  open_at datetime2(3) [note: 'Thời điểm bắt đầu nhận bài.']
+  close_at datetime2(3) [note: 'Thời điểm ngừng nhận bài.']
+  shuffle_questions bit [not null, default: 0, note: 'TRUE thì xáo trộn thứ tự câu hỏi cho mỗi học sinh. [gốc: boolean]']
+  show_answers_after_submit bit [not null, default: 0, note: 'TRUE thì học sinh được xem đáp án đúng ngay sau khi nộp. [gốc: boolean]']
+  total_point decimal(6,2) [note: 'Tổng điểm của quiz, bằng tổng point trong quiz_questions. Lưu sẵn để đỡ phải tính lại.']
+  status quiz_status [note: 'DRAFT (đang soạn, sửa được), PUBLISHED (đã phát hành, khóa sửa câu hỏi), CLOSED (đã đóng). [enum quiz_status — lưu nvarchar(20) + CHECK IN (...)]']
+  published_at datetime2(3) [note: 'Thời điểm phát hành.']
+  created_at datetime2(3) [note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+  deleted_at datetime2(3) [note: 'Thời điểm xóa mềm.']
+
+  indexes {
+    access_code [unique, name: 'UX_quizzes_access_code', note: 'UNIQUE CÓ LỌC: WHERE access_code IS NOT NULL (bài chưa phát hành chưa có mã).']
+  }
+
+  Note: 'Thông tin một bài quiz: thuộc bài học nào, thời gian mở/đóng và các thiết lập làm bài. Học sinh mở quiz bằng mã bài học hoặc mã bài kiểm tra; lớp được làm quiz là lớp của bài học (lessons.class_id).'
+}
+
+// ---- Nhóm 6. Nhóm Quiz ·
+Table quiz_questions {
+  quiz_id bigint [note: 'Quiz (trỏ tới quizzes). Cùng question_id tạo thành khóa chính kép.']
+  question_id bigint [note: 'Câu hỏi (trỏ tới questions). Chỉ nhận câu có review_status = APPROVED.']
+  point decimal(5,2) [note: 'Điểm của câu hỏi trong quiz này.']
+  sort_order int [note: 'Thứ tự câu hỏi trong quiz.']
+
+  indexes {
+    (quiz_id, question_id) [pk]
+  }
+
+  Note: 'Bảng trung gian nối quiz với câu hỏi (nhiều - nhiều). Lưu điểm và thứ tự của từng câu trong quiz. Một câu hỏi có thể có số điểm khác nhau ở các quiz khác nhau.'
+}
+
+// ---- Nhóm 7. Nhóm Làm bài / Kết quả ·
+Table attempts {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  quiz_id bigint [not null, note: 'Quiz được làm (trỏ tới quizzes).']
+  student_id bigint [not null, note: 'Học sinh làm bài (trỏ tới students).']
+  started_at datetime2(3) [note: 'Thời điểm bắt đầu làm bài.']
+  submitted_at datetime2(3) [note: 'Thời điểm nộp bài. NULL nếu chưa nộp.']
+  duration_seconds int [note: 'Thời gian làm bài (giây), tính khi nộp.']
+  score decimal(6,2) [note: 'Điểm đạt được.']
+  total_point decimal(6,2) [note: 'Tổng điểm của quiz tại thời điểm làm bài (bản sao), để tính phần trăm đúng.']
+  correct_count int [note: 'Số câu đúng.']
+  total_questions int [note: 'Tổng số câu. Số câu sai = total_questions - correct_count.']
+  status attempt_status [note: 'IN_PROGRESS (đang làm), SUBMITTED (đã nộp), EXPIRED (hết giờ, hệ thống tự nộp). [enum attempt_status — lưu nvarchar(20) + CHECK IN (...)]']
+
+  indexes {
+    (quiz_id, student_id) [unique, name: 'UX_attempts_quiz_student', note: 'Mỗi học sinh chỉ làm một lần; chặn cả gửi trùng đồng thời']
+  }
+
+  Note: 'Mỗi dòng là một lượt làm bài của một học sinh cho một quiz. Lưu thời gian, điểm và trạng thái. Ràng buộc UNIQUE (quiz_id, student_id) đảm bảo mỗi học sinh chỉ làm một lần.'
+}
+
+// ---- Nhóm 7. Nhóm Làm bài / Kết quả ·
+Table attempt_answers {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  attempt_id bigint [not null, note: 'Lượt làm bài (trỏ tới attempts).']
+  question_id bigint [not null, note: 'Câu hỏi được trả lời (trỏ tới questions). Có cột này thì câu bỏ trống vẫn được ghi nhận và thống kê tỷ lệ đúng từng câu dễ dàng.']
+  answer_id bigint [note: 'Phương án học sinh chọn (trỏ tới answers) với dạng chọn một phương án: SINGLE_CHOICE, TRUE_FALSE, IMAGE_CHOICE, SOURCE_READING. NULL nghĩa là bỏ trống; với 4 dạng nhiều phần luôn NULL, câu trả lời từng phần ở attempt_answer_parts.']
+  is_correct bit [not null, default: 0, note: 'Câu đúng hoàn toàn (mọi phần đúng), lưu cố định lúc nộp. [gốc: boolean]']
+  parts_total smallint [not null, default: 1, note: 'Số phần được chấm của câu: 1 với dạng chọn một phương án; số cặp, số bước, số chỗ trống, số mệnh đề với dạng nhiều phần.']
+  parts_correct smallint [not null, default: 0, note: 'Số phần học sinh làm đúng, lưu cố định lúc nộp. Bỏ trống = 0.']
+  point_earned decimal(5,2) [note: 'Điểm học sinh đạt được ở câu này = quiz_questions.point × parts_correct ÷ parts_total (chấm từng phần), làm tròn 2 chữ số.']
+  answered_at datetime2(3) [note: 'Thời điểm học sinh chọn đáp án.']
+  try_count tinyint [not null, default: 0, note: 'Số lần học sinh cấp 1 đã thử câu này trong bài chơi; lần trả lời đầu là lần chấm. Các cấp khác giữ 0.']
+
+  indexes {
+    (attempt_id, question_id) [unique, name: 'UX_attempt_answers_attempt_question', note: 'Mỗi câu một dòng trong mỗi lượt; chặn ghi trùng khi nộp hai lần. Tỷ lệ đúng từng câu = AVG(is_correct), correct_count = số dòng is_correct = 1']
+  }
+
+  checks {
+    `parts_total >= 1 AND parts_correct BETWEEN 0 AND parts_total` [name: 'CK_attempt_answers_parts']
+  }
+
+  Note: 'Chi tiết câu trả lời của học sinh trong một lượt làm bài, một dòng mỗi câu. Kết quả chấm (đúng/sai, số phần đúng, điểm) được lưu cố định tại thời điểm nộp, nên nếu câu hỏi bị sửa sau này thì điểm cũ không bị thay đổi.'
+}
+
+// ---- Nhóm 7. Nhóm Làm bài / Kết quả · bảng thêm ở phiên bản 4: câu trả lời từng phần của dạng câu nhiều phần
+Table attempt_answer_parts {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  attempt_answer_id bigint [not null, note: 'Câu trả lời của lượt làm bài chứa phần này (trỏ tới attempt_answers).']
+  answer_id bigint [note: 'Phần được trả lời (trỏ tới answers): vế trái của cặp (ghép cặp), bước (sắp xếp), mệnh đề (nhiều mệnh đề Đúng/Sai). NULL với chỗ trống của điền từ.']
+  blank_index tinyint [note: 'Chỗ trống được trả lời (điền từ, 1..n). NULL với dạng khác.']
+  selected_answer_id bigint [note: 'Ghép cặp: dòng answers có vế phải học sinh ghép vào (đúng khi bằng answer_id); điền từ bằng ngân hàng từ: dòng answers học sinh chọn (trỏ tới answers). NULL nếu bỏ trống hoặc không dùng.']
+  selected_position tinyint [note: 'Sắp xếp: vị trí học sinh đặt bước này (đúng khi bằng answers.correct_position). NULL nếu bỏ trống hoặc không dùng.']
+  selected_bool bit [note: 'Nhiều mệnh đề Đúng/Sai: học sinh chọn Đúng (1) hay Sai (0); đúng khi bằng answers.is_correct. NULL nếu bỏ trống hoặc không dùng (cột bit duy nhất được NULL, vì cần ba trạng thái).']
+  response_text nvarchar(255) [note: 'Điền từ: chữ học sinh gõ; so với các đáp án chấp nhận của chỗ trống sau khi bỏ khoảng trắng thừa, không phân biệt hoa thường. NULL nếu bỏ trống hoặc không dùng.']
+  is_correct bit [not null, default: 0, note: 'Phần này đúng, chấm và lưu cố định lúc nộp.']
+
+  indexes {
+    (attempt_answer_id, answer_id) [unique, name: 'UX_attempt_answer_parts_answer', note: 'UNIQUE CÓ LỌC: WHERE answer_id IS NOT NULL. Mỗi cặp, bước, mệnh đề một dòng trong một câu trả lời.']
+    (attempt_answer_id, blank_index) [unique, name: 'UX_attempt_answer_parts_blank', note: 'UNIQUE CÓ LỌC: WHERE blank_index IS NOT NULL. Mỗi chỗ trống một dòng trong một câu trả lời.']
+  }
+
+  checks {
+    `(answer_id IS NOT NULL AND blank_index IS NULL) OR (answer_id IS NULL AND blank_index IS NOT NULL)` [name: 'CK_attempt_answer_parts_target']
+  }
+
+  Note: '''Câu trả lời từng phần cho 4 dạng nhiều phần (ghép cặp, sắp xếp, điền từ, nhiều mệnh đề Đúng/Sai), để chấm điểm từng phần
+và thống kê tỉ lệ đúng theo phần. Lúc nộp hệ thống ghi đủ một dòng cho mỗi phần (kể cả phần bỏ trống), cập nhật attempt_answers.parts_total,
+parts_correct, point_earned. Dạng chọn một phương án không có dòng ở đây (dùng attempt_answers.answer_id).
+Mỗi dòng trỏ tới đúng một trong hai: một dòng answers hoặc một chỗ trống (CHECK CK_attempt_answer_parts_target).'''
+}
+
+// ---- Nhóm 8. Nhóm Thanh toán ·
+Table plans {
+  id int [pk, increment, note: 'Khóa chính, tự tăng.']
+  name nvarchar(100) [note: 'Tên gói, ví dụ Miễn phí, Cơ bản, Nâng cao.']
+  price decimal(12,2) [note: 'Giá gói.']
+  duration_days int [note: 'Thời hạn sử dụng của gói (ngày).']
+  max_teachers int [note: 'Số giáo viên tối đa của tổ chức.']
+  max_ai_requests int [note: 'Số lượt gọi AI tối đa trong một kỳ (đối chiếu với ai_generations).']
+  is_active bit [not null, default: 1, note: 'Gói còn được bán không. [gốc: boolean]']
+
+  indexes {
+    name [unique, name: 'UX_plans_name', note: 'UNIQUE CÓ LỌC: WHERE name IS NOT NULL. Tên gói không trùng.']
+  }
+
+  Note: 'Danh mục các gói dịch vụ, kèm giá và giới hạn sử dụng.'
+}
+
+// ---- Nhóm 8. Nhóm Thanh toán ·
+Table subscriptions {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  organization_id bigint [not null, note: 'Tổ chức đăng ký (trỏ tới organizations).']
+  plan_id int [not null, note: 'Gói được đăng ký (trỏ tới plans).']
+  start_date date [note: 'Ngày bắt đầu hiệu lực.']
+  end_date date [note: 'Ngày hết hạn.']
+  status subscription_status [note: 'PENDING (chờ thanh toán), ACTIVE (đang hiệu lực), EXPIRED (hết hạn), CANCELLED (đã hủy). [enum subscription_status — lưu nvarchar(20) + CHECK IN (...)]']
+  created_at datetime2(3) [note: 'Thời điểm đăng ký.']
+
+  indexes {
+    organization_id [unique, name: 'UX_subscriptions_one_pending', note: 'UNIQUE CÓ LỌC: WHERE status = PENDING. Mỗi tổ chức chỉ có một đăng ký đang chờ thanh toán.']
+    (organization_id, status) [name: 'IX_subscriptions_organization_status', note: 'Tìm đăng ký của một tổ chức theo trạng thái']
+  }
+
+  Note: 'Lịch sử đăng ký gói của từng tổ chức, cho biết tổ chức đang dùng gói nào và còn hạn đến khi nào.'
+}
+
+// ---- Nhóm 8. Nhóm Thanh toán ·
+Table invoices {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  organization_id bigint [not null, note: 'Tổ chức phải thanh toán (trỏ tới organizations).']
+  subscription_id bigint [not null, note: 'Đăng ký gói mà hóa đơn này thu tiền (trỏ tới subscriptions).']
+  invoice_number nvarchar(50) [unique, note: 'Số hóa đơn, dùng để đối chiếu và in ấn. Không trùng.']
+  amount decimal(12,2) [note: 'Số tiền cần thanh toán.']
+  description nvarchar(500) [note: 'Nội dung hóa đơn.']
+  status invoice_status [note: 'UNPAID (chưa thanh toán), PAID (đã thanh toán), CANCELLED (đã hủy). [enum invoice_status — lưu nvarchar(20) + CHECK IN (...)]']
+  issued_at datetime2(3) [note: 'Thời điểm xuất hóa đơn.']
+  due_at datetime2(3) [note: 'Hạn thanh toán.']
+
+  indexes {
+    (status, due_at) [name: 'IX_invoices_status_due_at', note: 'Tác vụ nền tìm hóa đơn chưa thanh toán đã quá hạn']
+  }
+
+  Note: 'Hóa đơn phát sinh khi tổ chức đăng ký hoặc gia hạn gói. Một hóa đơn có thể có nhiều lần thanh toán (ví dụ lần đầu lỗi, lần sau thành công).'
+}
+
+// ---- Nhóm 8. Nhóm Thanh toán ·
+Table payment_providers {
+  id int [pk, increment, note: 'Khóa chính, tự tăng.']
+  code nvarchar(50) [unique, note: 'Mã cổng dùng trong code: VNPAY, MOMO, ZALOPAY, BANK_TRANSFER.']
+  name nvarchar(100) [note: 'Tên hiển thị.']
+  is_active bit [not null, default: 1, note: 'Cổng còn được sử dụng không. [gốc: boolean]']
+
+  Note: 'Danh mục các cổng thanh toán hệ thống hỗ trợ.'
+}
+
+// ---- Nhóm 8. Nhóm Thanh toán ·
+Table payments {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  invoice_id bigint [not null, note: 'Hóa đơn được thanh toán (trỏ tới invoices).']
+  provider_id int [not null, note: 'Cổng thanh toán sử dụng (trỏ tới payment_providers).']
+  provider_transaction_id nvarchar(255) [note: 'Mã giao dịch do cổng thanh toán trả về. UNIQUE cùng provider_id để chống ghi nhận trùng giao dịch.']
+  amount decimal(12,2) [note: 'Số tiền của giao dịch.']
+  status payment_status [note: 'PENDING (chờ), SUCCEEDED (thành công), FAILED (thất bại), REFUNDED (đã hoàn tiền). [enum payment_status — lưu nvarchar(20) + CHECK IN (...)]']
+  raw_response "nvarchar(max)" [note: 'Toàn bộ dữ liệu callback / IPN từ cổng thanh toán, dùng để đối soát khi có tranh chấp. [gốc: json — lưu chuỗi JSON]']
+  paid_at datetime2(3) [note: 'Thời điểm thanh toán thành công.']
+  created_at datetime2(3) [note: 'Thời điểm tạo giao dịch.']
+
+  indexes {
+    invoice_id [unique, name: 'UX_payments_one_pending_per_invoice', note: 'UNIQUE CÓ LỌC: WHERE status = PENDING. Mỗi hóa đơn chỉ có một giao dịch đang chờ.']
+    (status, created_at) [name: 'IX_payments_status_created_at', note: 'Tác vụ nền tìm giao dịch đang chờ theo thời điểm tạo']
+    (provider_id, provider_transaction_id) [unique, name: 'UX_payments_provider_txn', note: 'UNIQUE CÓ LỌC: WHERE provider_transaction_id IS NOT NULL (giao dịch PENDING chưa có mã cổng; EF Core tự thêm bộ lọc). Không viết UNIQUE CONSTRAINT tay vì SQL Server chỉ cho một NULL']
+  }
+
+  Note: 'Từng giao dịch thanh toán cho một hóa đơn. Lưu mã giao dịch phía cổng thanh toán và dữ liệu callback để đối soát.'
+}
+
+// ---- Nhóm 9. Nhóm Đa ngôn ngữ và 3D · bảng thêm ở phiên bản 4
+// Lý do chọn bảng bản dịch riêng cho từng loại nội dung (thay vì một bảng chung kiểu "đối tượng, trường, ngôn ngữ"):
+// có khóa ngoại thật tới bản gốc, kiểu cột đúng từng trường, truy vấn một phép nối theo ngôn ngữ, tìm kiếm trên tên đã dịch.
+// Đơn vị duyệt là (di sản, ngôn ngữ): trạng thái nằm ở heritage_translations, bản dịch của giai đoạn, sự kiện, chú thích ảnh đi theo.
+Table heritage_translations {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  heritage_id bigint [not null, note: 'Di sản được dịch (trỏ tới heritages).']
+  language_code language_code [not null, note: 'Ngôn ngữ đích: en, ko, zh, ja (không có vi — tiếng Việt là bản gốc trong heritages). [enum language_code — lưu nvarchar(20) + CHECK IN (...)]']
+  name nvarchar(255) [not null, note: 'Tên di sản đã dịch.']
+  short_description nvarchar(1000) [note: 'Mô tả ngắn đã dịch.']
+  content "nvarchar(max)" [note: 'Nội dung chi tiết đã dịch.']
+  address nvarchar(500) [note: 'Địa chỉ đã dịch hoặc phiên âm.']
+  status translation_status [not null, note: 'en: PENDING, APPROVED, REJECTED; ko, zh, ja: luôn MACHINE (CHECK CK_heritage_translations_status). Trạng thái này áp cho cả bản dịch giai đoạn, sự kiện, chú thích ảnh của di sản cùng ngôn ngữ. [enum translation_status — lưu nvarchar(20) + CHECK IN (...)]']
+  is_outdated bit [not null, default: 0, note: 'Cần dịch lại: bật khi nội dung tiếng Việt của di sản, giai đoạn, sự kiện hoặc chú thích ảnh bị sửa sau khi dịch. Vẫn hiện bản cũ tới khi dịch lại.']
+  ai_generation_id bigint [note: 'Lần gọi AI đã dịch (trỏ tới ai_generations). NULL nếu quản trị nhập tay.']
+  reviewed_by bigint [note: 'Quản trị hệ thống đã duyệt hoặc từ chối (trỏ tới users). NULL khi chưa duyệt và với bản dịch máy.']
+  reviewed_at datetime2(3) [note: 'Thời điểm duyệt hoặc từ chối.']
+  created_at datetime2(3) [not null, note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+
+  indexes {
+    (heritage_id, language_code) [unique, name: 'UX_heritage_translations_heritage_language', note: 'Mỗi di sản tối đa một bản dịch cho mỗi ngôn ngữ']
+  }
+
+  checks {
+    `(language_code = 'en' AND status IN ('PENDING', 'APPROVED', 'REJECTED')) OR (language_code IN ('ko', 'zh', 'ja') AND status = 'MACHINE')` [name: 'CK_heritage_translations_status']
+  }
+
+  Note: 'Bản dịch các trường chữ của di sản sang en, ko, zh, ja; đơn vị duyệt của bản dịch (di sản, ngôn ngữ). Khách xem tiếng Anh chỉ khi APPROVED (chưa duyệt thì hiện tiếng Việt kèm thông báo); tiếng Hàn, Trung, Nhật hiện ngay kèm nhãn "bản dịch máy". Không có dòng nào cho tiếng Việt. Một dòng mỗi (di sản, ngôn ngữ): dịch lại thì bản mới thay bản cũ (quay về PENDING với en, MACHINE với ko, zh, ja), bản cũ ngừng hiện. Duyệt hoặc từ chối áp cho cả bản dịch của ngôn ngữ đó; lý do từ chối ghi ở audit_logs.new_value, không có cột riêng.'
+}
+
+// ---- Nhóm 9. Nhóm Đa ngôn ngữ và 3D ·
+Table timeline_translations {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  timeline_id bigint [not null, note: 'Giai đoạn được dịch (trỏ tới timelines). Xóa giai đoạn thì xóa luôn bản dịch (Cascade).']
+  language_code language_code [not null, note: 'Ngôn ngữ đích: en, ko, zh, ja. [enum language_code — lưu nvarchar(20) + CHECK IN (...)]']
+  name nvarchar(255) [not null, note: 'Tên giai đoạn đã dịch.']
+  description "nvarchar(max)" [note: 'Mô tả giai đoạn đã dịch.']
+  created_at datetime2(3) [not null, note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+
+  indexes {
+    (timeline_id, language_code) [unique, name: 'UX_timeline_translations_timeline_language', note: 'Mỗi giai đoạn tối đa một bản dịch cho mỗi ngôn ngữ']
+  }
+
+  checks {
+    `language_code <> 'vi'` [name: 'CK_timeline_translations_language']
+  }
+
+  Note: 'Bản dịch tên và mô tả giai đoạn. Hiện theo trạng thái của heritage_translations cùng di sản, cùng ngôn ngữ.'
+}
+
+// ---- Nhóm 9. Nhóm Đa ngôn ngữ và 3D ·
+Table event_translations {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  event_id bigint [not null, note: 'Sự kiện được dịch (trỏ tới events). Xóa sự kiện thì xóa luôn bản dịch (Cascade).']
+  language_code language_code [not null, note: 'Ngôn ngữ đích: en, ko, zh, ja. [enum language_code — lưu nvarchar(20) + CHECK IN (...)]']
+  name nvarchar(255) [not null, note: 'Tên sự kiện đã dịch.']
+  description "nvarchar(max)" [note: 'Mô tả sự kiện đã dịch.']
+  created_at datetime2(3) [not null, note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+
+  indexes {
+    (event_id, language_code) [unique, name: 'UX_event_translations_event_language', note: 'Mỗi sự kiện tối đa một bản dịch cho mỗi ngôn ngữ']
+  }
+
+  checks {
+    `language_code <> 'vi'` [name: 'CK_event_translations_language']
+  }
+
+  Note: 'Bản dịch tên và mô tả sự kiện. Hiện theo trạng thái của heritage_translations cùng di sản (qua giai đoạn), cùng ngôn ngữ.'
+}
+
+// ---- Nhóm 9. Nhóm Đa ngôn ngữ và 3D ·
+Table media_translations {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  media_id bigint [not null, note: 'Ảnh, video, audio có chú thích được dịch (trỏ tới media). Xóa media thì xóa luôn bản dịch (Cascade).']
+  language_code language_code [not null, note: 'Ngôn ngữ đích: en, ko, zh, ja. [enum language_code — lưu nvarchar(20) + CHECK IN (...)]']
+  caption nvarchar(500) [not null, note: 'Chú thích đã dịch. Ghi công (media.credit) không dịch.']
+  created_at datetime2(3) [not null, note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+
+  indexes {
+    (media_id, language_code) [unique, name: 'UX_media_translations_media_language', note: 'Mỗi media tối đa một bản dịch chú thích cho mỗi ngôn ngữ']
+  }
+
+  checks {
+    `language_code <> 'vi'` [name: 'CK_media_translations_language']
+  }
+
+  Note: 'Bản dịch chú thích ảnh. Hiện theo trạng thái của heritage_translations của di sản sở hữu media (trực tiếp hoặc qua sự kiện), cùng ngôn ngữ.'
+}
+
+// ---- Nhóm 9. Nhóm Đa ngôn ngữ và 3D ·
+Table heritage_summaries {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  heritage_id bigint [not null, note: 'Di sản được tóm tắt (trỏ tới heritages).']
+  language_code language_code [not null, note: 'Ngôn ngữ của bản tóm tắt: vi, en, ko, zh, ja. [enum language_code — lưu nvarchar(20) + CHECK IN (...)]']
+  short_text nvarchar(2000) [not null, note: 'Bản ngắn để nghe thuyết minh (đọc bằng giọng đọc của thiết bị hoặc trình duyệt).']
+  detailed_text "nvarchar(max)" [not null, note: 'Bản chi tiết để đọc.']
+  status translation_status [not null, note: 'vi, en: PENDING, APPROVED, REJECTED; ko, zh, ja: luôn MACHINE (CHECK CK_heritage_summaries_status). [enum translation_status — lưu nvarchar(20) + CHECK IN (...)]']
+  is_outdated bit [not null, default: 0, note: 'Cần tóm tắt lại: bật khi nội dung tiếng Việt của di sản bị sửa. Vẫn hiện bản cũ tới khi làm lại.']
+  ai_generation_id bigint [note: 'Lần gọi AI đã tóm tắt (trỏ tới ai_generations). NULL nếu quản trị nhập tay.']
+  reviewed_by bigint [note: 'Quản trị hệ thống đã duyệt hoặc từ chối (trỏ tới users). NULL khi chưa duyệt và với bản dịch máy.']
+  reviewed_at datetime2(3) [note: 'Thời điểm duyệt hoặc từ chối.']
+  created_at datetime2(3) [not null, note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+
+  indexes {
+    (heritage_id, language_code) [unique, name: 'UX_heritage_summaries_heritage_language', note: 'Mỗi di sản tối đa một bản tóm tắt (gồm bản ngắn và bản chi tiết) cho mỗi ngôn ngữ']
+  }
+
+  checks {
+    `(language_code IN ('vi', 'en') AND status IN ('PENDING', 'APPROVED', 'REJECTED')) OR (language_code IN ('ko', 'zh', 'ja') AND status = 'MACHINE')` [name: 'CK_heritage_summaries_status']
+  }
+
+  Note: 'Tóm tắt di sản do AI làm sẵn theo ngôn ngữ, mỗi dòng gồm bản ngắn (nghe) và bản chi tiết (đọc), duyệt một lần cho cả hai; dịch lại thì thay dòng cũ, trạng thái về PENDING (vi, en) hoặc MACHINE (ko, zh, ja). Lưu sẵn: không gọi AI mỗi lần khách mở. Khách mở bằng quảng cáo có thưởng (ad_unlocks); học sinh đã đăng nhập mở thẳng.'
+}
+
+// ---- Nhóm 9. Nhóm Đa ngôn ngữ và 3D ·
+// Lý do bảng riêng thay vì thêm loại vào media: mô hình chỉ thuộc di sản (không thuộc sự kiện), cần định dạng, dung lượng,
+// giấy phép, nguồn, ảnh xem trước và trạng thái hiện/ẩn riêng; giữ CHECK nguồn của media đơn giản.
+Table heritage_models {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  heritage_id bigint [not null, note: 'Di sản có mô hình (trỏ tới heritages).']
+  title nvarchar(255) [note: 'Tên mô hình (tiếng Việt), ví dụ Khuê Văn Các. Trình xem hiện tên di sản theo ngôn ngữ đã chọn.']
+  file_url nvarchar(500) [not null, note: 'Đường dẫn tệp mô hình.']
+  file_format model_format [not null, note: 'Định dạng: GLB (glTF 2.0 một tệp); không nhận GLTF nhiều tệp. [enum model_format — lưu nvarchar(20) + CHECK IN (...)]']
+  file_size_bytes bigint [not null, note: 'Dung lượng tệp (byte), để cảnh báo trước khi tải trên mạng di động. Giới hạn tối đa chốt ở quy tắc nghiệp vụ.']
+  poster_url nvarchar(500) [note: 'Ảnh xem trước hiện trong lúc tải mô hình.']
+  license_name nvarchar(100) [not null, note: 'Giấy phép mở của mô hình, ví dụ CC BY 4.0, CC0.']
+  license_url nvarchar(500) [note: 'Đường dẫn văn bản giấy phép.']
+  author nvarchar(255) [not null, note: 'Tác giả mô hình (bắt buộc, cùng với giấy phép và dòng ghi công).']
+  source_url nvarchar(500) [note: 'Trang nguồn nơi tải mô hình.']
+  credit nvarchar(500) [not null, note: 'Dòng ghi công hiển thị dưới trình xem (tác giả, nguồn, giấy phép), như ghi công của ảnh.']
+  status content_status [not null, note: 'DRAFT (chưa hiện), PUBLISHED (hiện cho khách và học sinh), ARCHIVED (ẩn). [enum content_status — lưu nvarchar(20) + CHECK IN (...)]']
+  sort_order int [note: 'Thứ tự khi một di sản có nhiều mô hình.']
+  created_at datetime2(3) [not null, note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+  deleted_at datetime2(3) [note: 'Thời điểm xóa mềm (gỡ mô hình).']
+
+  indexes {
+    heritage_id [unique, name: 'UX_heritage_models_visible', note: 'UNIQUE CÓ LỌC: WHERE status = PUBLISHED AND deleted_at IS NULL. Mỗi di sản chỉ có một mô hình đang hiện cho khách và học sinh.']
+    (heritage_id, status) [name: 'IX_heritage_models_heritage_status', note: 'Tìm mô hình của một di sản theo trạng thái']
+  }
+
+  checks {
+    `file_size_bytes > 0` [name: 'CK_heritage_models_file_size']
+  }
+
+  Note: 'Mô hình 3D giấy phép mở của di sản (định dạng glTF), khai báo trong biên tập di sản; một trình xem dùng chung cho web và app. Di sản không có mô hình thì xem bộ ảnh. Xem mô hình miễn phí, không qua quảng cáo.'
+}
+
+// ---- Nhóm 9. Nhóm Đa ngôn ngữ và 3D · bảng thêm sau phiên bản 4 (thuyết minh tạo sẵn)
+Table heritage_narrations {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  heritage_id bigint [not null, note: 'Di sản có thuyết minh (trỏ tới heritages).']
+  language_code language_code [not null, note: 'Ngôn ngữ của thuyết minh: vi, en, ko, zh, ja (CHECK CK_heritage_narrations_language_code). [enum language_code — lưu nvarchar(20) + CHECK IN (...)]']
+  text_hash char(64) [not null, note: 'Băm SHA-256 (64 ký tự hex thường) của chữ đã đọc, tức heritage_summaries.short_text lúc tạo giọng. Tóm tắt đổi chữ thì băm lệch và thuyết minh này không còn được trả cho khách.']
+  audio_url nvarchar(500) [not null, note: 'Đường dẫn tệp âm thanh MP3 trong kho tệp của nền tảng.']
+  duration_ms int [not null, note: 'Thời lượng tệp (mili giây), lớn hơn 0 (CHECK CK_heritage_narrations_duration).']
+  sentences "nvarchar(max)" [not null, note: 'Chuỗi JSON mảng câu theo thứ tự đọc, mỗi câu gồm chữ gốc để hiển thị, mốc bắt đầu và mốc kết thúc (mili giây) để tô sáng khi phát.']
+  voice nvarchar(100) [not null, note: 'Mã giọng đã dùng, ví dụ vieneu-mai-anh, melo-en-us.']
+  created_at datetime2(3) [not null, note: 'Thời điểm tạo.']
+  updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
+
+  indexes {
+    (heritage_id, language_code) [unique, name: 'UX_heritage_narrations_heritage_language', note: 'Mỗi di sản đúng một thuyết minh cho mỗi ngôn ngữ; tải lên lần nữa thì thay dòng cũ']
+  }
+
+  checks {
+    `duration_ms > 0` [name: 'CK_heritage_narrations_duration']
+    `language_code IN ('vi', 'en', 'ko', 'zh', 'ja')` [name: 'CK_heritage_narrations_language_code']
+  }
+
+  Note: 'Thuyết minh tạo sẵn của bản tóm tắt ngắn theo ngôn ngữ: tệp MP3 do giọng tự host tạo ngoài máy chủ rồi tải lên qua API quản trị (máy chủ không tạo giọng), kèm mốc thời gian từng câu để tô sáng khi phát và băm của đoạn chữ đã đọc. Khi băm không còn khớp với tóm tắt hiện tại, tab Nghe đọc bằng giọng của thiết bị như trước.'
+}
+
+// ---- Nhóm 10. Nhóm Khách tham quan và quảng cáo · bảng thêm ở phiên bản 4
+Table guest_devices {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  device_key nvarchar(64) [not null, unique, note: 'Mã thiết bị ẩn danh: chuỗi ngẫu nhiên (UUID) do app sinh khi mở lần đầu hoặc trình duyệt lưu trong bộ nhớ của trang. Không phải mã phần cứng, không gắn với danh tính. Không trùng.']
+  platform client_platform [not null, note: 'Nền tảng: ANDROID, IOS, WEB. [enum client_platform — lưu nvarchar(20) + CHECK IN (...)]']
+  language_code language_code [not null, default: 'vi', note: 'Ngôn ngữ khách dùng gần nhất, chỉ để thống kê ngôn ngữ dùng nhiều; lựa chọn thật lưu trên thiết bị, máy chủ không dùng cột này để chọn ngôn ngữ hiển thị. [enum language_code — lưu nvarchar(20) + CHECK IN (...)]']
+  location_allowed bit [not null, default: 0, note: 'Cờ khách đã bật "Gần bạn" (chỉ ghi nhận cho thống kê và nhớ lựa chọn, không dùng để tính khoảng cách). Vị trí chỉ gửi kèm từng yêu cầu, KHÔNG lưu.']
+  created_at datetime2(3) [not null, note: 'Thời điểm thiết bị gửi yêu cầu đầu tiên.']
+  last_seen_at datetime2(3) [note: 'Lần gần nhất thiết bị gọi API.']
+
+  Note: 'Khách tham quan không có tài khoản: định danh bằng mã thiết bị ẩn danh để lưu cài đặt, lịch sử (gợi ý) và lượt mở khóa bằng quảng cáo. Hỏi đồng ý quảng cáo cá nhân hóa (Google UMP, khách EU/UK) do thư viện của Google lưu trên thiết bị, không lưu ở đây. Học sinh đã đăng nhập không dùng bảng này.'
+}
+
+// ---- Nhóm 10. Nhóm Khách tham quan và quảng cáo ·
+Table guest_activities {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  guest_device_id bigint [not null, note: 'Thiết bị của khách (trỏ tới guest_devices).']
+  activity_type guest_activity_type [not null, note: 'SEARCH (tìm), VIEW (xem chi tiết), READ_SUMMARY (đọc tóm tắt), LISTEN (nghe thuyết minh), VIEW_3D (xem 3D). [enum guest_activity_type — lưu nvarchar(20) + CHECK IN (...)]']
+  heritage_id bigint [note: 'Di sản được xem, đọc tóm tắt, nghe, xem 3D (trỏ tới heritages). NULL với SEARCH.']
+  search_query nvarchar(255) [note: 'Từ khóa tìm kiếm, bắt buộc với SEARCH. NULL với loại khác.']
+  language_code language_code [not null, note: 'Ngôn ngữ đang dùng lúc thực hiện. [enum language_code — lưu nvarchar(20) + CHECK IN (...)]']
+  created_at datetime2(3) [not null, note: 'Thời điểm thực hiện (UTC).']
+
+  indexes {
+    (guest_device_id, created_at) [name: 'IX_guest_activities_device_time', note: 'Lịch sử của một thiết bị theo thời gian; xóa lịch sử quá hạn']
+  }
+
+  checks {
+    `(activity_type = 'SEARCH' AND search_query IS NOT NULL) OR (activity_type <> 'SEARCH' AND heritage_id IS NOT NULL)` [name: 'CK_guest_activities_target']
+  }
+
+  Note: 'Lịch sử tìm, xem, đọc tóm tắt, nghe, xem 3D của khách — đầu vào của gợi ý cho khách (cùng loại, cùng vùng, cùng thời kỳ với di sản đã tìm, đã xem) và thống kê khách cho quản trị. Khách xem, xóa được lịch sử của thiết bị mình; tác vụ nền xóa hẳn dòng quá thời hạn lưu (chốt ở quy tắc nghiệp vụ). Không lưu vị trí.'
+}
+
+// ---- Nhóm 10. Nhóm Khách tham quan và quảng cáo ·
+Table ad_unlocks {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  guest_device_id bigint [not null, note: 'Thiết bị của khách đã xem hết quảng cáo (trỏ tới guest_devices). Với AdMob lấy từ user_id trong xác minh phía máy chủ (app gán user_id = device_key).']
+  heritage_id bigint [not null, note: 'Di sản được mở tóm tắt và nghe thuyết minh (trỏ tới heritages). Với AdMob lấy từ custom_data trong xác minh phía máy chủ.']
+  platform client_platform [not null, note: 'ANDROID, IOS (AdMob) hoặc WEB (Ad Manager). [enum client_platform — lưu nvarchar(20) + CHECK IN (...)]']
+  ad_network ad_network [not null, note: 'ADMOB hoặc AD_MANAGER, khớp với nền tảng (CHECK CK_ad_unlocks_network_platform). Cách xác minh suy từ mạng: AdMob xác minh phía máy chủ, Ad Manager do trình duyệt báo. [enum ad_network — lưu nvarchar(20) + CHECK IN (...)]']
+  transaction_id nvarchar(255) [not null, note: 'Mã giao dịch phần thưởng. AdMob: transaction_id trong xác minh phía máy chủ của Google. Ad Manager: mã một lần do backend cấp khi khách bắt đầu xem quảng cáo (chuỗi ngẫu nhiên có chữ ký HMAC, không lưu bảng nào, hết hạn sau 10 phút), trình duyệt gửi lại khi nhận thưởng. Không trùng trong một mạng (UX_ad_unlocks_network_transaction): một giao dịch chỉ mở khóa một lần.']
+  ad_unit_id nvarchar(100) [note: 'Mã đơn vị quảng cáo đã phát (đơn vị thử của Google khi phát triển, đơn vị thật lấy từ cấu hình).']
+  unlocked_at datetime2(3) [not null, note: 'Thời điểm mở khóa (UTC).']
+  expires_at datetime2(3) [not null, note: 'Hạn mở khóa (UTC) = unlocked_at + thời lượng mở khóa chốt ở quy tắc nghiệp vụ.']
+
+  indexes {
+    (ad_network, transaction_id) [unique, name: 'UX_ad_unlocks_network_transaction', note: 'Chống ghi nhận trùng: Google gửi lại xác minh hoặc trình duyệt gửi lại thì không tạo lượt mới và không tính là bị từ chối']
+    (guest_device_id, heritage_id, expires_at) [name: 'IX_ad_unlocks_device_heritage', note: 'Kiểm thiết bị còn hạn mở khóa di sản; đếm lượt trong giờ để giới hạn tần suất trên web']
+  }
+
+  checks {
+    `(ad_network = 'ADMOB' AND platform IN ('ANDROID', 'IOS')) OR (ad_network = 'AD_MANAGER' AND platform = 'WEB')` [name: 'CK_ad_unlocks_network_platform']
+    `expires_at > unlocked_at` [name: 'CK_ad_unlocks_expiry']
+  }
+
+  Note: '''Lượt mở khóa tóm tắt + nghe thuyết minh của một di sản trên một thiết bị bằng quảng cáo Google có thưởng. KHÔNG có bảng chiến dịch quảng cáo,
+không lưu doanh thu (xem ở bảng điều khiển AdMob, Ad Manager). Thống kê cho quản trị hệ thống: số lượt theo ngày, nền tảng, mạng, di sản.
+Phần thưởng không hợp lệ (chữ ký sai, đơn vị lạ, tham số sai, thời điểm lệch, mã web sai hoặc hết hạn, vượt tần suất web) thì không tạo dòng, ghi audit_logs (AD_REWARD_REJECTED); bộ đếm tần suất web nằm trong bộ nhớ máy chủ, IP không lưu. Học sinh đã đăng nhập không qua quảng cáo.'''
+}
+
+// ---- Nhóm 2. Nhóm Lớp / Học sinh · bảng thêm ngày 31/10/2026
+Table student_notifications {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  student_id bigint [not null, note: 'Học sinh nhận thông báo (trỏ tới students).']
+  kind nvarchar(20) [not null, note: 'Loại thông báo: LESSON hoặc QUIZ (CHECK CK_student_notifications_kind).']
+  lesson_id bigint [not null, note: 'Bài học của thông báo (trỏ tới lessons).']
+  quiz_id bigint [note: 'Bài kiểm tra của thông báo (trỏ tới quizzes). NULL với thông báo bài học.']
+  title nvarchar(300) [not null, note: 'Tiêu đề thông báo.']
+  body nvarchar(800) [not null, note: 'Nội dung thông báo kèm lời nhắn của thầy cô.']
+  sent_by bigint [not null, note: 'Giáo viên bấm gửi (trỏ tới users).']
+  created_at datetime2(3) [note: 'Thời điểm gửi.']
+  read_at datetime2(3) [note: 'Thời điểm học sinh đọc. NULL là chưa đọc.']
+
+  indexes {
+    lesson_id [name: 'IX_student_notifications_lesson_id']
+    quiz_id [name: 'IX_student_notifications_quiz_id']
+    sent_by [name: 'IX_student_notifications_sent_by']
+    (student_id, read_at) [name: 'IX_student_notifications_student_read']
+  }
+
+  checks {
+    `kind IN ('LESSON', 'QUIZ')` [name: 'CK_student_notifications_kind']
+  }
+
+  Note: 'Thông báo cho học sinh do thầy cô bấm gửi kèm lời nhắn; không tự gửi khi xuất bản bài học hoặc phát hành bài kiểm tra.'
+}
+
+// ---- Nhóm 7. Nhóm Làm bài / Kết quả · bảng thêm ngày 25/10 và 31/10/2026
+Table lesson_completions {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  student_id bigint [not null, note: 'Học sinh đã học xong bài (trỏ tới students).']
+  lesson_id bigint [not null, note: 'Bài học đã xong (trỏ tới lessons).']
+  completed_at datetime2(3) [not null, note: 'Thời điểm học xong.']
+
+  indexes {
+    lesson_id [name: 'IX_lesson_completions_lesson_id']
+    (student_id, lesson_id) [unique, name: 'UX_lesson_completions_student_lesson', note: 'Mỗi học sinh một dòng cho mỗi bài học.']
+  }
+
+  Note: 'Bài học học sinh đã học xong, dùng cho tiến độ của em và bước đọc của bài kiểm tra cấp 1.'
+}
+
+Table lesson_visits {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  student_id bigint [not null, note: 'Học sinh đã mở bài (trỏ tới students).']
+  lesson_id bigint [not null, note: 'Bài học đã mở (trỏ tới lessons).']
+  first_opened_at datetime2(3) [not null, note: 'Lần đầu mở bài.']
+  last_opened_at datetime2(3) [not null, note: 'Lần gần nhất mở bài.']
+
+  indexes {
+    lesson_id [name: 'IX_lesson_visits_lesson_id']
+    (student_id, lesson_id) [unique, name: 'UX_lesson_visits_student_lesson', note: 'Mỗi học sinh một dòng cho mỗi bài học.']
+  }
+
+  Note: 'Bài học học sinh đã mở bằng mã, để bài vẫn hiện trong danh sách của em ở lần sau mà không cần nhập lại mã.'
+}
+
+// ---- Nhóm 9. Nhóm Đa ngôn ngữ và 3D · bảng thêm ngày 25/10/2026
+Table speech_clips {
+  id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
+  text_hash char(64) [not null, note: 'Băm SHA-256 của câu cần đọc.']
+  voice varchar(100) [not null, note: 'Mã giọng đã dùng.']
+  storage_key varchar(500) [not null, note: 'Khóa tệp âm thanh trong kho tệp.']
+  duration_ms int [not null, note: 'Thời lượng (mili giây), lớn hơn 0 (CHECK CK_speech_clips_duration).']
+  byte_size int [not null, note: 'Dung lượng tệp (byte), lớn hơn 0 (CHECK CK_speech_clips_byte_size).']
+  created_at datetime2(3) [not null, note: 'Thời điểm tạo.']
+
+  indexes {
+    (text_hash, voice) [unique, name: 'UX_speech_clips_hash_voice', note: 'Mỗi câu một tệp cho mỗi giọng.']
+  }
+
+  checks {
+    `byte_size > 0` [name: 'CK_speech_clips_byte_size']
+    `duration_ms > 0` [name: 'CK_speech_clips_duration']
+  }
+
+  Note: 'Bộ nhớ đệm giọng đọc do máy chủ tự tạo, chủ yếu cho cấp 1; cùng câu và cùng giọng thì dùng lại tệp đã có.'
+}
+
+// ==================== KHÓA NGOẠI (69 = 40 của phiên bản 3 + 29 mới) ====================
+// Không ghi ON DELETE: mặc định NO ACTION. Hiện thực: mọi FK Restrict; Cascade ở password_reset_tokens.user_id
+// và ba bản dịch của nội dung bị xóa hẳn (timeline_translations, event_translations, media_translations).
+Ref fk_users_organization_id: users.organization_id > organizations.id
+Ref fk_users_role_id: users.role_id > roles.id
+Ref fk_password_reset_tokens_user_id: password_reset_tokens.user_id > users.id [delete: cascade]
+Ref fk_audit_logs_user_id: audit_logs.user_id > users.id
+Ref fk_classes_organization_id: classes.organization_id > organizations.id
+Ref fk_classes_teacher_id: classes.teacher_id > users.id
+Ref fk_students_class_id: students.class_id > classes.id
+Ref fk_students_user_id: students.user_id > users.id // 1-1 nhờ UNIQUE trên students.user_id (dùng > để FK nằm ở students; dấu - làm dbml2sql sinh FK ngược chiều)
+Ref fk_heritages_province_id: heritages.province_id > provinces.id
+Ref fk_timelines_heritage_id: timelines.heritage_id > heritages.id
+Ref fk_events_timeline_id: events.timeline_id > timelines.id
+Ref fk_media_heritage_id: media.heritage_id > heritages.id
+Ref fk_media_event_id: media.event_id > events.id
+Ref fk_heritage_references_heritage_id: heritage_references.heritage_id > heritages.id
+Ref fk_lessons_teacher_id: lessons.teacher_id > users.id
+Ref fk_lessons_class_id: lessons.class_id > classes.id
+Ref fk_lesson_heritages_lesson_id: lesson_heritages.lesson_id > lessons.id
+Ref fk_lesson_heritages_heritage_id: lesson_heritages.heritage_id > heritages.id
+Ref fk_ai_generations_lesson_id: ai_generations.lesson_id > lessons.id
+Ref fk_ai_generations_requested_by: ai_generations.requested_by > users.id
+Ref fk_questions_heritage_id: questions.heritage_id > heritages.id
+Ref fk_questions_created_by: questions.created_by > users.id
+Ref fk_questions_ai_generation_id: questions.ai_generation_id > ai_generations.id
+Ref fk_questions_reviewed_by: questions.reviewed_by > users.id
+Ref fk_answers_question_id: answers.question_id > questions.id
+Ref fk_quizzes_lesson_id: quizzes.lesson_id > lessons.id
+Ref fk_quizzes_created_by: quizzes.created_by > users.id
+Ref fk_quiz_questions_quiz_id: quiz_questions.quiz_id > quizzes.id
+Ref fk_quiz_questions_question_id: quiz_questions.question_id > questions.id
+Ref fk_attempts_quiz_id: attempts.quiz_id > quizzes.id
+Ref fk_attempts_student_id: attempts.student_id > students.id
+Ref fk_attempt_answers_attempt_id: attempt_answers.attempt_id > attempts.id
+Ref fk_attempt_answers_question_id: attempt_answers.question_id > questions.id
+Ref fk_attempt_answers_answer_id: attempt_answers.answer_id > answers.id
+Ref fk_subscriptions_organization_id: subscriptions.organization_id > organizations.id
+Ref fk_subscriptions_plan_id: subscriptions.plan_id > plans.id
+Ref fk_invoices_organization_id: invoices.organization_id > organizations.id
+Ref fk_invoices_subscription_id: invoices.subscription_id > subscriptions.id
+Ref fk_payments_invoice_id: payments.invoice_id > invoices.id
+Ref fk_payments_provider_id: payments.provider_id > payment_providers.id
+// ---- 21 khóa ngoại mới của phiên bản 4 (kể cả heritage_narrations)
+Ref fk_ai_generations_heritage_id: ai_generations.heritage_id > heritages.id
+Ref fk_lesson_sections_lesson_id: lesson_sections.lesson_id > lessons.id
+Ref fk_lesson_sections_event_id: lesson_sections.event_id > events.id
+Ref fk_attempt_answer_parts_attempt_answer_id: attempt_answer_parts.attempt_answer_id > attempt_answers.id
+Ref fk_attempt_answer_parts_answer_id: attempt_answer_parts.answer_id > answers.id
+Ref fk_attempt_answer_parts_selected_answer_id: attempt_answer_parts.selected_answer_id > answers.id
+Ref fk_heritage_translations_heritage_id: heritage_translations.heritage_id > heritages.id
+Ref fk_heritage_translations_ai_generation_id: heritage_translations.ai_generation_id > ai_generations.id
+Ref fk_heritage_translations_reviewed_by: heritage_translations.reviewed_by > users.id
+Ref fk_timeline_translations_timeline_id: timeline_translations.timeline_id > timelines.id [delete: cascade]
+Ref fk_event_translations_event_id: event_translations.event_id > events.id [delete: cascade]
+Ref fk_media_translations_media_id: media_translations.media_id > media.id [delete: cascade]
+Ref fk_heritage_summaries_heritage_id: heritage_summaries.heritage_id > heritages.id
+Ref fk_heritage_summaries_ai_generation_id: heritage_summaries.ai_generation_id > ai_generations.id
+Ref fk_heritage_summaries_reviewed_by: heritage_summaries.reviewed_by > users.id
+Ref fk_heritage_models_heritage_id: heritage_models.heritage_id > heritages.id
+Ref fk_heritage_narrations_heritage_id: heritage_narrations.heritage_id > heritages.id
+Ref fk_guest_activities_guest_device_id: guest_activities.guest_device_id > guest_devices.id
+Ref fk_guest_activities_heritage_id: guest_activities.heritage_id > heritages.id
+Ref fk_ad_unlocks_guest_device_id: ad_unlocks.guest_device_id > guest_devices.id
+Ref fk_ad_unlocks_heritage_id: ad_unlocks.heritage_id > heritages.id
+// ---- 8 khóa ngoại thêm ngày 25/10 và 31/10/2026
+Ref fk_student_notifications_student_id: student_notifications.student_id > students.id
+Ref fk_student_notifications_lesson_id: student_notifications.lesson_id > lessons.id
+Ref fk_student_notifications_quiz_id: student_notifications.quiz_id > quizzes.id
+Ref fk_student_notifications_sent_by: student_notifications.sent_by > users.id
+Ref fk_lesson_completions_student_id: lesson_completions.student_id > students.id
+Ref fk_lesson_completions_lesson_id: lesson_completions.lesson_id > lessons.id
+Ref fk_lesson_visits_student_id: lesson_visits.student_id > students.id
+Ref fk_lesson_visits_lesson_id: lesson_visits.lesson_id > lessons.id
+
+// ==================== 10 NHÓM (8 nhóm theo file mô tả gốc + 2 nhóm của phiên bản 4) ====================
+TableGroup g1_auth_to_chuc [note: '1. Nhóm Auth / Tổ chức'] {
+  organizations
+  roles
+  users
+  password_reset_tokens
+  audit_logs
+}
+
+TableGroup g2_lop_hoc_sinh [note: '2. Nhóm Lớp / Học sinh'] {
+  classes
+  students
+  student_notifications
+}
+
+TableGroup g3_di_san [note: '3. Nhóm Di sản'] {
+  provinces
+  heritages
+  timelines
+  events
+  media
+  heritage_references
+}
+
+TableGroup g4_bai_hoc_ai [note: '4. Nhóm Bài học + AI'] {
+  lessons
+  lesson_heritages
+  ai_generations
+  lesson_sections
+}
+
+TableGroup g5_ngan_hang_cau_hoi [note: '5. Nhóm Ngân hàng câu hỏi'] {
+  questions
+  answers
+}
+
+TableGroup g6_quiz [note: '6. Nhóm Quiz'] {
+  quizzes
+  quiz_questions
+}
+
+TableGroup g7_lam_bai_ket_qua [note: '7. Nhóm Làm bài / Kết quả'] {
+  attempts
+  attempt_answers
+  attempt_answer_parts
+  lesson_completions
+  lesson_visits
+}
+
+TableGroup g8_thanh_toan [note: '8. Nhóm Thanh toán'] {
+  plans
+  subscriptions
+  invoices
+  payment_providers
+  payments
+}
+
+TableGroup g9_da_ngon_ngu_3d [note: '9. Nhóm Đa ngôn ngữ và 3D'] {
+  heritage_translations
+  timeline_translations
+  event_translations
+  media_translations
+  heritage_summaries
+  heritage_models
+  heritage_narrations
+  speech_clips
+}
+
+TableGroup g10_khach_quang_cao [note: '10. Nhóm Khách tham quan và quảng cáo'] {
+  guest_devices
+  guest_activities
+  ad_unlocks
+}
+

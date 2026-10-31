@@ -1,0 +1,32 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state "Còn hiệu lực" as UNLOCK_VALID
+state "Hết hiệu lực" as UNLOCK_EXPIRED
+[*] --> UNLOCK_VALID : Máy chủ ghi nhận phần thưởng\nquảng cáo hợp lệ [thiết bị chưa\ncó lượt mở khóa còn hạn\ncho di sản]
+UNLOCK_VALID --> UNLOCK_EXPIRED : Sau 24 giờ
+UNLOCK_EXPIRED --> [*] : Tác vụ nền hằng ngày:\nxóa lượt mở khóa\ncũ hơn 12 tháng
+@enduml

@@ -1,0 +1,75 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|Giáo viên|
+|Hệ thống DiViet|
+|Dịch vụ AI|
+|Giáo viên|
+start
+:Tạo bài học nháp:\nchọn lớp và di sản;
+|Hệ thống DiViet|
+if (Dùng AI, còn gói\nvà lượt AI?) then (có)
+  |Dịch vụ AI|
+  :Soạn bản nháp\nđúng khung của cấp;
+  |Hệ thống DiViet|
+  if (AI trả lời kịp?) then (có)
+    :Hiện bản nháp,\ntính một lượt;
+  else (không)
+    :Không tính lượt;
+  endif
+else (không)
+endif
+|Giáo viên|
+:Sửa hoặc tự viết nội dung,\nbấm Xuất bản;
+|Hệ thống DiViet|
+if (Đủ điều kiện\nxuất bản?) then (có)
+  :Xuất bản,\nsinh mã bài học;
+else (không)
+  :Liệt kê phần thiếu,\ngiữ nháp;
+  end
+endif
+|Giáo viên|
+:Sinh câu hỏi bằng AI:\nsố câu, dạng hợp cấp;
+|Dịch vụ AI|
+:Sinh câu theo dạng và cấp;
+|Hệ thống DiViet|
+:Kiểm cấu trúc,\nlưu câu chờ duyệt;
+|Giáo viên|
+:Sửa câu, Duyệt hoặc Loại;
+|Hệ thống DiViet|
+:Câu đã duyệt vào\nngân hàng dùng chung;
+|Giáo viên|
+:Tạo bài kiểm tra từ câu hợp cấp,\nđặt giờ (cấp 1 không đặt), bấm Phát hành;
+|Hệ thống DiViet|
+if (Đủ điều kiện\nphát hành?) then (có)
+  :Sinh mã bài kiểm tra,\nhiện quiz trên trang bài học;
+else (không)
+  :Báo phần còn thiếu;
+  end
+endif
+|Giáo viên|
+:Đưa mã cho lớp hoặc gửi\nthông báo kèm lời nhắn;
+stop
+@enduml

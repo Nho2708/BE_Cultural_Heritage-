@@ -1,0 +1,75 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|Quản trị hệ thống|
+|Hệ thống DiViet|
+|Dịch vụ AI|
+|Khách tham quan|
+|Quản trị hệ thống|
+start
+:Đối chiếu nguồn của\nCục Di sản văn hóa;
+:Nhập nội dung, dòng\nthời gian, nguồn, ảnh\nghi công, mô hình 3D;
+:Bấm Xuất bản;
+|Hệ thống DiViet|
+if (Đủ nội dung,\nảnh đại diện, nguồn?) then (có)
+  :Chuyển sang\nđã xuất bản;
+else (không)
+  :Liệt kê phần thiếu,\ngiữ nháp;
+  end
+endif
+|Quản trị hệ thống|
+:Bấm Dịch và tóm tắt bằng AI;
+|Dịch vụ AI|
+:Tóm tắt tiếng Việt,\ndịch sang Anh, Hàn,\nTrung, Nhật;
+|Hệ thống DiViet|
+if (Mọi ngôn ngữ\nthành công?) then (có)
+  :Việt, Anh chờ duyệt,\nHàn, Trung, Nhật hiện\nkèm nhãn bản dịch máy;
+else (không)
+  :Không lưu gì,\ngiữ bản cũ;
+  end
+endif
+|Quản trị hệ thống|
+if (Bản Việt, Anh đúng?) then (duyệt)
+  |Hệ thống DiViet|
+  :Hiện công khai;
+  |Dịch vụ AI|
+  :Dịch lại Hàn, Trung,\nNhật từ bản tiếng\nAnh đã duyệt;
+else (từ chối)
+  |Hệ thống DiViet|
+  :Ngừng hiện,\nphải dịch lại;
+  end
+endif
+|Khách tham quan|
+:Chọn ngôn ngữ,\ntìm có dấu hoặc\nkhông dấu;
+|Hệ thống DiViet|
+:Tìm trên bản Việt\nvà bản dịch;
+|Khách tham quan|
+:Xem bản đồ,\ndòng thời gian,\ntrang chi tiết;
+|Hệ thống DiViet|
+:Hiện theo ngôn ngữ đã chọn,\nthiếu bản dịch thì\nlùi về tiếng Việt;
+|Khách tham quan|
+:Đổi ngôn ngữ, xem tiếp;
+stop
+@enduml

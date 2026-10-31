@@ -1,0 +1,43 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state "Active" as STUDENT_ACTIVE {
+  state "Must change password" as MUST_CHANGE : must_change_password = 1
+  state "Normal use" as NORMAL : must_change_password = 0
+  MUST_CHANGE --> NORMAL : Student makes the\nrequired password change
+  NORMAL --> MUST_CHANGE : Teacher resets the password\n[Level 2 or 3 class]
+  [*] --> MUST_CHANGE : Teacher adds the student to a\nLevel 2 or 3 class (account and\ntemporary password created)
+  [*] -right-> NORMAL : Teacher adds the student to a\nLevel 1 class (account and\n6-digit password created)
+  MUST_CHANGE --> NORMAL : Teacher resets the password\n[Level 1 class, old account\nstill forced to change]
+  NORMAL --> NORMAL : Teacher resets the password [Level 1 class:\nnew 6-digit password,\nno forced change]
+}
+STUDENT_ACTIVE : is_active = 1
+state "Deactivated" as STUDENT_INACTIVE : is_active = 0
+STUDENT_ACTIVE --> STUDENT_INACTIVE : Teacher deactivates\nthe student [no\nattempt in progress]
+STUDENT_INACTIVE --> STUDENT_ACTIVE[H] : Teacher reactivates\nthe student [class has\nfewer than 60\nactive students]
+STUDENT_ACTIVE --> [*] : Teacher deletes the student\n[no attempt in progress]\nor deletes the class\n[no open quiz]
+STUDENT_INACTIVE --> [*] : Teacher deletes\nthe student or\nthe class
+@enduml

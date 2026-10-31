@@ -1,0 +1,81 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+|Học sinh|
+|Hệ thống DiViet|
+|Dịch vụ AI|
+|Giáo viên|
+|Học sinh|
+start
+:Nhập mã bài học, mã bài kiểm tra,\nbấm thông báo, hoặc chọn bài\ntrên con đường (cấp 1);
+|Hệ thống DiViet|
+if (Mã đúng, bài của\nlớp em?) then (có)
+else (không)
+  :Báo mã không đúng,\nsai nhiều thì tạm chặn;
+  end
+endif
+|Học sinh|
+switch (Cấp của lớp?)
+case (cấp 1)
+  :Nhớ lại, nghe chuyện,\nxem hình;
+case (cấp 2)
+  :Đọc bài, xem\ndòng thời gian;
+case (cấp 3)
+  :Tự khám phá\ntư liệu gốc;
+endswitch
+:Bấm Làm bài;
+|Hệ thống DiViet|
+if (Quiz đang mở,\nem chưa nộp?) then (có)
+  :Tạo hoặc mở lại lượt,\nghi hạn nộp;
+else (không)
+  :Hiện kết quả đã có\nhoặc giờ mở;
+  end
+endif
+|Học sinh|
+if (Lớp cấp 1?) then (có)
+  :Kiểm từng câu: sai lần 1 gợi ý,\nsai lần 2 chỉ đáp án,\nlần trả lời đầu được chấm;
+else (không)
+  :Trả lời từng câu,\nmỗi câu lưu ngay;
+endif
+if (Nộp trước hạn?) then (có)
+  :Bấm Nộp bài;
+else (hết giờ)
+  |Hệ thống DiViet|
+  :Tự nộp khi hết giờ;
+endif
+|Hệ thống DiViet|
+:Chấm theo dạng câu,\nlưu cố định;
+:Hiện kết quả theo cấp: sao và\nthẻ di sản, điểm hoặc phân tích;
+if (Lớp cấp 2, 3?) then (có)
+  |Dịch vụ AI|
+  :Xếp hạng\ndi sản liên quan;
+endif
+|Học sinh|
+:Xem kết quả và gợi ý\n(cấp 1: thẻ di sản, album);
+|Giáo viên|
+:Xem kết quả lớp:\nđã nộp, chưa làm,\ntỉ lệ đúng;
+:Xem di sản nên ôn,\ntạo bài ôn tập;
+stop
+@enduml

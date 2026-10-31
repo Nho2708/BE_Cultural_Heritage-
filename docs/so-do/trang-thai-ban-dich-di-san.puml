@@ -1,0 +1,48 @@
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 150
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam ArrowColor #333333
+skinparam ArrowFontSize 12
+skinparam ActivityBackgroundColor #F5F8FC
+skinparam ActivityBorderColor #3B5B85
+skinparam ActivityDiamondBackgroundColor #FFF6E5
+skinparam ActivityDiamondBorderColor #B7791F
+skinparam SwimlaneTitleFontStyle bold
+skinparam StateBackgroundColor #F5F8FC
+skinparam StateBorderColor #3B5B85
+skinparam ComponentBackgroundColor #F5F8FC
+skinparam ComponentBorderColor #3B5B85
+skinparam NodeBackgroundColor #FFFFFF
+skinparam NodeBorderColor #555555
+skinparam DatabaseBackgroundColor #F5F8FC
+skinparam CloudBackgroundColor #FFFFFF
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassBorderColor #3B5B85
+skinparam ClassHeaderBackgroundColor #E8EEF6
+skinparam PackageBorderColor #8A9BB3
+hide empty description
+state "Heritage translation in one language" as TRANSLATION_ROW {
+  state PENDING : Pending review
+  state APPROVED : Approved
+  state REJECTED : Rejected
+  state MACHINE : Machine translation
+  [*] --> PENDING : [English]
+  [*] --> MACHINE : [Korean, Chinese, Japanese]
+  PENDING --> APPROVED : System Administrator\napproves
+  PENDING --> REJECTED : System Administrator\nrejects
+  APPROVED --> REJECTED : System Administrator\nrejects (removed\nfrom public pages)
+  APPROVED --> PENDING : System Administrator\nedits the translation\nor translates again\nwith AI
+  REJECTED --> PENDING : System Administrator\nedits the translation\nor translates again\nwith AI
+  MACHINE --> MACHINE : System Administrator\ntranslates again with AI\nor approves the\nEnglish translation
+  --
+  state "Up to date" as CURRENT : is_outdated = 0
+  state "Needs re-translation" as OUTDATED : is_outdated = 1
+  [*] --> CURRENT
+  CURRENT --> OUTDATED : System Administrator edits\nthe Vietnamese text of the\nsite, a period, an event\nor an image caption
+  OUTDATED --> CURRENT : System Administrator\ntranslates again\nwith AI
+}
+[*] --> TRANSLATION_ROW : System Administrator clicks\nTranslate and Summarize with AI\n[site not hidden,\nhas Vietnamese content]
+@enduml
