@@ -133,7 +133,7 @@ jobs:
         env:
           ConnectionStrings__Default: Server=localhost,1433;Database=dsvhvn_ci_script;User Id=sa;Password=Ci_Only_Pa55word!;TrustServerCertificate=True;Encrypt=True
         run: |
-          truoc=$(ls src/DSVHVN.Infrastructure/Persistence/Migrations/*.cs | grep -v -e Designer -e ModelSnapshot | sort | tail -2 | head -1 | xargs basename | sed 's/.cs$//')
+          truoc=$(ls src/DSVHVN.Infrastructure/Persistence/Migrations/*.cs | grep -v -e Designer -e ModelSnapshot | sort | tail -2 | head -1 | xargs basename -s .cs)
           dotnet ef database update "$truoc" $EF_ARGS
           ma=$(docker ps -q --filter ancestor=mcr.microsoft.com/mssql/server:2019-latest)
           docker cp artifacts/migrations.sql "$ma:/tmp/migrations.sql"
