@@ -131,13 +131,17 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                 columns: new[] { "student_id", "read_at" });
 
             // Bài đã phát hành trước đó cũng có mã: KT + 6 ký tự của bảng 32 ký tự dùng chung với mã bài học.
+            // Script idempotent lúc triển khai gom cả migration vào một lô, SQL Server dịch cả lô trước khi chạy nên câu dùng cột vừa thêm
+            // phải nằm trong EXEC để chỉ được dịch khi cột đã có.
             migrationBuilder.Sql("""
-                DECLARE @bang char(32) = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-                UPDATE quizzes SET access_code = 'KT'
+                EXEC(N'
+                DECLARE @bang char(32) = ''23456789ABCDEFGHJKLMNPQRSTUVWXYZ'';
+                UPDATE quizzes SET access_code = ''KT''
                     + SUBSTRING(@bang, 1 + ABS(CHECKSUM(NEWID()) % 32), 1) + SUBSTRING(@bang, 1 + ABS(CHECKSUM(NEWID()) % 32), 1)
                     + SUBSTRING(@bang, 1 + ABS(CHECKSUM(NEWID()) % 32), 1) + SUBSTRING(@bang, 1 + ABS(CHECKSUM(NEWID()) % 32), 1)
                     + SUBSTRING(@bang, 1 + ABS(CHECKSUM(NEWID()) % 32), 1) + SUBSTRING(@bang, 1 + ABS(CHECKSUM(NEWID()) % 32), 1)
-                WHERE status IN ('PUBLISHED', 'CLOSED');
+                WHERE status IN (''PUBLISHED'', ''CLOSED'');
+                ');
                 """);
 
             // Hạn mức tăng theo giá gói: gói trả tiền phải nhiều quyền lợi hơn gói rẻ hơn, gói Miễn phí đủ dùng thử mà không tốn chi phí AI.
