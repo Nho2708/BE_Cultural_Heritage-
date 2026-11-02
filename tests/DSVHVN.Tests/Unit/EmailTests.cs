@@ -46,7 +46,7 @@ public sealed class EmailContentTests
         Assert.Equal("Đặt mật khẩu cho tài khoản DiViet của bạn", mail.Subject);
 
         Assert.StartsWith("Xin chào Trần Thị Hạnh,", mail.TextBody);
-        Assert.Contains("Tài khoản DSVHVN của Trường Tiểu học Lê Lợi đã được tạo cho bạn. Tên đăng nhập: hanh.tran.", mail.TextBody);
+        Assert.Contains("Tài khoản DiViet của Trường Tiểu học Lê Lợi đã được tạo cho bạn. Tên đăng nhập: hanh.tran.", mail.TextBody);
         Assert.Contains(link, mail.TextBody);
         Assert.Contains("Liên kết có hiệu lực 48 giờ (đến 09:00 ngày 01/10/2026) và chỉ dùng được một lần.", mail.TextBody);
         Assert.Contains("Nếu bạn không yêu cầu, hãy bỏ qua thư này.", mail.TextBody);
@@ -92,7 +92,7 @@ public sealed class EmailContentTests
     {
         var mail = Composer.FirstPasswordLink("x@truong.edu.vn", "Lê Minh", "le.minh", null, Token, ExpiresAt);
 
-        Assert.Contains("Tài khoản DSVHVN đã được tạo cho bạn.", mail.TextBody);
+        Assert.Contains("Tài khoản DiViet đã được tạo cho bạn.", mail.TextBody);
     }
 
     [Fact]

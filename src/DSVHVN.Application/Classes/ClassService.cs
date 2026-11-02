@@ -131,7 +131,7 @@ public sealed class ClassService(IAppDbContext db, RequestValidator validator, I
         var taken = await db.ClassesOf(actor).AnyAsync(c => c.SchoolYear == year && c.Name != null
             && c.Name.ToLower() == lowered && (exceptClassId == null || c.Id != exceptClassId), ct);
         if (taken)
-            throw AppException.Conflict("name", Messages.Taken("Tên lớp", name));
+            throw AppException.Conflict("name", Messages.ClassNameTaken(name));
     }
 
     private async Task<ClassDto> ToDtoAsync(SchoolClass c, CancellationToken ct)
