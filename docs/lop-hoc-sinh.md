@@ -144,6 +144,11 @@ Bảng nhật ký vẫn chỉ thêm (DbContext chặn sửa, xóa). Màn Nhật 
 `CLASS_LEVEL_CHANGE_NEEDS_CONFIRMATION`, `REQUIRED`, `INVALID`, `DUPLICATE`, `BLOCKED`, `FORBIDDEN`. Lời với học sinh xưng "em", với giáo viên xưng "bạn". Dòng nhắc cố định của màn đăng nhập
 "Quên mật khẩu? Em hãy nhờ thầy cô đặt lại." có sẵn ở `Messages.StudentForgotPasswordHint` (không có liên kết quên mật khẩu qua email cho học sinh).
 
+Nút "Quên mật khẩu" của học sinh (`POST /api/v1/student/auth/forgot-password`) không cho biết mã học sinh có thật hay không: mã đúng định dạng luôn nhận 200 và cùng thông điệp
+"Nếu mã học sinh đúng, thầy cô chủ nhiệm của em sẽ nhận được thông báo để đặt lại mật khẩu."; hai trường `studentName`, `teacherName` được giữ cho app cũ nhưng luôn là "Em" và "thầy cô chủ nhiệm".
+Thư báo giáo viên gửi ở nền (mã không có thì không gửi gì), nên thời gian phản hồi như nhau. Giới hạn: 3 yêu cầu mỗi giờ mỗi mã (đếm cả mã không có thật) và 10 yêu cầu mỗi 15 phút mỗi IP;
+vượt thì 429 "Em đã xin đặt lại mật khẩu quá nhiều lần. Em hãy thử lại sau {n} phút." kèm `Retry-After`.
+
 ## 8. Kiểm thử
 
 - `StudentRulesTests`, `StudentListFileReaderTests`, `StudentServiceTests` (SQLite, đồng hồ tua được): sinh mã và mật khẩu, chuẩn hóa mã, năm học, cấp học, đọc `.csv`/`.xlsx`/văn bản, tệp mẫu,

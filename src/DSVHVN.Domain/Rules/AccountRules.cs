@@ -21,6 +21,19 @@ public static class AccountRules
     /// <summary>Tối đa 3 yêu cầu quên mật khẩu mỗi giờ cho mỗi email.</summary>
     public const int MaxForgotPasswordRequestsPerHour = 3;
 
+    /// <summary>Quên mật khẩu của học sinh: tối đa 3 yêu cầu mỗi giờ cho mỗi mã học sinh (đếm cả mã không có thật để không lộ mã nào có).</summary>
+    public const int MaxStudentForgotPasswordRequestsPerHour = 3;
+
+    public static readonly TimeSpan StudentForgotPasswordCodeWindow = TimeSpan.FromHours(1);
+
+    /// <summary>Quên mật khẩu của học sinh: tối đa 10 yêu cầu mỗi 15 phút cho mỗi địa chỉ IP (một lớp học thường dùng chung một IP nên đủ rộng cho cả lớp).</summary>
+    public const int MaxStudentForgotPasswordRequestsPerIp = 10;
+
+    public static readonly TimeSpan StudentForgotPasswordIpWindow = TimeSpan.FromMinutes(15);
+
+    /// <summary>Mã học sinh dài tối đa 50 ký tự sau khi bỏ khoảng trắng và dấu gạch (mã thật chỉ vài ký tự); dài hơn là sai định dạng.</summary>
+    public const int StudentCodeMaxLength = 50;
+
     // Độ dài theo cột của CSDL v3.
     public const int UsernameMinLength = 3;
     public const int UsernameMaxLength = 50;

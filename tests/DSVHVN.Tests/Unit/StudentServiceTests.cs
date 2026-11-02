@@ -285,24 +285,81 @@ public sealed class StudentServiceTests : IDisposable
         Assert.NotNull(await LoginAsync(entry.StudentCode!, entry.TemporaryPassword));
     }
 
+    private Task<StudentForgotPasswordResultDto> ForgotAsync(string? code, string? ip = Ip) =>
+        _h.Service<StudentAuthService, StudentForgotPasswordResultDto>(s =>
+            s.ForgotPasswordAsync(new StudentForgotPasswordRequest(code), ip, default));
+
+    private async Task<AppException> ForgotFailsAsync(string? code, string? ip = Ip) =>
+        await Assert.ThrowsAsync<AppException>(() => ForgotAsync(code, ip));
+
     [Fact]
-    public async Task ForgotPassword_fails_for_unknown_student_and_notifies_teacher_when_found()
+    public async Task ForgotPassword_gives_the_same_neutral_answer_for_known_and_unknown_codes_and_only_queues_mail_for_the_known_one()
     {
         var (teacher, schoolClass) = await TeacherWithClassAsync();
         var entry = (await AddAsync(teacher, schoolClass.Id, "Nguyễn Văn A")).Sheet.Entries.Single();
-        var studentCode = entry.StudentCode!;
 
-        // Case 1: Unknown student code -> 404
-        var ex = await Assert.ThrowsAsync<AppException>(() =>
-            _h.Service<StudentAuthService, StudentForgotPasswordResultDto>(s =>
-                s.ForgotPasswordAsync(new StudentForgotPasswordRequest("HSUNKNOWN"), default)));
-        Assert.Equal(404, ex.StatusCode);
-        Assert.Equal(Messages.StudentAccountNotFound.Text, ex.Message);
+        var unknown = await ForgotAsync("HSUNKNOWN");
+        Assert.Empty(_h.ResetNotices.Items);
 
-        // Case 2: Known student code -> sends email to teacher
-        var result = await _h.Service<StudentAuthService, StudentForgotPasswordResultDto>(s =>
-            s.ForgotPasswordAsync(new StudentForgotPasswordRequest(studentCode), default));
-        Assert.Equal("Nguyễn Văn A", result.StudentName);
-        Assert.Equal(1, _h.Mail.CountTo("giaovien.a@example.vn"));
+        // Mã có thật gõ thường, có khoảng trắng và dấu gạch vẫn nhận ra.
+        var typed = entry.StudentCode!.ToLowerInvariant().Insert(2, " ").Insert(4, "-");
+        var known = await ForgotAsync(typed);
+
+        Assert.Equal(unknown, known);
+        Assert.Equal(("Em", "thầy cô chủ nhiệm"), (known.StudentName, known.TeacherName));
+        Assert.DoesNotContain("Nguyễn", known.StudentName);
+        var notice = Assert.Single(_h.ResetNotices.Items);
+        Assert.Equal(("giaovien.a@example.vn", entry.StudentCode, "Nguyễn Văn A", "8A1"),
+            (notice.TeacherEmail, notice.StudentCode, notice.StudentName, notice.ClassName));
+        // Thư không gửi trong yêu cầu: chỉ xếp hàng đợi, việc gửi do tác vụ nền làm.
+        Assert.Equal(0, _h.Mail.CountTo("giaovien.a@example.vn"));
+        Assert.Equal("Nếu mã học sinh đúng, thầy cô chủ nhiệm của em sẽ nhận được thông báo để đặt lại mật khẩu.", Messages.StudentPasswordResetRequested.Text);
+    }
+
+    [Fact]
+    public async Task ForgotPassword_rejects_empty_and_overlong_codes_without_counting_them()
+    {
+        Assert.Equal(400, (await ForgotFailsAsync("  ")).StatusCode);
+        Assert.Equal(400, (await ForgotFailsAsync(new string('A', 51))).StatusCode);
+        // Yêu cầu sai định dạng bị từ chối trước bộ đếm nên không tiêu lượt của IP hay của mã.
+        for (var i = 0; i < 3; i++) await ForgotAsync("HSKHONGCO");
+    }
+
+    [Fact]
+    public async Task ForgotPassword_allows_three_requests_per_hour_per_code_even_when_the_code_does_not_exist()
+    {
+        // Mỗi lần một IP khác nhau để chỉ giới hạn theo mã tác động.
+        for (var i = 0; i < 3; i++) await ForgotAsync("HSKHONGCO", $"198.51.100.{20 + i}");
+
+        var blocked = await ForgotFailsAsync("hs khong-co", "198.51.100.30");
+        Assert.Equal(429, blocked.StatusCode);
+        Assert.Equal(MessageCodes.TooManyRequests, blocked.AppMessage.Code);
+        Assert.Equal("Em đã xin đặt lại mật khẩu quá nhiều lần. Em hãy thử lại sau 60 phút.", blocked.Message);
+        Assert.Equal(TimeSpan.FromHours(1), blocked.RetryAfter);
+
+        // Mã khác không bị ảnh hưởng; sau một giờ mã cũ dùng lại được.
+        await ForgotAsync("HSMACKHAC", "198.51.100.31");
+        _h.Clock.Advance(TimeSpan.FromMinutes(61));
+        await ForgotAsync("HSKHONGCO", "198.51.100.32");
+    }
+
+    [Fact]
+    public async Task ForgotPassword_allows_ten_requests_per_fifteen_minutes_per_ip_and_a_blocked_ip_does_not_use_up_the_code()
+    {
+        for (var i = 0; i < 10; i++) await ForgotAsync($"HSMA{i}", "203.0.113.50");
+
+        var blocked = await ForgotFailsAsync("HSMA0", "203.0.113.50");
+        Assert.Equal(429, blocked.StatusCode);
+        Assert.Equal("Em đã xin đặt lại mật khẩu quá nhiều lần. Em hãy thử lại sau 15 phút.", blocked.Message);
+        Assert.Equal(TimeSpan.FromMinutes(15), blocked.RetryAfter);
+
+        // IP khác không bị ảnh hưởng, và lượt bị IP chặn không tính vào bộ đếm của mã: mã vẫn còn đủ 2 lượt sau lượt đã qua.
+        await ForgotAsync("HSMA0", "203.0.113.51");
+        await ForgotAsync("HSMA0", "203.0.113.52");
+        Assert.Equal(429, (await ForgotFailsAsync("HSMA0", "203.0.113.53")).StatusCode);
+
+        // Sau 15 phút IP bị chặn dùng lại được (mã HSMA5 mới dùng một lượt).
+        _h.Clock.Advance(TimeSpan.FromMinutes(16));
+        await ForgotAsync("HSMA5", "203.0.113.50");
     }
 }

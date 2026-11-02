@@ -9,7 +9,7 @@ namespace DSVHVN.Api.Controllers;
 
 /// <summary>
 /// Đăng nhập của học sinh bằng mã học sinh, dùng chung cho khu học của web học tập và chế độ Học sinh của app mobile.
-/// Không có tự đăng ký và không có quên mật khẩu qua email: học sinh quên mật khẩu thì nhờ giáo viên đặt lại.
+/// Không có tự đăng ký và không có quên mật khẩu qua email: học sinh quên mật khẩu thì nhờ giáo viên đặt lại (học sinh bấm "Quên mật khẩu" để báo thầy cô, hệ thống không cho biết mã có thật hay không).
 /// </summary>
 [Route("api/v1/student/auth")]
 [AllowAnonymous]
@@ -29,17 +29,19 @@ public sealed class StudentAuthController(StudentAuthService studentAuth) : ApiC
         => OkEnvelope(await studentAuth.LoginAsync(request, ClientIp, ct), Messages.Success("Đăng nhập").Text);
 
     /// <summary>
-    /// Học sinh xin đặt lại mật khẩu bằng mã học sinh. Nếu mã tồn tại -> gửi email thông báo cho giáo viên chủ nhiệm;
-    /// nếu không tồn tại -> 404 để giao diện báo đỏ dưới ô nhập.
+    /// Học sinh xin đặt lại mật khẩu bằng mã học sinh. Mã đúng định dạng thì luôn 200 với cùng một thông điệp chung, mã có thật hay không: mã có thật thì thầy cô chủ nhiệm nhận thư báo
+    /// (gửi nền, không làm chậm phản hồi), mã không có thì không gửi gì, nên người ngoài không dò được mã nào có trong hệ thống. <c>studentName</c> và <c>teacherName</c> được giữ để app cũ
+    /// đọc được nhưng luôn là giá trị trung tính ("Em", "thầy cô chủ nhiệm"), không phải họ tên thật. Tối đa 10 yêu cầu mỗi 15 phút mỗi IP và 3 yêu cầu mỗi giờ mỗi mã học sinh;
+    /// vượt thì 429 kèm số phút phải chờ và <c>Retry-After</c>. Mã trống hoặc dài quá 50 ký tự thì 400.
     /// </summary>
     [HttpPost("forgot-password")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<ApiResponse<StudentForgotPasswordResultDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<ApiResponse<StudentForgotPasswordResultDto>>> ForgotPassword(StudentForgotPasswordRequest request, CancellationToken ct)
     {
-        var result = await studentAuth.ForgotPasswordAsync(request, ct);
+        var result = await studentAuth.ForgotPasswordAsync(request, ClientIp, ct);
         return OkEnvelope(result, Messages.StudentPasswordResetRequested.Text);
     }
 }
