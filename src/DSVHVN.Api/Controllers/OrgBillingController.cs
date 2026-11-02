@@ -11,14 +11,20 @@ namespace DSVHVN.Api.Controllers;
 /// <summary>
 /// Gói và thanh toán của quản trị trường (tab Gói và hạn mức, tab Hóa đơn và giao dịch, màn hình Chọn gói và thanh toán, trang Kết quả thanh toán).
 /// Trường luôn là trường của người gọi; hóa đơn, đăng ký, giao dịch của trường khác trả 404. Không có endpoint nào kích hoạt gói trả phí:
-/// gói chỉ ACTIVE khi VNPay gửi IPN hợp lệ về <c>/api/v1/payments/vnpay/ipn</c>.
+/// gói chỉ ACTIVE khi cổng đã chọn gửi IPN hoặc webhook hợp lệ về <c>/api/v1/payments/{vnpay|momo|payos}</c>.
 /// </summary>
 [Route("api/v1/org")]
 [Authorize(Policy = Policies.OrgAdmin)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
-public sealed class OrgBillingController(BillingQueries queries, BillingService billing) : ApiControllerBase
+public sealed class OrgBillingController(BillingQueries queries, BillingService billing, PaymentGatewayRegistry gateways) : ApiControllerBase
 {
+    /// <summary>Các phương thức thanh toán dùng được (đã có khóa cấu hình và đang bật), VNPay đứng đầu; dùng cho hộp chọn ở màn hình Chọn gói và thanh toán.</summary>
+    [HttpGet("payments/providers")]
+    [ProducesResponseType<ApiResponse<IReadOnlyList<PaymentProviderDto>>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<PaymentProviderDto>>>> Providers(CancellationToken ct)
+        => OkEnvelope(await queries.ListPaymentProvidersAsync(ct));
+
     /// <summary>Gói hiện tại, gói gia hạn chờ bắt đầu, yêu cầu mua chưa thanh toán, số giáo viên và lượt AI, và các nút nào được bấm.</summary>
     [HttpGet("billing")]
     [ProducesResponseType<ApiResponse<BillingOverviewDto>>(StatusCodes.Status200OK)]
@@ -36,12 +42,12 @@ public sealed class OrgBillingController(BillingQueries queries, BillingService 
     [ProducesResponseType<ApiResponse<PurchaseQuoteDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<ActionResult<ApiResponse<PurchaseQuoteDto>>> Quote(int planId, CancellationToken ct)
-        => OkEnvelope(await queries.GetQuoteAsync(CurrentActor, planId, ct));
+    public async Task<ActionResult<ApiResponse<PurchaseQuoteDto>>> Quote(int planId, [FromQuery] string? provider, CancellationToken ct)
+        => OkEnvelope(await queries.GetQuoteAsync(CurrentActor, planId, ct, gateways.Find(provider)?.DisplayName ?? "VNPay"));
 
     /// <summary>
-    /// "Thanh toán qua VNPay": tạo đăng ký chờ thanh toán, hóa đơn chưa trả và giao dịch chờ, trả địa chỉ VNPay sandbox để chuyển trình duyệt tới.
-    /// Trường đã có yêu cầu mua chưa trả thì 422. Chưa cấu hình khóa VNPay thì 503.
+    /// "Thanh toán": tạo đăng ký chờ thanh toán, hóa đơn chưa trả và giao dịch chờ, trả địa chỉ của cổng đã chọn (<c>providerCode</c>: VNPAY, MOMO, PAYOS; để trống thì VNPAY)
+    /// để chuyển trình duyệt tới. Trường đã có yêu cầu mua chưa trả hoặc mã phương thức lạ thì 422. Cổng chưa cấu hình khóa, đã tắt hoặc không gọi được thì 503.
     /// </summary>
     [HttpPost("billing/checkout")]
     [ProducesResponseType<ApiResponse<PaymentStartDto>>(StatusCodes.Status201Created)]
@@ -86,14 +92,17 @@ public sealed class OrgBillingController(BillingQueries queries, BillingService 
     public async Task<ActionResult<ApiResponse<InvoiceDetailDto>>> Invoice(long id, CancellationToken ct)
         => OkEnvelope(await queries.GetInvoiceAsync(CurrentActor.RequireOrganizationId(), id, ct));
 
-    /// <summary>"Thanh toán" hóa đơn chưa trả (kể cả "Thanh toán lại" sau khi thất bại): giao dịch mới và địa chỉ VNPay. Hóa đơn quá hạn, đã trả, đã hủy thì 422.</summary>
+    /// <summary>
+    /// "Thanh toán" hóa đơn chưa trả (kể cả "Thanh toán lại" sau khi thất bại): giao dịch mới và địa chỉ của cổng đã chọn (thân yêu cầu không bắt buộc,
+    /// <c>{ "providerCode": "MOMO" }</c>; để trống thì VNPAY). Hóa đơn quá hạn, đã trả, đã hủy thì 422.
+    /// </summary>
     [HttpPost("invoices/{id:long}/pay")]
     [ProducesResponseType<ApiResponse<PaymentStartDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status503ServiceUnavailable)]
-    public async Task<ActionResult<ApiResponse<PaymentStartDto>>> Pay(long id, CancellationToken ct)
-        => OkEnvelope(await billing.PayInvoiceAsync(CurrentActor, id, ct));
+    public async Task<ActionResult<ApiResponse<PaymentStartDto>>> Pay(long id, [FromBody] PayInvoiceRequest? request, CancellationToken ct)
+        => OkEnvelope(await billing.PayInvoiceAsync(CurrentActor, id, request?.ProviderCode, ct));
 
     /// <summary>
     /// Trang Kết quả thanh toán: chỉ đọc trạng thái do IPN ghi nhận (đã thanh toán, chưa thanh toán, đang chờ xác nhận); trang tự tải lại khi đang chờ.
