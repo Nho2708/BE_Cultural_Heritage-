@@ -40,6 +40,8 @@ ADMIN_PASSWORD = os.environ["ADMIN_PASSWORD"]
 OUT = os.environ.get("OUT", "du-lieu-demo.json")
 
 DEMO_PASSWORD = "DemoDsvhvn2026"
+# Học sinh lớp cấp 1 (khối 1-5) dùng mật khẩu 6 chữ số, nhập được bằng bàn phím số; cấp 2, 3 dùng mật khẩu chung ở trên.
+DEMO_PASSWORD_PRIMARY = "246810"
 SCHOOL_NAME = "Trường Liên cấp Demo Di sản Việt"
 CLOSE_AT = "2027-06-30T16:59:00Z"  # hết ngày 30/06/2027 giờ Việt Nam
 EMAIL_DOMAIN = "demo.dsvhvn.local"
@@ -89,6 +91,21 @@ def call(method, path, body=None, token=None, expect=None):
     if expect is not None and status != expect:
         sys.exit(f"{method} {path}: mong {expect}, nhận {status}: {str(payload)[:400]}")
     return payload.get("data"), status
+
+
+def student_password(grade):
+    return DEMO_PASSWORD_PRIMARY if grade <= 5 else DEMO_PASSWORD
+
+
+def list_all(path, token):
+    """Lấy mọi dòng của một danh sách phân trang (mỗi trang tối đa 100 dòng)."""
+    items, page = [], 1
+    while True:
+        data, _ = call("GET", f"{path}{'&' if '?' in path else '?'}page={page}&pageSize=100", token=token, expect=200)
+        items.extend(data["items"])
+        if page >= data["totalPages"]:
+            return items
+        page += 1
 
 
 def mail_token(email):
@@ -211,8 +228,7 @@ def main_models_only():
     admin, st = call("POST", "/auth/login", {"emailOrUsername": ADMIN_LOGIN, "password": ADMIN_PASSWORD})
     if st != 200:
         sys.exit(f"Đăng nhập quản trị hệ thống {ADMIN_LOGIN} thất bại ({st}).")
-    pub, _ = call("GET", "/admin/heritages?status=PUBLISHED&pageSize=100", token=admin["accessToken"], expect=200)
-    published = {h["id"]: h for h in pub["items"]}
+    published = {h["id"]: h for h in list_all("/admin/heritages?status=PUBLISHED", admin["accessToken"])}
     shown = attach_models(admin["accessToken"], published)
     print(f"Có mô hình 3D đang hiển thị ở {len(shown)} di sản")
 
@@ -410,17 +426,16 @@ def main():
         sys.exit(3)
 
     # ---- Di sản: xuất bản mọi di sản đủ điều kiện ----
-    listing, _ = call("GET", "/admin/heritages?status=DRAFT&pageSize=100", token=A, expect=200)
+    drafts = list_all("/admin/heritages?status=DRAFT", A)
     failed = []
-    for h in sorted(listing["items"], key=lambda item: item["id"]):
+    for h in sorted(drafts, key=lambda item: item["id"]):
         _, st = call("POST", f"/admin/heritages/{h['id']}/publish", token=A)
         if st != 200:
             failed.append(h["id"])
-    pub, _ = call("GET", "/admin/heritages?status=PUBLISHED&pageSize=100", token=A, expect=200)
-    published = {h["id"]: h for h in pub["items"]}
+    published = {h["id"]: h for h in list_all("/admin/heritages?status=PUBLISHED", A)}
     result["heritagesPublished"] = len(published)
     result["heritagesNotPublished"] = failed
-    print(f"Di sản đã xuất bản: {len(published)} (không xuất bản được: {failed})")
+    print(f"Di sản đã xuất bản: {len(published)} (còn là bản nháp vì chưa đủ điều kiện xuất bản: {len(failed)})")
 
     # ---- Bản dịch và tóm tắt cho 12 di sản tiêu biểu ----
     translated = []
@@ -462,8 +477,9 @@ def main():
             d, _ = call("POST", f"/teacher/classes/{c['id']}/students", {"fullName": full_name}, token=tokens[teacher], expect=201)
             e = d["sheet"]["entries"][0]
             lg, _ = call("POST", "/student/auth/login", {"studentCode": e["studentCode"], "password": e["temporaryPassword"]}, expect=200)
-            call("PUT", "/student/me/password", {"newPassword": DEMO_PASSWORD, "confirmNewPassword": DEMO_PASSWORD},
-                 token=lg["accessToken"], expect=200)
+            new_password = student_password(grade)
+            call("PUT", "/student/me/password", {"currentPassword": e["temporaryPassword"], "newPassword": new_password,
+                                                  "confirmNewPassword": new_password}, token=lg["accessToken"], expect=200)
             students[grade].append({"studentCode": e["studentCode"], "fullName": full_name})
     print("Đã tạo 3 lớp và 24 học sinh (đã đổi sang mật khẩu demo)")
 
@@ -501,13 +517,17 @@ def main():
             created, _ = call("POST", "/teacher/questions", payload, token=T, expect=201)
             qids.append(created["id"])
         limit = None if grade == 3 else (20 if grade == 8 else 30)
-        quiz, _ = call("POST", "/teacher/quizzes", {"lessonId": les["id"], "name": spec["quiz"], "difficultyLevel": "MEDIUM",
-                                                    "timeLimitMinutes": limit, "openAt": when(-1), "closeAt": CLOSE_AT,
-                                                    "showAnswersAfterSubmit": True}, token=T, expect=201)
+        quiz_body = {"lessonId": les["id"], "name": spec["quiz"], "difficultyLevel": "MEDIUM", "timeLimitMinutes": limit,
+                     "showAnswersAfterSubmit": True}
+        if grade > 5:  # cấp 1 không đặt giờ mở và giờ đóng: bài chơi luôn mở
+            quiz_body.update({"openAt": when(-1), "closeAt": CLOSE_AT})
+        quiz, _ = call("POST", "/teacher/quizzes", quiz_body, token=T, expect=201)
         call("POST", f"/teacher/quizzes/{quiz['id']}/questions", {"questionIds": qids, "point": 2}, token=T, expect=200)
-        call("POST", f"/teacher/quizzes/{quiz['id']}/publish", token=T, expect=200)
+        pub_quiz, _ = call("POST", f"/teacher/quizzes/{quiz['id']}/publish", token=T, expect=200)
+        # Thông báo tới học sinh do giáo viên bấm gửi: gửi một thông báo giao bài cho cả lớp.
+        call("POST", f"/teacher/lessons/{les['id']}/notify-class", {"message": None}, token=T, expect=200)
         lessons.append({"grade": grade, "lessonId": les["id"], "title": spec["title"], "code": pub_lesson["accessCode"],
-                        "quizId": quiz["id"], "quizName": spec["quiz"], "questions": qdefs, "questionIds": qids})
+                        "quizId": quiz["id"], "quizCode": pub_quiz["quiz"]["accessCode"], "quizName": spec["quiz"], "questions": qdefs, "questionIds": qids})
     print(f"Đã tạo {len(lessons)} bài học đã phát hành, {sum(len(x['questionIds']) for x in lessons)} câu hỏi, {len(lessons)} bài kiểm tra đang mở")
 
     # ---- Học sinh làm và nộp bài kiểm tra ----
@@ -519,8 +539,11 @@ def main():
         for quiz_no, item in enumerate(items):
             for j in range(DONE_COUNT[quiz_no]):
                 student = students[grade][j]
-                lg, _ = call("POST", "/student/auth/login", {"studentCode": student["studentCode"], "password": DEMO_PASSWORD}, expect=200)
+                lg, _ = call("POST", "/student/auth/login", {"studentCode": student["studentCode"], "password": student_password(grade)}, expect=200)
                 tok = lg["accessToken"]
+                call("GET", f"/student/lessons/{item['code']}", token=tok, expect=200)  # mở bài bằng mã: ghi lượt mở bài
+                if grade <= 5:
+                    call("POST", f"/student/lessons/{item['code']}/complete", token=tok, expect=200)  # cấp 1: nhận thẻ vào album
                 attempt, _ = call("POST", f"/student/quizzes/{item['quizId']}/attempts", token=tok, expect=201)
                 shown_by_id = {sq["questionId"]: sq for sq in attempt["questions"]}
                 by_qid = dict(zip(item["questionIds"], item["questions"]))
@@ -543,6 +566,7 @@ def main():
     result["lessons"] = [{k: v for k, v in x.items() if k not in ("questions", "questionIds")} for x in lessons]
     result["submitted"] = submitted
     result["demoPassword"] = DEMO_PASSWORD
+    result["demoPasswordPrimary"] = DEMO_PASSWORD_PRIMARY
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     print("Đã ghi", OUT)

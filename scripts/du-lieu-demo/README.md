@@ -23,7 +23,8 @@ Tham số:
 - `-Database`: tên cơ sở dữ liệu (mặc định `sep490_dsvhvn`). Chưa có thì backend tự tạo và áp migration.
 - `-Port`: cổng backend tạm thời (mặc định 5180). Script không dùng cổng 5080 của backend chạy hằng ngày.
 - `-AdminPassword`: mật khẩu chung đặt cho 4 quản trị hệ thống (`admin.nho`, `admin.lam`, `admin.trieu`, `admin.huy`) khi cơ sở dữ liệu còn mới.
-  Dài 8-64 ký tự, có chữ hoa, chữ thường và chữ số. Không truyền thì script hỏi bằng `Read-Host -AsSecureString`. Mật khẩu chỉ đi vào backend
+  Dài 8-64 ký tự, có chữ hoa, chữ thường và chữ số. Không truyền thì script hỏi bằng `Read-Host -AsSecureString`
+  (`pwsh -File` không truyền được kiểu `SecureString`; muốn truyền sẵn thì gọi trong một phiên pwsh: `$p = Read-Host -AsSecureString; ./scripts/tao-csdl-demo.ps1 -AdminPassword $p`). Mật khẩu chỉ đi vào backend
   qua biến môi trường của tiến trình con, không ghi ra tệp hay log. Cơ sở dữ liệu đã có quản trị rồi thì phải nhập đúng mật khẩu đang dùng.
 
 Muốn chạy backend hằng ngày (cổng 5080) với cùng mật khẩu quản trị, đặt mật khẩu trong User Secrets một lần, trước lần chạy đầu trên cơ sở dữ liệu mới:
@@ -38,19 +39,21 @@ Cách an toàn:
 - Nơi lưu tệp là `Local` (tệp mô hình 3D nằm trong `src/DSVHVN.Api/storage/`, đã được bỏ qua khỏi git), dịch vụ AI chạy bản giả lập.
 - Cơ sở dữ liệu đã có trường demo thì script báo và thoát, không nạp trùng. Muốn nạp lại thì xoá cơ sở dữ liệu rồi chạy lại.
 - Tiến trình backend do script bật được tắt theo PID khi xong hoặc khi lỗi.
-- Tệp kết quả JSON (mã học sinh, mã bài học, ai đã nộp bài) nằm trong thư mục tạm `%TEMP%\dsvhvn-demo-<giờ>\`; không có mật khẩu quản trị.
+- Tệp kết quả JSON (mã học sinh, mã bài học, mã bài kiểm tra, ai đã nộp bài) nằm trong thư mục tạm `%TEMP%\dsvhvn-demo-<giờ>\`; không có mật khẩu quản trị.
 
 ## Dữ liệu gồm gì
 
-**Di sản** (nạp khi backend khởi động, từ `seed-data/`): 34 tỉnh/thành, 20 di sản, tất cả được xuất bản. Mười hai di sản tiêu biểu có bản dịch và
-tóm tắt: tiếng Việt và tiếng Anh đã duyệt, tiếng Hàn, Trung, Nhật là bản dịch máy. Vì dịch vụ AI là bản giả lập nên chữ dịch có tiền tố mã ngôn ngữ
+**Di sản** (nạp khi backend khởi động, từ `seed-data/`): 34 tỉnh/thành và hơn 2.200 di sản bản nháp. Script xuất bản mọi di sản đủ điều kiện xuất bản
+(duyệt hết các trang của danh sách bản nháp; di sản còn thiếu ảnh đại diện, tọa độ, nguồn tham khảo... vẫn là bản nháp, script chỉ báo số lượng). Mười hai di sản
+tiêu biểu (mã 1, 2, 5, 6, 7, 9, 11, 12, 14, 15, 16, 17) có bản dịch và tóm tắt: tiếng Việt và tiếng Anh đã duyệt, tiếng Hàn, Trung, Nhật là bản dịch máy. Vì dịch vụ AI là bản giả lập nên chữ dịch có tiền tố mã ngôn ngữ
 (ví dụ `[en] ...`): đủ để thử chế độ khách ở 5 ngôn ngữ, không phải bản dịch thật.
 
 **Mô hình 3D**: 14 di sản có mô hình 3D thật lấy từ Sketchfab (giấy phép CC BY hoặc CC0, ghi công đủ tác giả, giấy phép, trang nguồn), nếu tệp `.glb`
 đã được tải về `seed-data/mo-hinh-3d/` (xem mục dưới). Chưa có tệp thì hai di sản (Khu Trung tâm Hoàng thành Thăng Long và Quần thể di tích Cố đô Huế)
 có mô hình mẫu tối thiểu (một hình tam giác), giấy phép CC0, ghi công "Mô hình mẫu để thử tính năng xem 3D".
 
-**Trường demo** "Trường Liên cấp Demo Di sản Việt" (gói Miễn phí): 1 quản trị trường, 2 giáo viên, 3 lớp năm học 2026-2027, mỗi lớp 8 học sinh đã đổi sang mật khẩu demo.
+**Trường demo** "Trường Liên cấp Demo Di sản Việt" (gói Miễn phí): 1 quản trị trường, 2 giáo viên, 3 lớp năm học 2026-2027, mỗi lớp 8 học sinh đã đổi sang mật khẩu demo (gói Miễn phí cho tối đa 3 giáo viên
+và 50 lượt AI nên 2 giáo viên và 6 lần AI soạn bài vẫn trong hạn mức).
 
 | Lớp | Khối (cấp) | Giáo viên | Bài học đã phát hành | Dạng câu hỏi dùng |
 |---|---|---|---|---|
@@ -58,9 +61,12 @@ có mô hình mẫu tối thiểu (một hình tam giác), giấy phép CC0, ghi
 | 8A1 | 8 (cấp 2) | Trần Thị Minh Anh | Quần thể di tích Cố đô Huế; Thành nhà Hồ | Một đáp án đúng, Đúng/Sai, sắp xếp, điền từ |
 | 11A2 | 11 (cấp 3) | Lê Hoàng Nam | Khu di tích Đền Hùng; Đô thị cổ Hội An | Một đáp án đúng, nhiều mệnh đề Đúng/Sai, đọc tư liệu rồi trả lời |
 
-Mỗi bài học có mã bài học, nội dung soạn bằng AI giả lập, và một bài kiểm tra 5 câu đang mở đến hết ngày 30/06/2027. Năm em đầu của mỗi lớp đã làm và nộp
-bài kiểm tra thứ nhất với điểm giảm dần (đúng 5, 4, 3, 2, 1 trong 5 câu); ba em đầu đã nộp bài thứ hai. Các em còn lại chưa làm để trình diễn làm bài
-(mỗi học sinh chỉ có một lượt cho mỗi bài kiểm tra).
+Mỗi bài học có mã bài học (`BH` + 6 ký tự), nội dung soạn bằng AI giả lập (khung nội dung theo cấp: cấp 1 có ảnh ở từng bước, cấp 2 có mốc thời gian,
+cấp 3 có trích tư liệu kèm nguồn), và một bài kiểm tra 5 câu có mã riêng (`KT` + 6 ký tự, sinh khi phát hành lần đầu). Bài kiểm tra cấp 1 không đặt giờ mở và
+giờ đóng nên luôn mở, không giới hạn thời gian làm; cấp 2, 3 mở từ lúc nạp đến hết ngày 30/06/2027, giới hạn 20 phút (khối 8) và 30 phút (khối 11).
+Với mỗi bài học, giáo viên đã gửi một thông báo giao bài cho cả lớp. Năm em đầu của mỗi lớp đã mở bài học bằng mã (có lượt mở bài), làm và nộp
+bài kiểm tra thứ nhất với điểm giảm dần (đúng 5, 4, 3, 2, 1 trong 5 câu); ba em đầu đã nộp bài thứ hai; ở lớp cấp 1 các em này còn đã nhận thẻ vào album.
+Các em còn lại chưa làm để trình diễn làm bài (mỗi học sinh chỉ có một lượt cho mỗi bài kiểm tra).
 
 ## Mô hình 3D thật
 
@@ -86,7 +92,8 @@ một mô hình khác do người dùng tự thêm thì mô hình thật chỉ l
 
 ## Tài khoản demo
 
-Mật khẩu chung cho quản trị trường, giáo viên và học sinh: `DemoDsvhvn2026`.
+Mật khẩu chung cho quản trị trường, giáo viên và học sinh cấp 2, 3 (lớp 8A1, 11A2): `DemoDsvhvn2026`.
+Học sinh cấp 1 (lớp 3A) dùng mật khẩu 6 chữ số `246810` để nhập được bằng bàn phím số; cấp 1 không bị buộc đổi mật khẩu khi đăng nhập lần đầu.
 
 | Vai trò | Tên đăng nhập | Email |
 |---|---|---|
@@ -97,7 +104,7 @@ Mật khẩu chung cho quản trị trường, giáo viên và học sinh: `Demo
 
 Quản trị hệ thống: mật khẩu là mật khẩu đã truyền cho script (hoặc `Seed:AdminPassword` trong User Secrets), không có mật khẩu mặc định trong repo.
 
-Học sinh đăng nhập ở web học tập (hoặc chế độ Học sinh của app) bằng **mã học sinh** và mật khẩu `DemoDsvhvn2026`. Mã học sinh do hệ thống sinh ngẫu nhiên khi
+Học sinh đăng nhập ở web học tập (hoặc chế độ Học sinh của app) bằng **mã học sinh** và mật khẩu ở trên. Mã học sinh do hệ thống sinh ngẫu nhiên khi
 tạo, nên khác nhau giữa các lần nạp; xem trong bảng script in ra ở cuối, trong tệp JSON kết quả, hoặc truy vấn:
 
 ```sql
@@ -111,8 +118,8 @@ Tên học sinh theo thứ tự trong lớp (năm em đầu đã nộp bài):
 - 8A1: Ngô Đức Anh, Dương Thùy Chi, Lý Hoàng Long, Đỗ Phương Thảo, Trịnh Minh Quân, Phan Hải Yến, Võ Thành Đạt, Đinh Mai Phương
 - 11A2: Nguyễn Hữu Phúc, Lê Thị Kim Ngân, Trần Quang Vinh, Phạm Thu Hà, Hồ Gia Bảo, Mai Xuân Trang, Cao Tiến Dũng, Lương Thanh Tâm
 
-Mã bài học cũng được sinh ngẫu nhiên; xem trong bảng script in ra, hoặc trên màn hình bài học của giáo viên.
+Mã bài học và mã bài kiểm tra cũng được sinh ngẫu nhiên; xem trong bảng script in ra, trong tệp JSON kết quả, hoặc trên màn hình bài học của giáo viên.
 
 ## Sửa dữ liệu demo
 
-Tên, câu hỏi và số liệu nằm đầu tệp `nap-du-lieu-demo.py` (danh sách tên, `question_sets()`, `DONE_COUNT`). Sửa rồi nạp lại trên cơ sở dữ liệu mới.
+Tên, mật khẩu demo, câu hỏi và số liệu nằm đầu tệp `nap-du-lieu-demo.py` (danh sách tên, `DEMO_PASSWORD`, `DEMO_PASSWORD_PRIMARY`, `question_sets()`, `DONE_COUNT`). Sửa rồi nạp lại trên cơ sở dữ liệu mới.
