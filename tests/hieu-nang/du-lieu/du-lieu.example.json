@@ -1,0 +1,15 @@
+{
+  "ghiChu": "Tệp mẫu, không chứa dữ liệu thật. Sao chép thành du-lieu/du-lieu.json rồi điền, hoặc để tao-du-lieu-tai.py tạo tệp thật.",
+  "dot": 1,
+  "lop": [
+    {
+      "ten": "Lop-Tai-1",
+      "lopId": 1,
+      "maBaiHoc": "BH-MAU-01",
+      "baiKiemTra": { "vaoLop": 1001, "luu": 1002, "nop": 1003 }
+    }
+  ],
+  "hocSinh": [
+    { "maHocSinh": "MA-HOC-SINH-MAU", "matKhau": "MAT-KHAU-MAU", "lop": 0 }
+  ]
+}
