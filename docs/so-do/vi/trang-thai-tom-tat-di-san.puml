@@ -44,5 +44,6 @@ state "Bản tóm tắt một ngôn ngữ của di sản" as SUMMARY_ROW {
   CURRENT --> OUTDATED : Quản trị hệ thống sửa\nchữ tiếng Việt của di sản,\ngiai đoạn, sự kiện,\nchú thích ảnh
   OUTDATED --> CURRENT : Quản trị hệ thống\ndịch lại bằng AI
 }
+SUMMARY_ROW --> [*] : Quản trị hệ thống xóa di sản\n[nháp hoặc đã ẩn, chưa dùng trong\nbài học, câu hỏi]
 [*] --> SUMMARY_ROW : Quản trị hệ thống bấm\nDịch và tóm tắt bằng AI\n[di sản chưa ẩn,\ncó nội dung tiếng Việt]
 @enduml

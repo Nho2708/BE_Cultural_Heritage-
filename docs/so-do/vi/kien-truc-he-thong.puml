@@ -50,10 +50,12 @@ node "<b>Máy ảo Google Cloud</b>\nUbuntu 24.04, Docker Compose" as mayAo {
 }
 
 rectangle "Dịch vụ do máy chủ gọi" as ngoaiMayChu {
-  component "<b>Nhà cung cấp LLM</b>\nGoogle Gemini\n<size:10>hoặc Anthropic Claude</size>" as llm
+  component "<b>Nhà cung cấp LLM</b>\nGoogle Gemini\n<size:10>mặc định; Claude là lựa chọn cấu hình</size>" as llm
   component "<b>Dịch vụ email (SMTP)</b>\nsupport@diviet.id.vn" as smtp
   component "<b>Hugging Face</b>\n<size:10>tải mô hình giọng đọc lần chạy đầu</size>" as hf
-  component "<b>FPT.AI Text-to-Speech</b>\n<size:10>phương án thay thế, máy chủ chưa bật</size>" as fpt
+  component "<b>FPT.AI Text-to-Speech</b>\n<size:10>phương án thay thế, không máy nào bật</size>" as fpt
+  component "<b>Cloudinary</b>\n<size:10>kho tệp thay đĩa (Storage:Provider)</size>" as cloudinaryKho
+  component "<b>gstatic.com</b>\n<size:10>khóa công khai xác minh AdMob</size>" as gstatic
 }
 
 rectangle "Thanh toán và quảng cáo" as thanhToanQuangCao {
@@ -84,6 +86,8 @@ ai --> llm : lời nhắc, kết quả JSON
 ai --> hf : mô hình giọng đọc
 api --> smtp : thư đặt mật khẩu, thư báo quên mật khẩu, thư liên hệ
 api ..> fpt : văn bản cần đọc
+api ..> cloudinaryKho : ảnh, mô hình 3D, tệp thuyết minh\n(khi chọn Cloudinary)
+api --> gstatic : tải khóa xác minh AdMob
 
 webQuanTri --> vnpay : chuyển trình duyệt sang trang thanh toán
 vnpay --> edge : IPN kết quả thanh toán

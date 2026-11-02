@@ -31,5 +31,5 @@ state "Tài khoản chưa xóa" as ACCOUNT {
   LOCKED --> ACTIVE : Quản trị hệ thống\nhoặc quản trị trường\nmở khóa tài khoản
   [*] --> ACTIVE : Quản trị hệ thống tạo\nquản trị trường; quản trị\ntrường tạo giáo viên\n[còn chỗ theo gói]
 }
-ACCOUNT --> [*] : Quản trị hệ thống\nhoặc quản trị trường\nxóa tài khoản
+ACCOUNT --> [*] : Quản trị trường xóa tài\nkhoản giáo viên [tài khoản\nquản trị trường, quản trị hệ\nthống chỉ khóa, không xóa]
 @enduml

@@ -50,10 +50,12 @@ node "<b>Google Cloud virtual machine</b>\nUbuntu 24.04, Docker Compose" as mayA
 }
 
 rectangle "Services called by the server" as ngoaiMayChu {
-  component "<b>LLM Provider</b>\nGoogle Gemini\n<size:10>or Anthropic Claude</size>" as llm
+  component "<b>LLM Provider</b>\nGoogle Gemini\n<size:10>default; Claude is a configuration option</size>" as llm
   component "<b>Email Service (SMTP)</b>\nsupport@diviet.id.vn" as smtp
   component "<b>Hugging Face</b>\n<size:10>downloads the voice model on first run</size>" as hf
-  component "<b>FPT.AI Text-to-Speech</b>\n<size:10>alternative provider, not enabled on the server</size>" as fpt
+  component "<b>FPT.AI Text-to-Speech</b>\n<size:10>alternative provider, enabled on no machine</size>" as fpt
+  component "<b>Cloudinary</b>\n<size:10>file storage instead of the disk (Storage:Provider)</size>" as cloudinaryKho
+  component "<b>gstatic.com</b>\n<size:10>public keys to verify AdMob</size>" as gstatic
 }
 
 rectangle "Payment and advertising" as thanhToanQuangCao {
@@ -84,6 +86,8 @@ ai --> llm : prompts, JSON results
 ai --> hf : voice model
 api --> smtp : password-setting emails, forgot-password emails, inquiry emails
 api ..> fpt : text to read aloud
+api ..> cloudinaryKho : images, 3D models, narration files\n(when Cloudinary is chosen)
+api --> gstatic : download AdMob verification keys
 
 webQuanTri --> vnpay : redirect the browser to the payment page
 vnpay --> edge : payment result IPN

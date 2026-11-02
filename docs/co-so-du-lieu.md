@@ -1,15 +1,14 @@
-# Cơ sở dữ liệu trong backend (v3 và phần v4 đã làm theo từng luồng)
+# Cơ sở dữ liệu trong backend
 
-Backend hiện thực **đủ 27 bảng** của CSDL v3 (`doc/database/dsvhvn-v3.dbml` của nhóm, 8 nhóm bảng) bằng EF Core 9 trên
-SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `KhoiTaoCsdl`; mọi thay đổi về sau đi qua migration mới. Từ luồng
-"Bài học cho lớp theo cấp" backend thêm dần phần **CSDL v4** (`doc/database/dsvhvn-v4.dbml`) đúng phần luồng cần, mỗi luồng một migration
-(mục 5 đến 11): hiện có bảng `lesson_sections`, các cột mới của `ai_generations` (luồng bài học), các cột mới của `questions`, `answers` cho 8 dạng câu (luồng ngân hàng câu hỏi), năm bảng đa ngôn ngữ (luồng đa ngôn ngữ), bảng `heritage_models` (luồng mô hình 3D), bảng `attempt_answer_parts` cùng hai cột mới của `attempt_answers` (luồng học tập của học sinh), hai bảng `guest_devices`, `guest_activities` (luồng khách tham quan, mục 13), bảng `ad_unlocks` (luồng quảng cáo Google có thưởng, mục 14), tổng **38 bảng**.
+Backend hiện thực CSDL của DiViet bằng EF Core 9 trên SQL Server 2019: **43 bảng** trong 10 nhóm, mô tả ở `docs/so-do/dsvhvn.dbml` và khớp ảnh chụp mô hình
+`AppDbContextModelSnapshot.cs`. Lược đồ đầu tiên (27 bảng) tạo bằng migration `KhoiTaoCsdl` ngày 28/09/2026; từ đó mỗi luồng thêm bảng, cột hay ràng buộc bằng một migration mới,
+nay là **15 migration**. Các mục 3 đến 16 bên dưới ghi từng đợt thay đổi và giữ số liệu của thời điểm đó (mục 3 đối chiếu thiết kế 27 bảng ban đầu); số liệu hiện tại ở bảng sau.
 
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
-| Migration | `src/DSVHVN.Infrastructure/Persistence/Migrations/20260928164123_KhoiTaoCsdl.cs` (lược đồ); `20260929173018_ChuanHoaLoaiNguonThamChieu.cs` (chỉ sửa dữ liệu, xem cuối mục 2); `20260929182919_ThemCotTimKiemKhongDauChoDiSan.cs` (thêm 2 cột tìm kiếm, xem mục 3); `20261005200057_ThemPhanNoiDungBaiHocTheoCap.cs` (phần v4 của luồng bài học, xem mục 5); `20261005212316_ThemDangCauHoiVaCapPhuHop.cs` (phần v4 của luồng ngân hàng câu hỏi, xem mục 6); `20261006144217_ThemBanDichVaTomTatDiSan.cs` (năm bảng đa ngôn ngữ, xem mục 7); `20261006150550_ThemCauTraLoiTungPhan.cs` (phần v4 của luồng học tập, xem mục 11); `20261006162139_ThemMoHinh3DCuaDiSan.cs` (bảng mô hình 3D, xem mục 8); `20261006172743_ThemRangBuocGoiVaThanhToan.cs` (chỉ mục của nhóm Thanh toán, xem mục 9); `20261006193419_ThemKhachThamQuanVaLichSu.cs` (hai bảng của khách tham quan, xem mục 13); `20261006205730_ThemLuotMoKhoaQuangCao.cs` (bảng lượt mở khóa quảng cáo, xem mục 14) |
-| Số liệu | **38 bảng** (27 của v3 + `lesson_sections` + 5 bảng đa ngôn ngữ + `heritage_models` + `attempt_answer_parts` + `guest_devices` + `guest_activities` + `ad_unlocks`) · 233 cột theo DBML v3 + 2 cột tìm kiếm + 13 cột của luồng bài học (12 của `lesson_sections`, 1 của `ai_generations`) + 9 cột của luồng ngân hàng câu hỏi (5 của `questions`, 4 của `answers`) + 46 cột của năm bảng đa ngôn ngữ + 17 cột của `heritage_models` + 11 cột của luồng học tập (9 của `attempt_answer_parts`, 2 của `attempt_answers`) + 14 cột của hai bảng khách tham quan (7 + 7) + 9 cột của `ad_unlocks` = **354 trong database** · 60 khóa ngoại (4 Cascade) · 49 CHECK · 10 UNIQUE có lọc · 17 UNIQUE thường · 22 kiểu enum (33 cột) |
+| Migration | 15 tệp trong `src/DSVHVN.Infrastructure/Persistence/Migrations/`: `KhoiTaoCsdl` (28/09/2026), `ChuanHoaLoaiNguonThamChieu`, `ThemCotTimKiemKhongDauChoDiSan`, `ThemPhanNoiDungBaiHocTheoCap`, `ThemDangCauHoiVaCapPhuHop`, `ThemBanDichVaTomTatDiSan`, `ThemCauTraLoiTungPhan`, `ThemMoHinh3DCuaDiSan`, `ThemRangBuocGoiVaThanhToan`, `ThemKhachThamQuanVaLichSu`, `ThemLuotMoKhoaQuangCao`, `ThemThuyetMinhTaoSan` (20/10/2026), `ThemKiemTungCauVaBaiHocDaXong` (25/10/2026), `ThemBoNhoDemGiongDoc` (25/10/2026), `ThemMaBaiKiemTraLuotMoBaiVaThongBaoHocSinh` (31/10/2026); `ChuanHoaLoaiNguonThamChieu` chỉ sửa dữ liệu |
+| Số liệu (đối chiếu snapshot ngày 03/11/2026) | **43 bảng** · **69 khóa ngoại** (4 Cascade: `password_reset_tokens.user_id` và ba bảng bản dịch của giai đoạn, sự kiện, ảnh; còn lại Restrict) · **54 CHECK** · **15 migration** · **9 bảng xóa mềm** (`deleted_at`: `organizations`, `users`, `classes`, `students`, `heritages`, `heritage_models`, `lessons`, `questions`, `quizzes`) · 10 nhóm bảng |
 | Dữ liệu khởi tạo trong migration khởi tạo | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
 
@@ -25,9 +24,9 @@ SQL Server 2019. Lược đồ tạo bằng **một migration khởi tạo** `Kh
 | CHECK khác | `CK_classes_grade` (khối 1-12), `CK_media_owner` (ảnh thuộc đúng một trong di sản hoặc sự kiện) |
 | UNIQUE có lọc | `UX_users_username` WHERE `deleted_at IS NULL`; `UX_users_email` WHERE `email IS NOT NULL AND deleted_at IS NULL`; `UX_lessons_access_code` WHERE `access_code IS NOT NULL`; `UX_payments_provider_txn` (`provider_id`, `provider_transaction_id`) WHERE `provider_transaction_id IS NOT NULL` |
 | UNIQUE thường | `roles.code`, `password_reset_tokens.token_hash`, `students.user_id`, `students.student_code`, `provinces.code`, `heritages.slug`, `invoices.invoice_number`, `payment_providers.code`, (`attempts.quiz_id`, `student_id`), (`attempt_answers.attempt_id`, `question_id`). Khai báo `HasFilter(null)` để SQL Server provider không tự thêm bộ lọc `IS NOT NULL` |
-| Khóa ngoại | Mọi khóa ngoại `Restrict` (SQL Server: NO ACTION); ngoại lệ duy nhất `password_reset_tokens.user_id` Cascade như ghi chú của DBML |
+| Khóa ngoại | Khóa ngoại `Restrict` (SQL Server: NO ACTION); ngoại lệ là 4 khóa ngoại Cascade: `password_reset_tokens.user_id` và các bản dịch con của giai đoạn, sự kiện, ảnh |
 | Chỉ mục thường | EF Core tạo chỉ mục trên cột khóa ngoại (34 chỉ mục) và `IX_audit_logs_created_at` cho màn hình Nhật ký thao tác. DBML không mô tả chỉ mục hiệu năng nên đây là khác biệt kỹ thuật |
-| Xóa mềm | 8 bảng có `deleted_at`: `organizations`, `users`, `classes`, `students`, `heritages`, `lessons`, `questions`, `quizzes` |
+| Xóa mềm | 9 bảng có `deleted_at`: `organizations`, `users`, `classes`, `students`, `heritages`, `heritage_models`, `lessons`, `questions`, `quizzes` |
 | Nhật ký | `audit_logs` chỉ thêm: DbContext chặn sửa, xóa |
 
 Thực thể theo nhóm: `Domain/Identity` (vai trò, tài khoản, token đặt mật khẩu), `Domain/Organizations`, `Domain/Audit`,

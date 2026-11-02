@@ -37,6 +37,8 @@ PENDING --> CANCELLED : Tác vụ nền: hóa đơn\nquá hạn 24 giờ [không
 ACTIVE --> CANCELLED : Quản trị trường hủy\ngói trả phí đang dùng\n[gói đã bắt đầu, không\ncó gói gia hạn chờ]
 ACTIVE --> CANCELLED : IPN VNPay thành công\ncủa gói nâng cấp (hủy\ngói hiện tại và gói\ngia hạn chờ)
 ACTIVE --> EXPIRED : Tác vụ nền 00:05\nhằng ngày [đã qua\nngày hết hạn]
-CANCELLED --> ACTIVE : IPN VNPay thành công\nđến muộn [yêu cầu mua\nđã bị hủy, hóa đơn\nchưa trả]
+CANCELLED --> ACTIVE : IPN VNPay thành công đến muộn\n[yêu cầu mua đã bị hủy, hóa đơn\nchưa trả, trường chưa có gói mới hơn\nđang chờ thanh toán hoặc hiệu lực]
+CANCELLED --> CANCELLED : IPN VNPay thành công đến muộn\n[trường đã có gói mới hơn: giữ nguyên,\nquản trị hệ thống xử lý thủ công]
+CANCELLED --> [*]
 EXPIRED --> [*]
 @enduml
