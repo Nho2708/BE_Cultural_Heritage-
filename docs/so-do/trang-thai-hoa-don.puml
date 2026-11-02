@@ -31,6 +31,7 @@ state CANCELLED : Cancelled
 UNPAID --> PAID : Successful VNPay IPN\n[valid signature,\nmatching amount]
 UNPAID --> CANCELLED : School Administrator\ncancels the\npurchase request
 UNPAID --> CANCELLED : Background job:\noverdue (24 h)\n[no pending payment]
-CANCELLED --> PAID : Late successful\nVNPay IPN [payment\nfailed by the system]
+CANCELLED --> PAID : Late successful VNPay IPN\n[payment failed by the system;\nthe money is always recorded]
+CANCELLED --> [*]
 PAID --> [*]
 @enduml

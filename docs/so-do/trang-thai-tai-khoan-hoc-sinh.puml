@@ -36,8 +36,8 @@ state "Active" as STUDENT_ACTIVE {
 }
 STUDENT_ACTIVE : is_active = 1
 state "Deactivated" as STUDENT_INACTIVE : is_active = 0
-STUDENT_ACTIVE --> STUDENT_INACTIVE : Teacher deactivates\nthe student [no\nattempt in progress]
-STUDENT_INACTIVE --> STUDENT_ACTIVE[H] : Teacher reactivates\nthe student [class has\nfewer than 60\nactive students]
-STUDENT_ACTIVE --> [*] : Teacher deletes the student\n[no attempt in progress]\nor deletes the class\n[no open quiz]
-STUDENT_INACTIVE --> [*] : Teacher deletes\nthe student or\nthe class
+STUDENT_ACTIVE --> STUDENT_INACTIVE : Teacher deactivates the student\n[no attempt in progress]\nor deletes the class\n[no open quiz]
+STUDENT_INACTIVE --> STUDENT_ACTIVE[H] : Teacher reopens the student\n[class not deleted, fewer than\n60 active students]
+STUDENT_ACTIVE --> [*] : Teacher deletes the student\n[class not deleted, no\nattempt in progress]
+STUDENT_INACTIVE --> [*] : Teacher deletes the student\n[class not deleted, no\nattempt in progress]
 @enduml

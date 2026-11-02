@@ -37,6 +37,8 @@ PENDING --> CANCELLED : Background job:\ninvoice overdue (24 h)\n[no pending pay
 ACTIVE --> CANCELLED : School Administrator\ncancels the current\npaid plan [plan started,\nno queued renewal]
 ACTIVE --> CANCELLED : Successful VNPay IPN\nof an upgrade (current\nplan and queued\nrenewal cancelled)
 ACTIVE --> EXPIRED : Daily background\njob at 00:05\n[end date passed]
-CANCELLED --> ACTIVE : Late successful\nVNPay IPN [purchase\nrequest cancelled,\ninvoice not paid]
+CANCELLED --> ACTIVE : Late successful VNPay IPN\n[purchase request cancelled, invoice\nnot paid, school has no newer plan\nawaiting payment or in effect]
+CANCELLED --> CANCELLED : Late successful VNPay IPN\n[school already has a newer plan:\nstays cancelled, System Administrator\nresolves it by hand]
+CANCELLED --> [*]
 EXPIRED --> [*]
 @enduml

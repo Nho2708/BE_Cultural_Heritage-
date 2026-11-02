@@ -36,8 +36,8 @@ state "Đang hoạt động" as STUDENT_ACTIVE {
 }
 STUDENT_ACTIVE : is_active = 1
 state "Bị vô hiệu" as STUDENT_INACTIVE : is_active = 0
-STUDENT_ACTIVE --> STUDENT_INACTIVE : Giáo viên vô hiệu\nhọc sinh [không có\nlượt làm bài dở]
-STUDENT_INACTIVE --> STUDENT_ACTIVE[H] : Giáo viên mở lại\nhọc sinh [lớp chưa\nđủ 60 học sinh\nđang hoạt động]
-STUDENT_ACTIVE --> [*] : Giáo viên xóa học sinh\n[không có lượt làm bài dở]\nhoặc xóa lớp [không còn\nbài kiểm tra đang mở]
-STUDENT_INACTIVE --> [*] : Giáo viên xóa\nhọc sinh hoặc\nxóa lớp
+STUDENT_ACTIVE --> STUDENT_INACTIVE : Giáo viên vô hiệu học sinh\n[không có lượt làm bài dở]\nhoặc xóa lớp [không còn\nbài kiểm tra đang mở]
+STUDENT_INACTIVE --> STUDENT_ACTIVE[H] : Giáo viên mở lại học sinh\n[lớp chưa xóa, chưa đủ 60\nhọc sinh đang hoạt động]
+STUDENT_ACTIVE --> [*] : Giáo viên xóa học sinh\n[lớp chưa xóa, không có\nlượt làm bài dở]
+STUDENT_INACTIVE --> [*] : Giáo viên xóa học sinh\n[lớp chưa xóa, không có\nlượt làm bài dở]
 @enduml

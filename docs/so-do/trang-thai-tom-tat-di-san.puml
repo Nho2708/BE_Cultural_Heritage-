@@ -44,5 +44,6 @@ state "Heritage summary in one language" as SUMMARY_ROW {
   CURRENT --> OUTDATED : System Administrator edits\nthe Vietnamese text of the\nsite, a period, an event\nor an image caption
   OUTDATED --> CURRENT : System Administrator\ntranslates again\nwith AI
 }
+SUMMARY_ROW --> [*] : System Administrator deletes the\nheritage [draft or hidden, not used\nin a lesson or question]
 [*] --> SUMMARY_ROW : System Administrator clicks\nTranslate and Summarize with AI\n[site not hidden,\nhas Vietnamese content]
 @enduml

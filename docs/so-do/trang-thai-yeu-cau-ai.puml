@@ -30,6 +30,7 @@ state FAILED : Failed
 [*] --> PROCESSING : Teacher asks AI to draft a lesson\nor generate questions; System Administrator\nasks AI to translate or summarize a site
 PROCESSING --> SUCCEEDED : AI Service returns\na valid result
 PROCESSING --> FAILED : AI Service error or\ntimeout after the\nretries, or request\ncancelled
+PROCESSING --> FAILED : Background job every 60 seconds:\nover 5 minutes (lesson drafting,\nquestion generation) or over 10 minutes\n(heritage translation, summary)\n[reason: timed out]
 SUCCEEDED --> [*]
 FAILED --> [*]
 @enduml

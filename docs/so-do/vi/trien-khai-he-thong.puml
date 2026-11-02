@@ -34,6 +34,7 @@ actor "Thành viên nhóm" as thanhVien
 node "<b>Máy phát triển</b>\nWindows" as mayDev {
   component "<b>Môi trường phát triển</b>\n.NET 9, Node.js, Python, SQL Server LocalDB" as moiTruongDev
   component "<b>Công cụ tạo thuyết minh</b>\nVieNeu-TTS, MeloTTS" as congCuThuyetMinh
+  component "<b>Dựng APK Android</b>\n<size:10>trên máy của nhóm, không dùng EAS Build</size>" as dungApk
 }
 
 rectangle "<b>GitHub</b>" as github {
@@ -45,13 +46,14 @@ rectangle "<b>GitHub</b>" as github {
 
 node "<b>Máy demo dự phòng</b>\nWindows, IIS" as mayDemo {
   component "<b>Runner tự host</b>" as runner
+  component "<b>Giọng đọc</b>\n<size:10>mặc định giọng tự host;</size>\n<size:10>không có máy chủ giọng thì lùi về giọng thiết bị</size>" as giongThietBi
 }
 
 rectangle "<b>Google Cloud</b> (asia-southeast1)" as gcp {
   component "<b>Workload Identity Federation</b>" as wif
   component "<b>Artifact Registry</b>\nảnh api, ai, web" as registry
   node "<b>Máy ảo Google Cloud</b>\nUbuntu 24.04, e2-standard-2" as mayAo {
-    component "<b>Docker Compose</b>\nedge (Caddy), web, api, ai, sql, volume mô hình giọng đọc" as compose
+    component "<b>Docker Compose</b>\nedge (Caddy), web, api, ai, sql, volume mô hình giọng đọc\n<size:10>giọng tiếng Việt tự host là mặc định</size>" as compose
     component "<b>Script triển khai</b>\nsao lưu, áp migration, kiểm sức khỏe, trả bản trước" as scriptTrienKhai
     component "<b>systemd, journald</b>\nsao lưu 01:30 hằng đêm, nhật ký giữ 30 ngày" as heThong
   }
@@ -72,7 +74,8 @@ cd --> scriptTrienKhai : SSH qua IAP
 registry --> compose : kéo ảnh
 scriptTrienKhai --> compose
 heThong --> bucket : bản sao lưu hằng đêm
-moiTruongDev --> releases : tệp APK Android
+moiTruongDev --> dungApk : mã nguồn app
+dungApk --> releases : đăng tệp APK Android
 congCuThuyetMinh --> compose : tệp MP3 qua API quản trị
 compose ..> hf : tải mô hình lần chạy đầu
 @enduml

@@ -10,7 +10,7 @@ Sơ đồ thiết kế của DiViet lưu bằng PlantUML và DBML để xem lạ
 | `kien-truc-he-thong.puml` | Kiến trúc tổng thể |
 | `trien-khai-he-thong.puml` | Triển khai trên Google Cloud, CI và CD |
 | `hoat-dong-*.puml` | 6 luồng nghiệp vụ chính, mỗi tác nhân một làn |
-| `trang-thai-*.puml` | Vòng đời của 15 thực thể có trạng thái |
+| `trang-thai-*.puml` | Vòng đời của 16 thực thể có trạng thái (kể cả trường, `trang-thai-truong.puml`) |
 
 Các tệp ở thư mục này là bản tiếng Anh, dùng trong report. Thư mục `vi/` là bản tiếng Việt có cùng nội dung.
 
