@@ -117,6 +117,11 @@ Lỗi một vòng chỉ vào nhật ký, vòng sau chạy lại. Nhật ký ch�
 |---|---|---|
 | `Guests:CleanupIntervalHours` | 24 | Chu kỳ tác vụ dọn lịch sử; `<= 0` tắt |
 | `RateLimiting:PublicRequestsPerMinute` | 300 | Như API công khai |
+| `RateLimiting:GuestHistoryEventsPerMinute` | 120 | Sự kiện lịch sử mỗi phút mỗi mã thiết bị (ghi tay và ghi tự động). Ghi tay vượt thì 429 kèm `Retry-After`; ghi tự động vượt thì bị bỏ lặng lẽ, yêu cầu chính vẫn thành công |
+| `RateLimiting:GuestSummaryRequestsPerMinute` | 60 | Lượt đọc tóm tắt mỗi phút mỗi mã thiết bị (học sinh đăng nhập đếm theo tài khoản); vượt thì 429 kèm `Retry-After` |
+| `RateLimiting:TeacherAiRequestsPerMinute` | 10 | AI soạn bài học và AI sinh câu hỏi, tính chung, mỗi phút mỗi giáo viên |
+| `RateLimiting:AdminTranslationAiRequestsPerMinute` | 5 | AI dịch và tóm tắt di sản mỗi phút mỗi quản trị viên (tập lệnh dịch hàng loạt phải chờ theo `Retry-After`) |
+| `RateLimiting:AdMobBadSignaturesPerMinute` | 300 | Lời gọi xác minh AdMob sai chữ ký mỗi phút mỗi IP; lượt thứ 301 trở đi nhận 429 kèm `Retry-After`, lời gọi đúng chữ ký không bị đếm hay chặn |
 | `Ai:Mode` | `Simulated` | `Simulated` dùng bộ tính cục bộ (không gọi mạng); `Remote` gọi Dịch vụ AI nội bộ `POST /v1/rank-related` (dùng chung với gợi ý của học sinh) |
 
 Không có khóa bí mật nào ở luồng này.

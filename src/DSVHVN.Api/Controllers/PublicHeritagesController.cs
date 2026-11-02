@@ -131,8 +131,12 @@ public sealed class PublicHeritagesController(
     /// <c>AD_UNLOCK_REQUIRED</c>; thiếu <c>X-Device-Key</c> cũng coi là chưa mở khóa. Học sinh đã đăng nhập luôn mở thẳng; thiết bị khai báo <c>X-Ads-Unavailable: true</c> mở thẳng khi môi trường cho phép.
     /// Phản hồi không được lưu đệm vì phụ thuộc thiết bị.
     /// </para>
+    /// <para>
+    /// <b>Giới hạn:</b> ngoài giới hạn theo IP của API công khai, mỗi mã thiết bị đọc tối đa 60 lần mỗi phút (học sinh đã đăng nhập đếm theo tài khoản); vượt thì 429 kèm <c>Retry-After</c>.
+    /// </para>
     /// </summary>
     [HttpGet("heritages/{slug}/summary")]
+    [RateLimit(RateLimitKind.GuestSummary)]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<ApiResponse<PublicSummaryDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]

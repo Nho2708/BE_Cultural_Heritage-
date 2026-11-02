@@ -68,7 +68,9 @@ public class ApiFactory : WebApplicationFactory<Program>
         var sqlServer = _sqlServerConnection is not null;
         if (!sqlServer) _connection.Open();
         builder.UseEnvironment("Testing");
-        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+        var settings = new Dictionary<string, string?>
         {
             ["ConnectionStrings:Default"] = _sqlServerConnection ?? "sqlite-in-memory",
             ["Database:InitMode"] = sqlServer ? "Migrate" : "EnsureCreated",
@@ -89,7 +91,13 @@ public class ApiFactory : WebApplicationFactory<Program>
             ["Ai:HeritageAttemptTimeoutSeconds"] = "1",
             ["Guests:CleanupIntervalHours"] = "0",   // tác vụ dọn lịch sử khách chạy nền bị tắt; test gọi thẳng GuestService.PurgeExpiredAsync
             ["Quizzes:AutoCloseIntervalSeconds"] = "0",   // tác vụ tự đóng bài kiểm tra chạy nền bị tắt; test gọi thẳng QuizAutoCloser
-        }.Concat(ExtraSettings)));
+            // Một giáo viên hoặc một quản trị trong kiểm thử gọi AI liên tục trong vài giây, nên nâng các ngưỡng theo người lên cao; test giới hạn (RateLimitApiTests) hạ xuống bằng ExtraSettings.
+            ["RateLimiting:TeacherAiRequestsPerMinute"] = "100000",
+            ["RateLimiting:AdminTranslationAiRequestsPerMinute"] = "100000",
+        };
+        foreach (var (key, value) in ExtraSettings) settings[key] = value;   // cấu hình của lớp con ghi đè mặc định của kiểm thử
+        config.AddInMemoryCollection(settings);
+        });
 
         builder.ConfigureTestServices(services =>
         {

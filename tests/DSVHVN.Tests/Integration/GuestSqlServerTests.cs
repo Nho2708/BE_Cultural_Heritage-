@@ -150,7 +150,7 @@ public sealed class GuestSqlServerTests(SqlServerApiFactory factory) : IClassFix
 
         // Xóa quá hạn: lượt 91 ngày và 300 ngày bị xóa, lượt 89 ngày còn.
         var deleted = await factory.WithDbAsync(async db => await new GuestService(db, null!, TimeProvider.System,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<GuestService>.Instance).PurgeExpiredAsync(default));
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GuestService>.Instance, null!, null!).PurgeExpiredAsync(default));
         Assert.True(deleted >= 2);
         Assert.Equal([GuestActivityType.VIEW], (await _k.ActivitiesAsync(keeps)).Select(a => a.ActivityType));
         Assert.Equal(500, (await _k.ActivitiesAsync(capped)).Count);

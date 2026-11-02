@@ -31,6 +31,8 @@ public sealed class AdRewardService(
     IAdMobKeyStore keys,
     IAdRewardTokenCodec codec,
     IAdRewardThrottle throttle,
+    IRateCounter rates,
+    IOptions<RateLimitOptions> limits,
     IOptions<AdsOptions> options,
     TimeProvider clock)
 {
@@ -46,22 +48,24 @@ public sealed class AdRewardService(
 
     /// <summary>
     /// Xử lý một lời gọi xác minh của AdMob. <paramref name="rawQueryString"/> là chuỗi truy vấn thô (để kiểm chữ ký), <paramref name="query"/> là các tham số đã giải mã.
-    /// Hợp lệ (kể cả lần gọi lại trùng mã giao dịch) thì trả kết quả để Api trả 200. Thiếu hoặc sai chữ ký thì ghi nhật ký thao tác rồi ném 400.
+    /// Hợp lệ (kể cả lần gọi lại trùng mã giao dịch) thì trả kết quả để Api trả 200. Thiếu hoặc sai chữ ký thì ghi nhật ký thao tác rồi ném 400; mỗi địa chỉ IP được 300 lượt như vậy
+    /// mỗi phút (<c>RateLimiting:AdMobBadSignaturesPerMinute</c>), lượt thứ 301 trở đi nhận 429 kèm <c>Retry-After</c> và không ghi thêm nhật ký. Chỉ lượt sai chữ ký được đếm: lời gọi đúng chữ ký
+    /// của Google không bao giờ bị đếm hay chặn.
     /// Chữ ký đúng nhưng đơn vị quảng cáo lạ, thiếu hoặc sai tham số, thời điểm lệch thì ghi nhật ký thao tác và trả kết quả không ghi kèm lý do (vẫn 200): lời gọi đúng là của Google
     /// nên trả lỗi chỉ làm Google gọi lại vô ích, và lời gọi thử của nút kiểm địa chỉ trong bảng điều khiển AdMob mang đơn vị và tham số thử vẫn phải qua được.
     /// </summary>
-    public async Task<AdRewardResultDto> HandleAdMobAsync(string? rawQueryString, IReadOnlyDictionary<string, string> query, CancellationToken ct)
+    public async Task<AdRewardResultDto> HandleAdMobAsync(string? rawQueryString, IReadOnlyDictionary<string, string> query, string? ipAddress, CancellationToken ct)
     {
         string? Param(string name) => query.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value) ? value : null;
 
         var signedContent = AdMobSignature.SignedContent(rawQueryString);
         var signature = Param("signature");
         if (signedContent is null || signature is null || !long.TryParse(Param("key_id"), NumberStyles.None, CultureInfo.InvariantCulture, out var keyId))
-            throw await RejectAsync(AdRules.RejectedBadParameter, AdNetwork.ADMOB, null, ct);
+            throw await RejectUnsignedAsync(AdRules.RejectedBadParameter, ipAddress, ct);
 
         var publicKey = await keys.FindPublicKeyAsync(keyId, ct);
         if (publicKey is null || !AdMobSignature.Verify(signedContent, signature, publicKey))
-            throw await RejectAsync(AdRules.RejectedBadSignature, AdNetwork.ADMOB, null, ct);
+            throw await RejectUnsignedAsync(AdRules.RejectedBadSignature, ipAddress, ct);
 
         var adUnit = Param("ad_unit");
         var transactionId = Param("transaction_id");
@@ -213,6 +217,18 @@ public sealed class AdRewardService(
     {
         await LogRejectionAsync(reason, network, platform, ct);
         return new AppException(400, AdMessages.RewardRejected);
+    }
+
+    /// <summary>
+    /// Lời gọi xác minh thiếu hoặc sai chữ ký: đếm vào bộ đếm sai chữ ký của địa chỉ IP. Còn trong ngưỡng thì ghi nhật ký thao tác và trả 400; vượt ngưỡng thì trả 429 kèm thời gian chờ
+    /// và không ghi nhật ký (kẻ gửi hàng loạt không làm tràn bảng nhật ký).
+    /// </summary>
+    private async Task<AppException> RejectUnsignedAsync(string reason, string? ipAddress, CancellationToken ct)
+    {
+        if (!string.IsNullOrEmpty(ipAddress)
+            && rates.TryHit("admob-bad-signature:" + ipAddress, Math.Max(1, limits.Value.AdMobBadSignaturesPerMinute), RateCounterExtensions.PerMinute) is { } wait)
+            return AppException.TooManyRequests(Messages.TooManyRequests((int)Math.Ceiling(wait.TotalSeconds)), wait);
+        return await RejectAsync(reason, AdNetwork.ADMOB, null, ct);
     }
 
     /// <summary>Lời gọi xác minh có chữ ký đúng của Google nhưng không ghi được lượt: ghi nhật ký từ chối như lượt sai, trả kết quả không ghi kèm lý do để Api trả 200.</summary>
