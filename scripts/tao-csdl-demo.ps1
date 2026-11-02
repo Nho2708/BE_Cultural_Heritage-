@@ -5,12 +5,12 @@
 #   pwsh -File scripts/tao-csdl-demo.ps1 -Database dsvhvn_tam_thu -Port 5190
 #
 # Script làm lần lượt: kiểm LocalDB, Python và .NET; dựng backend; chạy backend ở môi trường Development trên CSDL đích (backend tự tạo CSDL,
-# áp migration, nạp 34 tỉnh, 20 di sản, gói dịch vụ và 4 quản trị hệ thống); chạy scripts/du-lieu-demo/nap-du-lieu-demo.py để nạp dữ liệu demo qua API;
+# áp migration, nạp 34 tỉnh, các di sản bản nháp từ seed-data, gói dịch vụ và 4 quản trị hệ thống); chạy scripts/du-lieu-demo/nap-du-lieu-demo.py để nạp dữ liệu demo qua API (xuất bản mọi di sản đủ điều kiện, trường, giáo viên, lớp, học sinh, bài học, bài kiểm tra, lượt làm bài);
 # tắt backend; in bảng tài khoản demo. Email luôn ở chế độ Log (không gửi thư thật), nơi lưu tệp là Local, AI là giả lập.
 #
 # -AdminPassword là mật khẩu chung đặt cho 4 quản trị hệ thống khi CSDL còn mới (8-64 ký tự, có chữ hoa, chữ thường và chữ số). Không truyền
 # thì script hỏi. Mật khẩu chỉ đi vào backend bằng biến môi trường của tiến trình con, không ghi ra tệp hay log.
-# `pwsh -File` không truyền được SecureString; muốn truyền sẵn thì gọi trong một phiên pwsh:
+# `pwsh -File` không truyền được SecureString; muốn truyền sẵn thì gọi trong một phiên pwsh (hoặc để script tự hỏi):
 #   $p = Read-Host 'Mật khẩu quản trị' -AsSecureString; ./scripts/tao-csdl-demo.ps1 -AdminPassword $p
 # CSDL đã có quản trị rồi thì mật khẩu phải khớp với mật khẩu quản trị đang dùng (nếu không script dừng ở bước đăng nhập).
 # CSDL đã có dữ liệu demo (trường demo đã tồn tại) thì script báo và thoát, không nạp trùng.
@@ -118,7 +118,7 @@ try {
     if ($seedExit -ne 0) { throw "Nạp dữ liệu demo thất bại (mã thoát $seedExit). Log backend: $beOut" }
 
     $data = Get-Content $resultFile -Raw -Encoding utf8 | ConvertFrom-Json
-    Step "Tài khoản demo trên CSDL $Database (mật khẩu chung: $demoPassword)"
+    Step "Tài khoản demo trên CSDL $Database (quản trị trường, giáo viên, học sinh cấp 2, 3: $demoPassword; học sinh cấp 1: $($data.demoPasswordPrimary))"
     Write-Host "Quản trị hệ thống: admin.nho, admin.lam, admin.trieu, admin.huy (mật khẩu là mật khẩu bạn đã truyền cho script)"
     Write-Host ("Quản trị trường: {0} / {1}" -f $data.organizationAdmin.username, $data.organizationAdmin.email)
     foreach ($t in $data.teachers) { Write-Host ("Giáo viên: {0} / {1}" -f $t.username, $t.email) }
@@ -128,8 +128,8 @@ try {
         Write-Host ("Lớp {0} (khối {1}, giáo viên {2}): {3}" -f $c.name, $grade, $c.teacher, (($c.students | ForEach-Object { $_.studentCode }) -join ', '))
         Write-Host ("   đã nộp bài: {0}" -f ($done -join ', '))
     }
-    foreach ($l in $data.lessons) { Write-Host ("Bài học khối {0}: {1} - mã {2}; bài kiểm tra: {3}" -f $l.grade, $l.title, $l.code, $l.quizName) }
-    Write-Host "Di sản đã xuất bản: $($data.heritagesPublished); đã dịch và tóm tắt: $(@($data.heritagesTranslated).Count); có mô hình 3D: $(@($data.heritagesWith3d).Count)"
+    foreach ($l in $data.lessons) { Write-Host ("Bài học khối {0}: {1} - mã {2}; bài kiểm tra: {3} - mã {4}" -f $l.grade, $l.title, $l.code, $l.quizName, $l.quizCode) }
+    Write-Host "Di sản đã xuất bản (đủ điều kiện): $($data.heritagesPublished); còn là bản nháp: $(@($data.heritagesNotPublished).Count); đã dịch và tóm tắt: $(@($data.heritagesTranslated).Count); có mô hình 3D: $(@($data.heritagesWith3d).Count)"
     Write-Host "Tệp kết quả: $resultFile"
 }
 catch {
