@@ -19,6 +19,12 @@ public static class BillingRules
     /// <summary>Mã cổng VNPay trong <c>payment_providers.code</c>; cổng duy nhất đang dùng (các cổng khác có sẵn nhưng tắt).</summary>
     public const string VnPayProviderCode = "VNPAY";
 
+    /// <summary>Mã cổng MoMo (sandbox) trong <c>payment_providers.code</c>.</summary>
+    public const string MoMoProviderCode = "MOMO";
+
+    /// <summary>Mã cổng PayOS trong <c>payment_providers.code</c>.</summary>
+    public const string PayOsProviderCode = "PAYOS";
+
     public const int PlanNameMaxLength = 100;
 
     /// <summary>
