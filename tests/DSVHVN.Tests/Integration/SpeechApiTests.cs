@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace DSVHVN.Tests.Integration;
 
@@ -107,6 +108,12 @@ public class SelfHostedSpeechFactory : ApiFactory
             }));
         });
     }
+}
+
+/// <summary>Api với <c>Tts:Provider = FptAi</c> (không còn là mặc định, chỉ dùng khi cấu hình rõ).</summary>
+public sealed class FptAiSpeechFactory : ApiFactory
+{
+    protected override IEnumerable<KeyValuePair<string, string?>> ExtraSettings => [new("Tts:Provider", "FptAi")];
 }
 
 /// <summary>Api với <c>Tts:Provider = None</c>.</summary>
@@ -434,8 +441,12 @@ public sealed class SpeechSelfHostedApiTests(SelfHostedSpeechFactory factory) : 
     }
 }
 
-/// <summary>Các nguồn giọng khác không đổi hành vi: <c>None</c> luôn trả liên kết null và không nhận tạo trước; mặc định (FPT.AI, chưa có khóa) cũng trả null và tạo trước nhận 0.</summary>
-public sealed class SpeechOtherProvidersApiTests(NoSpeechFactory none, ApiFactory fptAi) : IClassFixture<NoSpeechFactory>, IClassFixture<ApiFactory>
+/// <summary>
+/// Các nguồn giọng khác không đổi hành vi: <c>None</c> luôn trả liên kết null và không nhận tạo trước; FPT.AI (chỉ khi cấu hình rõ, chưa có khóa) cũng trả null và tạo trước nhận 0.
+/// Mặc định của sản phẩm là giọng tự host: máy không có Dịch vụ AI vẫn trả 200 với liên kết null (giao diện dùng giọng thiết bị), không lỗi.
+/// </summary>
+public sealed class SpeechOtherProvidersApiTests(NoSpeechFactory none, FptAiSpeechFactory fptAi, ApiFactory standard)
+    : IClassFixture<NoSpeechFactory>, IClassFixture<FptAiSpeechFactory>, IClassFixture<ApiFactory>
 {
     private sealed record TtsData(string? AudioUrl);
 
@@ -458,7 +469,7 @@ public sealed class SpeechOtherProvidersApiTests(NoSpeechFactory none, ApiFactor
     }
 
     [Fact]
-    public async Task With_the_default_provider_fpt_ai_the_link_is_null_without_a_key_and_prefetch_queues_nothing()
+    public async Task With_provider_fpt_ai_the_link_is_null_without_a_key_and_prefetch_queues_nothing()
     {
         var api = new PlatformClient(fptAi);
         var token = await api.AdminTokenAsync();
@@ -475,7 +486,23 @@ public sealed class SpeechOtherProvidersApiTests(NoSpeechFactory none, ApiFactor
     }
 
     [Fact]
-    public async Task Publishing_a_level_one_lesson_with_the_default_provider_still_works_and_queues_nothing()
+    public async Task The_default_provider_is_self_hosted_and_without_the_ai_service_the_link_is_null_not_an_error()
+    {
+        Assert.Equal(TtsProvider.SelfHosted, standard.Services.GetRequiredService<IOptions<TtsOptions>>().Value.Provider);
+        Assert.IsType<SelfHostedTtsService>(standard.Services.GetRequiredService<ITtsService>());
+        var api = new PlatformClient(standard);
+        var token = await api.AdminTokenAsync();
+
+        var (speak, speakBody) = await api.Http.PostAsync<TtsData>("/api/v1/tts", new { text = "Xin chào các em" }, token);
+
+        Assert.Equal(HttpStatusCode.OK, speak.StatusCode);
+        Assert.Null(speakBody.Data!.AudioUrl);
+        var (prefetch, _) = await api.Http.PostAsync<PrefetchData>("/api/v1/tts/prefetch", new { texts = new[] { "Xin chào" } }, token);
+        Assert.Equal(HttpStatusCode.Accepted, prefetch.StatusCode);
+    }
+
+    [Fact]
+    public async Task Publishing_a_level_one_lesson_with_provider_fpt_ai_still_works_and_queues_nothing()
     {
         var kit = new LessonTestKit(fptAi);
         var (school, grade3) = await kit.SchoolWithClassAsync(1);

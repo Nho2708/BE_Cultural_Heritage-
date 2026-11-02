@@ -93,6 +93,10 @@ public static class Messages
     public static AppMessage Taken(string field, string value) =>
         new(MessageCodes.Duplicate, $"{field} \"{value}\" đã được sử dụng cho một tài khoản khác.");
 
+    /// <summary>Giáo viên đặt tên lớp trùng một lớp chưa xóa của chính mình trong cùng năm học.</summary>
+    public static AppMessage ClassNameTaken(string name) =>
+        new(MessageCodes.Duplicate, $"Tên lớp \"{name}\" đã có trong năm học này.");
+
     /// <summary>Sai thông tin đăng nhập, không cho biết sai ô nào.</summary>
     public static readonly AppMessage InvalidCredentials =
         new(MessageCodes.InvalidCredentials, "Email, tên đăng nhập hoặc mật khẩu không đúng.");

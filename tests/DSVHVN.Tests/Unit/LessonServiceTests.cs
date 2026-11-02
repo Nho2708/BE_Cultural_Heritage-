@@ -178,6 +178,33 @@ public sealed class LessonServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Stale_processing_ai_rows_fail_with_a_timeout_reason_after_the_threshold_of_their_kind()
+    {
+        var f = await SetupAsync();
+        var lesson = await PublishableLessonAsync(f);
+        var now = _h.Clock.GetUtcNow().UtcDateTime;
+        await AddAiRowAsync(f, AiTaskStatus.PROCESSING, now.AddMinutes(-6), lesson);                       // bài học, quá 5 phút: thất bại
+        await AddAiRowAsync(f, AiTaskStatus.PROCESSING, now.AddMinutes(-4), lesson);                       // bài học, chưa quá 5 phút: giữ
+        await AddAiRowAsync(f, AiTaskStatus.PROCESSING, now.AddMinutes(-11), lesson, heritageTask: true);  // di sản, quá 10 phút: thất bại
+        await AddAiRowAsync(f, AiTaskStatus.PROCESSING, now.AddMinutes(-8), lesson, heritageTask: true);   // di sản, chưa quá 10 phút: giữ
+        await AddAiRowAsync(f, AiTaskStatus.SUCCEEDED, now.AddHours(-3), lesson);                          // đã xong: giữ nguyên
+        await AddAiRowAsync(f, AiTaskStatus.FAILED, now.AddHours(-3), lesson);                             // đã thất bại từ trước: giữ nguyên
+
+        var changed = await _h.Service<StaleAiRequestCleaner, int>(c => c.FailStaleAsync(default));
+
+        Assert.Equal(2, changed);
+        var rows = await _h.QueryAsync(db => db.AiGenerations.AsNoTracking().OrderBy(g => g.Id).ToListAsync());
+        Assert.Equal([AiTaskStatus.FAILED, AiTaskStatus.PROCESSING, AiTaskStatus.FAILED, AiTaskStatus.PROCESSING, AiTaskStatus.SUCCEEDED, AiTaskStatus.FAILED],
+            rows.Select(r => r.Status!.Value));
+        Assert.All(new[] { rows[0], rows[2] }, r => Assert.Equal((StaleAiRequestCleaner.TimeoutMessage, now), (r.ErrorMessage, r.CompletedAt!.Value)));
+        Assert.All(new[] { rows[1], rows[3], rows[4], rows[5] }, r => Assert.Null(r.ErrorMessage));
+        Assert.Equal(0, await _h.Service<StaleAiRequestCleaner, int>(c => c.FailStaleAsync(default)));     // chạy lại không đổi gì thêm
+
+        _h.Clock.Advance(TimeSpan.FromMinutes(3));                                                         // lúc này hai dòng còn lại cũng quá ngưỡng
+        Assert.Equal(2, await _h.Service<StaleAiRequestCleaner, int>(c => c.FailStaleAsync(default)));
+    }
+
+    [Fact]
     public async Task The_period_starts_and_ends_at_midnight_in_vietnam()
     {
         var f = await SetupAsync();

@@ -120,8 +120,10 @@ public sealed class VnPayCallbackService(
     }
 
     /// <summary>
-    /// Thanh toán thành công: hóa đơn PAID, đăng ký ACTIVE theo loại mua. Hóa đơn đã PAID từ một giao dịch khác (người dùng trả hai lần) thì chỉ ghi nhận giao dịch
-    /// và nhật ký để đối soát, không kích hoạt thêm gói.
+    /// Thanh toán thành công: tiền luôn được ghi nhận (giao dịch SUCCEEDED, hóa đơn PAID). Đăng ký chờ thanh toán chuyển ACTIVE theo loại mua.
+    /// Hóa đơn đã PAID từ một giao dịch khác (người dùng trả hai lần) thì chỉ ghi nhận giao dịch và nhật ký để đối soát, không kích hoạt thêm gói.
+    /// IPN đến muộn khi đăng ký đã bị hủy (quá hạn hoặc người dùng hủy): nếu trường chưa có yêu cầu mua hay gói nào mới hơn thì gói được kích hoạt như bình thường;
+    /// nếu đã có gói mới hơn thì hóa đơn vẫn PAID nhưng đăng ký giữ CANCELLED để quản trị hệ thống xử lý (hiện ở mục Cần chú ý của Tổng quan hệ thống).
     /// </summary>
     private async Task RecordSuccessAsync(long paymentId, long invoiceId, PaymentStatus? previous, DateTime now, CancellationToken ct)
     {
@@ -142,6 +144,22 @@ public sealed class VnPayCallbackService(
             return;
         }
 
+        if (subscription.Status == SubscriptionStatus.CANCELLED
+            && await HasNewerPlanAsync(subscription, VietnamTime.Today(new DateTimeOffset(now, TimeSpan.Zero)), ct))
+        {
+            var invoiceStatusBefore = invoice.Status;
+            invoice.Status = InvoiceStatus.PAID;
+            audit.Record(AuditAction.BILLING_STATUS_CHANGED, AuditTargets.Payments, paymentId, actor: null,
+                oldValue: new { status = previous, invoiceStatus = invoiceStatusBefore },
+                newValue: new
+                {
+                    status = PaymentStatus.SUCCEEDED, invoiceId = invoice.Id, invoiceNumber = invoice.InvoiceNumber, invoiceStatus = InvoiceStatus.PAID,
+                    subscriptionId = subscription.Id, subscriptionStatus = SubscriptionStatus.CANCELLED, late, needsAdminReview = true,
+                    note = "late payment after the subscription was cancelled and a newer plan exists; subscription left cancelled for the system admin to resolve",
+                });
+            return;
+        }
+
         var today = VietnamTime.Today(new DateTimeOffset(now, TimeSpan.Zero));
         var invoiceBefore = invoice.Status;
         var outcome = await activator.ActivateAsync(invoice, subscription, subscription.Plan, today, late ? "late ipn" : "ipn", ct);
@@ -153,6 +171,13 @@ public sealed class VnPayCallbackService(
                 subscriptionId = subscription.Id, kind = outcome.Kind, startDate = outcome.StartDate, endDate = outcome.EndDate, late,
             });
     }
+
+    /// <summary>
+    /// Trường đã có yêu cầu mua hay gói nào tạo sau đăng ký đã hủy này: đang chờ thanh toán, hoặc đang hiệu lực (chưa quá ngày hết hạn), kể cả gói chờ bắt đầu.
+    /// </summary>
+    private Task<bool> HasNewerPlanAsync(Domain.Billing.Subscription subscription, DateOnly today, CancellationToken ct) =>
+        db.Subscriptions.AnyAsync(s => s.OrganizationId == subscription.OrganizationId && s.Id > subscription.Id
+            && (s.Status == SubscriptionStatus.PENDING || (s.Status == SubscriptionStatus.ACTIVE && s.EndDate >= today)), ct);
 
     /// <summary>Trang trả về của trình duyệt: kiểm chữ ký rồi chuyển sang trang kết quả của web quản trị. Không đọc, không ghi dữ liệu.</summary>
     public string ResolveReturnUrl(IReadOnlyDictionary<string, string> query)

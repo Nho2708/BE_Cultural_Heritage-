@@ -47,7 +47,7 @@ public sealed class AccountEmailComposer(AppLinkOptions links)
             Subject: "Đặt mật khẩu cho tài khoản DiViet của bạn",
             Intro:
             [
-                new Line($"Tài khoản DSVHVN{where} đã được tạo cho bạn. Tên đăng nhập: ", username, "."),
+                new Line($"Tài khoản DiViet{where} đã được tạo cho bạn. Tên đăng nhập: ", username, "."),
                 new Line("Mở liên kết dưới đây để đặt mật khẩu lần đầu:"),
             ],
             ButtonText: "Đặt mật khẩu",

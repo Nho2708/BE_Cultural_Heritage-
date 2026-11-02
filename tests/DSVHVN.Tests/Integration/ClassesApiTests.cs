@@ -82,7 +82,7 @@ public sealed class ClassesApiTests(ApiFactory factory) : IClassFixture<ApiFacto
         var (dup, dupBody) = await Http.PostAsync<object>("/api/v1/teacher/classes",
             new { name = "8a1", grade = 8, schoolYear = "2026-2027" }, school.TeacherToken);
         Assert.Equal((HttpStatusCode.Conflict, "DUPLICATE"), (dup.StatusCode, dupBody.ErrorCode));
-        Assert.Equal("Tên lớp \"8a1\" đã được sử dụng cho một tài khoản khác.", dupBody.Message);
+        Assert.Equal("Tên lớp \"8a1\" đã có trong năm học này.", dupBody.Message);
 
         await _c.CreateClassAsync(school.TeacherToken, "8A1", 8, "2027-2028");   // năm học khác
         await _c.CreateClassAsync(otherToken, "8A1");                               // giáo viên khác

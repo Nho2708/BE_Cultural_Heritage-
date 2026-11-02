@@ -112,7 +112,7 @@ public sealed record SystemRevenueDto(bool Available, string Message, decimal To
 
 /// <summary>
 /// Tổng quan hệ thống (tab Tổng quan của quản trị hệ thống): trường, giáo viên, học sinh, nội dung, lượt AI, số trường theo từng gói, doanh thu từ giao dịch VNPay thành công,
-/// số giao dịch thất bại trong 7 ngày gần nhất (cho mục Cần chú ý).
+/// số giao dịch thất bại trong 7 ngày gần nhất và các khoản thanh toán đến muộn cần xử lý (cho mục Cần chú ý).
 /// </summary>
 public sealed record SystemOverviewDto(
     DateTime GeneratedAt,
@@ -123,7 +123,23 @@ public sealed record SystemOverviewDto(
     SystemAiDto Ai,
     IReadOnlyList<SystemPlanUsageDto> Plans,
     SystemRevenueDto Revenue,
-    int RecentFailedPayments);
+    int RecentFailedPayments,
+    int LatePaymentsToReview,
+    IReadOnlyList<SystemLatePaymentDto> LatePayments);
+
+/// <summary>
+/// Khoản thanh toán thành công đến muộn cần quản trị hệ thống xử lý: tiền đã thu và hóa đơn đã PAID nhưng đăng ký đã bị hủy từ trước và trường đã có gói mới hơn
+/// nên hệ thống không tự kích hoạt lại gói. Quản trị hệ thống liên hệ trường để hoàn tiền hoặc tính vào gói đang dùng.
+/// </summary>
+public sealed record SystemLatePaymentDto(
+    long PaymentId,
+    long InvoiceId,
+    string? InvoiceNumber,
+    long OrganizationId,
+    string? OrganizationName,
+    string? PlanName,
+    decimal? Amount,
+    DateTime? PaidAt);
 
 /// <summary>Một kỳ của biểu đồ theo thời gian (ngày <c>yyyy-MM-dd</c> hoặc tháng <c>yyyy-MM</c>, giờ Việt Nam); <c>Revenue</c> là doanh thu từ giao dịch thành công trả trong kỳ.</summary>
 public sealed record SystemTrendPointDto(

@@ -14,6 +14,13 @@ public static class OverviewRules
     /// <summary>Giao dịch thanh toán thất bại trong bấy nhiêu ngày gần nhất thì tổng quan hệ thống nhắc ở mục Cần chú ý.</summary>
     public const int RecentFailedPaymentDays = 7;
 
+    /// <summary>
+    /// Khoản thanh toán thành công đến muộn mà đăng ký đã bị hủy và trường đã có gói mới hơn thì hiện ở mục Cần chú ý trong bấy nhiêu ngày gần nhất
+    /// (tính từ lúc nhận tiền), tối đa <see cref="MaxLatePaymentsListed"/> khoản trong danh sách.
+    /// </summary>
+    public const int LatePaymentReviewDays = 30;
+    public const int MaxLatePaymentsListed = 20;
+
     /// <summary>Biểu đồ theo thời gian mặc định lấy 30 ngày gần nhất (tính cả hôm nay), tối đa 366 ngày một lần xem.</summary>
     public const int DefaultTrendDays = 30;
     public const int MaxTrendDays = 366;
