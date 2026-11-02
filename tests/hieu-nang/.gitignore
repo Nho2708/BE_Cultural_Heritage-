@@ -1,0 +1,4 @@
+# Dữ liệu thật do người chạy chuẩn bị (mã học sinh, mật khẩu, mã bài): không đưa vào git.
+du-lieu/*.json
+!du-lieu/*.example.json
+ket-qua/
