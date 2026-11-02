@@ -80,7 +80,8 @@ $beOut = Join-Path $work 'backend.out'
 $beErr = Join-Path $work 'backend.err'
 $resultFile = Join-Path $work 'du-lieu-demo.json'
 $backend = $null
-$envNames = 'ConnectionStrings__Default', 'ASPNETCORE_ENVIRONMENT', 'Database__InitMode', 'Email__Mode', 'Ai__Mode', 'Storage__Provider', 'Seed__AdminPassword'
+$envNames = 'ConnectionStrings__Default', 'ASPNETCORE_ENVIRONMENT', 'Database__InitMode', 'Email__Mode', 'Ai__Mode', 'Storage__Provider', 'Seed__AdminPassword',
+    'RateLimiting__AdminTranslationAiRequestsPerMinute', 'RateLimiting__TeacherAiRequestsPerMinute'
 $exit = 0
 
 try {
@@ -96,6 +97,10 @@ try {
     $env:Ai__Mode = 'Simulated'
     $env:Storage__Provider = 'Local'
     $env:Seed__AdminPassword = $plain
+    # Script nạp dịch và soạn bài bằng AI giả lập liên tục; nới giới hạn AI theo phút của quản trị và giáo viên cho backend tạm này,
+    # nếu không bước dịch di sản dừng giữa chừng vì 429. Backend chạy hằng ngày và máy chủ giữ nguyên giới hạn trong appsettings.json.
+    $env:RateLimiting__AdminTranslationAiRequestsPerMinute = '100000'
+    $env:RateLimiting__TeacherAiRequestsPerMinute = '100000'
     $backend = Start-Process -FilePath 'dotnet' -ArgumentList "run --project src/DSVHVN.Api --no-build --no-launch-profile --urls http://localhost:$Port" `
         -WorkingDirectory $repo -RedirectStandardOutput $beOut -RedirectStandardError $beErr -WindowStyle Hidden -PassThru
     foreach ($name in $envNames) { Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
