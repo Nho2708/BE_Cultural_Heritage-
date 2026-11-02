@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<SubscriptionActivator>();
         services.AddScoped<VnPayCallbackService>();
         services.AddScoped<BillingMaintenanceService>();
+        services.AddScoped<StaleAiRequestCleaner>();
         services.AddScoped<AccountProvisioner>();
         services.AddScoped<AccountActions>();
         services.AddScoped<AuthService>();

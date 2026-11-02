@@ -70,6 +70,10 @@ public static class DependencyInjection
         services.AddOptions<QuizAutoCloseOptions>().Bind(configuration.GetSection(QuizAutoCloseOptions.Section));
         services.AddHostedService<QuizAutoCloseService>();
 
+        // Chuyển lượt gọi AI bị bỏ dở (máy chủ dừng giữa chừng) sang thất bại, chạy nền theo chu kỳ của mục Ai:Maintenance.
+        services.AddOptions<AiMaintenanceOptions>().Bind(configuration.GetSection(AiMaintenanceOptions.Section));
+        services.AddHostedService<AiRequestCleanupService>();
+
         // Dọn lịch sử khách tham quan quá 90 ngày, chạy nền hằng ngày theo mục Guests.
         services.AddOptions<GuestCleanupOptions>().Bind(configuration.GetSection(GuestCleanupOptions.Section));
         services.AddHostedService<GuestHistoryCleanupService>();

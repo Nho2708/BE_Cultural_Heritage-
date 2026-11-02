@@ -85,6 +85,7 @@ public class ApiFactory : WebApplicationFactory<Program>
             ["VnPay:HashSecret"] = VnPayTestKit.HashSecret,
             ["Billing:Maintenance:Enabled"] = "false",
             ["Ai:Mode"] = "Simulated",
+            ["Ai:Maintenance:Enabled"] = "false",   // tác vụ dọn lượt AI bị bỏ dở bị tắt; test gọi thẳng StaleAiRequestCleaner
             ["Ai:AttemptTimeoutSeconds"] = "1",
             ["Ai:HeritageAttemptTimeoutSeconds"] = "1",
             ["Guests:CleanupIntervalHours"] = "0",   // tác vụ dọn lịch sử khách chạy nền bị tắt; test gọi thẳng GuestService.PurgeExpiredAsync
