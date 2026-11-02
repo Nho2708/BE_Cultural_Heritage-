@@ -146,3 +146,23 @@ Smoke test trên Api chạy thật: `scripts/smoke-goi-thanh-toan.sh` (cách ch�
 - Tổng quan doanh thu của quản trị hệ thống (thuộc luồng Quản trị và tổng quan; dữ liệu đã có: giao dịch `SUCCEEDED` theo ngày `paid_at`).
 - Hoàn tiền, thanh toán tự động trừ tiền định kỳ, các cổng khác ngoài VNPay, hóa đơn giá trị gia tăng, gửi hóa đơn qua email: ngoài phạm vi.
 - Thử với VNPay sandbox thật cần khóa của cửa hàng sandbox và địa chỉ IPN công khai (mục 7).
+
+
+## Thêm cổng MoMo (sandbox) và PayOS
+
+Người trả chọn phương thức ở màn hình Chọn gói và thanh toán; `GET /api/v1/org/payments/providers` trả các cổng **đã có khóa cấu hình và đang bật** (`payment_providers.is_active = 1`), VNPay đứng đầu.
+`POST /org/billing/checkout` nhận thêm `providerCode` (`VNPAY` | `MOMO` | `PAYOS`, để trống thì VNPAY), `POST /org/invoices/{id}/pay` nhận `{ "providerCode": ... }` (không bắt buộc),
+`GET /org/plans/{id}/quote?provider=MOMO` để câu xác nhận ghi đúng tên cổng. Mã lạ trả 422, cổng thiếu khóa, đã tắt hoặc không gọi được trả 503 `PAYMENT_GATEWAY_UNAVAILABLE`.
+
+| Cổng | Địa chỉ công khai (không đăng nhập) | Chữ ký | Ghi chú |
+|---|---|---|---|
+| VNPay | `GET /api/v1/payments/vnpay/ipn`, `/return` | HMAC-SHA512 | như trước |
+| MoMo | `POST /api/v1/payments/momo/ipn` (204 khi đã xử lý), `GET .../return` | HMAC-SHA256 | `orderId` = `{payments.id}_{mili giây}` |
+| PayOS | `POST /api/v1/payments/payos/webhook` (luôn 200), `GET .../return` | HMAC-SHA256 trên `data` | `orderCode` = `payments.id` + `PayOs:OrderCodeOffset` (không cần cột mới) |
+
+Mọi cổng sau khi kiểm chữ ký đều đi qua `PaymentSettlementService` (tìm giao dịch của đúng cổng, so số tiền, chiếm giao dịch bằng một câu UPDATE có điều kiện, hóa đơn PAID, đăng ký ACTIVE
+trong một giao dịch CSDL khóa dòng trường), nên IPN lặp hoặc đồng thời chỉ đổi dữ liệu một lần. Trang trả về của trình duyệt không bao giờ đổi dữ liệu.
+
+Cấu hình: `scripts/dat-khoa-momo-payos.ps1` đặt khóa vào User Secrets (`MoMo:*`, `PayOs:*`); máy chủ triển khai lấy từ `tao-cau-hinh-may-chu.ps1`. Bật cổng trong CSDL:
+`UPDATE payment_providers SET is_active = 1 WHERE code IN ('MOMO', 'PAYOS');`. IPN/webhook phải gọi được từ Internet (ngrok, Cloudflare Tunnel hoặc máy chủ có HTTPS); PayOS khai webhook ở my.payos.vn.
+PayOS không có môi trường thử: thanh toán thử là chuyển khoản thật số tiền nhỏ. Nếu CSDL thử nghiệm bị dựng lại, tăng `PayOs:OrderCodeOffset` để `orderCode` không trùng mã đã dùng.

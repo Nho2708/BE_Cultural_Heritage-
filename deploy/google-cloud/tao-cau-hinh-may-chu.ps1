@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Sinh cấu hình bí mật của máy chủ Google Cloud từ User Secrets của backend và tệp khóa của Dịch vụ AI, rồi tải lên (-TaiLen).
 
@@ -113,6 +113,21 @@ $hash = Lay-BiMat 'VnPay:HashSecret'
 if ($tmn -and $hash) { Dat 'VnPay:TmnCode' $tmn; Dat 'VnPay:HashSecret' $hash }
 else { Write-Warning 'User Secrets thiếu VnPay:TmnCode hoặc VnPay:HashSecret: thanh toán sẽ không dùng được.' }
 Dat 'VnPay:ReturnUrl' "$diaChiHocTap/api/v1/payments/vnpay/return"
+
+$momo = @('MoMo:PartnerCode', 'MoMo:AccessKey', 'MoMo:SecretKey') | ForEach-Object { Lay-BiMat $_ }
+if (($momo | Where-Object { $_ }).Count -eq 3) {
+    Dat 'MoMo:PartnerCode' $momo[0]; Dat 'MoMo:AccessKey' $momo[1]; Dat 'MoMo:SecretKey' $momo[2]
+    Dat 'MoMo:ReturnUrl' "$diaChiHocTap/api/v1/payments/momo/return"
+    Dat 'MoMo:IpnUrl' "$diaChiHocTap/api/v1/payments/momo/ipn"
+}
+else { Write-Warning 'User Secrets thiếu khóa MoMo: phương thức MoMo sẽ không hiện.' }
+
+$payos = @('PayOs:ClientId', 'PayOs:ApiKey', 'PayOs:ChecksumKey') | ForEach-Object { Lay-BiMat $_ }
+if (($payos | Where-Object { $_ }).Count -eq 3) {
+    Dat 'PayOs:ClientId' $payos[0]; Dat 'PayOs:ApiKey' $payos[1]; Dat 'PayOs:ChecksumKey' $payos[2]
+    Dat 'PayOs:ReturnUrl' "$diaChiHocTap/api/v1/payments/payos/return"
+}
+else { Write-Warning 'User Secrets thiếu khóa PayOS: phương thức PayOS sẽ không hiện.' }
 
 foreach ($k in ($userSecrets.Keys | Where-Object { $_ -like 'Email:*' } | Sort-Object)) {
     $v = Lay-BiMat $k
