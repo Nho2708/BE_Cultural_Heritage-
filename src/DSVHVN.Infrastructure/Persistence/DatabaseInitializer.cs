@@ -192,7 +192,8 @@ public static class DatabaseInitializer
     }
 
     /// <summary>
-    /// Danh mục cổng thanh toán: chỉ VNPay (sandbox) đang bật, các cổng còn lại có sẵn nhưng tắt. Chỉ thêm cổng còn thiếu theo mã, không đổi cổng đã có.
+    /// Danh mục cổng thanh toán: chỉ VNPay (sandbox) đang bật, các cổng còn lại (MoMo, PayOS, ...) có sẵn nhưng tắt, quản trị bật bằng cách đặt
+    /// <c>payment_providers.is_active = 1</c> sau khi đã đặt khóa của cổng. Chỉ thêm cổng còn thiếu theo mã, không đổi cổng đã có.
     /// </summary>
     private static async Task SeedPaymentProvidersAsync(AppDbContext db, ILogger logger, CancellationToken ct)
     {
@@ -200,7 +201,8 @@ public static class DatabaseInitializer
         var wanted = new (string Code, string Name, bool Active)[]
         {
             (BillingRules.VnPayProviderCode, "VNPay", true),
-            ("MOMO", "MoMo", false),
+            (BillingRules.MoMoProviderCode, "MoMo", false),
+            (BillingRules.PayOsProviderCode, "PayOS", false),
             ("ZALOPAY", "ZaloPay", false),
             ("BANK_TRANSFER", "Chuyển khoản ngân hàng", false),
         };

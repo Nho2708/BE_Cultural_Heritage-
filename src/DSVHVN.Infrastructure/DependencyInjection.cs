@@ -100,13 +100,27 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Thanh toán VNPay sandbox: <c>VnPay</c> (mã cửa hàng, khóa bí mật, địa chỉ trang thanh toán, địa chỉ trang trả về) và tác vụ nền gói
+    /// Thanh toán VNPay sandbox: <c>VnPay</c> (mã cửa hàng, khóa bí mật, địa chỉ trang thanh toán, địa chỉ trang trả về), thêm <c>MoMo</c> và <c>PayOs</c>, và tác vụ nền gói
     /// (<c>Billing:Maintenance</c>). Thiếu khóa VNPay không làm dừng khởi động: chỉ không tạo được thanh toán và từ chối IPN.
     /// </summary>
     private static void AddBilling(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions<VnPayOptions>().Bind(configuration.GetSection(VnPayOptions.Section));
         services.AddSingleton<IVnPayGateway, VnPayGateway>();
+
+        // MoMo (sandbox) và PayOS: mỗi cổng vừa tạo giao dịch (IPaymentGateway) vừa kiểm dữ liệu cổng gửi về (IMoMoGateway, IPayOsGateway).
+        // Thiếu khóa không làm dừng khởi động: cổng đó chỉ không dùng được và không hiện ở danh sách phương thức.
+        // Một HttpClient dùng chung cho mỗi cổng; thời gian chờ từng lần gọi do cổng đặt qua CancellationToken.
+        services.AddOptions<MoMoOptions>().Bind(configuration.GetSection(MoMoOptions.Section));
+        services.AddSingleton(sp => new MoMoGateway(new HttpClient { Timeout = Timeout.InfiniteTimeSpan },
+            sp.GetRequiredService<IOptions<MoMoOptions>>(), sp.GetRequiredService<IOptions<AppLinkOptions>>()));
+        services.AddSingleton<IMoMoGateway>(sp => sp.GetRequiredService<MoMoGateway>());
+        services.AddOptions<PayOsOptions>().Bind(configuration.GetSection(PayOsOptions.Section));
+        services.AddSingleton(sp => new PayOsGateway(new HttpClient { Timeout = Timeout.InfiniteTimeSpan },
+            sp.GetRequiredService<IOptions<PayOsOptions>>(), sp.GetRequiredService<IOptions<AppLinkOptions>>()));
+        services.AddSingleton<IPayOsGateway>(sp => sp.GetRequiredService<PayOsGateway>());
+        services.AddSingleton<IPaymentGateway>(sp => sp.GetRequiredService<IMoMoGateway>());
+        services.AddSingleton<IPaymentGateway>(sp => sp.GetRequiredService<IPayOsGateway>());
         services.AddOptions<BillingMaintenanceOptions>().Bind(configuration.GetSection(BillingMaintenanceOptions.Section));
         services.AddHostedService<BillingMaintenanceWorker>();
     }
