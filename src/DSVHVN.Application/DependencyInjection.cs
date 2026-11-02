@@ -48,6 +48,12 @@ public static class DependencyInjection
         services.AddScoped<BillingService>();
         services.AddScoped<SubscriptionActivator>();
         services.AddScoped<VnPayCallbackService>();
+        services.AddScoped<PaymentSettlementService>();
+        services.AddScoped<MoMoCallbackService>();
+        services.AddScoped<PayOsCallbackService>();
+        // VNPay ở dạng cổng chung; MoMo và PayOS đăng ký ở Infrastructure.
+        services.AddSingleton<IPaymentGateway, VnPayProvider>();
+        services.AddScoped<PaymentGatewayRegistry>();
         services.AddScoped<BillingMaintenanceService>();
         services.AddScoped<AccountProvisioner>();
         services.AddScoped<AccountActions>();
