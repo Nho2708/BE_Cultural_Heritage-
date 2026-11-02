@@ -27,9 +27,8 @@ public sealed record IpnResponse(string RspCode, string Message)
 /// <summary>
 /// Xử lý dữ liệu VNPay gửi về. <b>Chỉ IPN</b> (máy chủ VNPay gọi máy chủ này) mới đổi trạng thái giao dịch, hóa đơn và gói; trang trả về
 /// của trình duyệt chỉ kiểm chữ ký rồi chuyển người dùng sang trang kết quả, trang đó chỉ đọc.
-/// Thứ tự xử lý IPN: kiểm chữ ký, tìm giao dịch theo mã tham chiếu, so số tiền, chiếm giao dịch (một câu lệnh có điều kiện nên IPN lặp hoặc đồng thời
-/// chỉ đổi dữ liệu một lần), ghi kết quả kèm dữ liệu gốc, nếu thành công thì hóa đơn PAID và đăng ký ACTIVE, tất cả trong một giao dịch CSDL.
-/// IPN bị từ chối không đổi dữ liệu và được ghi nhật ký thao tác.
+/// Thứ tự xử lý IPN: kiểm chữ ký, đọc mã tham chiếu, rồi giao cho <see cref="PaymentSettlementService"/> (tìm giao dịch, so số tiền, chiếm giao dịch,
+/// ghi kết quả, hóa đơn PAID và đăng ký ACTIVE trong một giao dịch CSDL). IPN bị từ chối không đổi dữ liệu và được ghi nhật ký thao tác.
 /// </summary>
 public sealed class VnPayCallbackService(
     IAppDbContext db,
@@ -38,6 +37,9 @@ public sealed class VnPayCallbackService(
     IAuditLogger audit,
     TimeProvider clock)
 {
+    // Phần xử lý chung của mọi cổng; dựng từ chính các phụ thuộc này nên chữ ký hàm khởi tạo của lớp không đổi.
+    private readonly PaymentSettlementService settlement = new(db, activator, audit, clock);
+
     private static readonly JsonSerializerOptions RawJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     /// <summary>Số tham số và độ dài mỗi giá trị tối đa khi ghi vào nhật ký (dữ liệu từ ngoài, không tin).</summary>
@@ -54,104 +56,26 @@ public sealed class VnPayCallbackService(
         if (callback.PaymentId is not { } paymentId)
             return await RejectAsync("missing transaction reference", null, query, ip, IpnResponse.OrderNotFound, ct);
 
-        var payment = await db.Payments.AsNoTracking().Include(p => p.Provider).Include(p => p.Invoice)
-            .SingleOrDefaultAsync(p => p.Id == paymentId, ct);
-        if (payment is null || payment.Provider?.Code != BillingRules.VnPayProviderCode || payment.Invoice is null)
-            return await RejectAsync("transaction not found", paymentId, query, ip, IpnResponse.OrderNotFound, ct);
-        if (payment.Amount is not { } amount || callback.Amount != BillingRules.VnPayAmount(amount))
-            return await RejectAsync($"amount mismatch (expected {(payment.Amount is { } a ? BillingRules.VnPayAmount(a) : 0)})",
-                paymentId, query, ip, IpnResponse.InvalidAmount, ct);
-
-        var now = Now();
         var raw = JsonSerializer.Serialize(new SortedDictionary<string, string>(callback.Parameters.ToDictionary(p => p.Key, p => p.Value), StringComparer.Ordinal), RawJson);
-        var gatewayTxn = GatewayTransactionId(callback.TransactionNo);
-        var success = callback.IsSuccess;
-
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
-        await db.LockOrganizationAsync(payment.Invoice.OrganizationId, ct);
-
-        // Cùng một mã giao dịch của cổng không thể thuộc hai dòng thanh toán.
-        if (gatewayTxn is not null && await db.Payments.AnyAsync(p => p.ProviderId == payment.ProviderId
-                && p.ProviderTransactionId == gatewayTxn && p.Id != payment.Id, ct))
-        {
-            await tx.RollbackAsync(ct);
-            return await RejectAsync("gateway transaction id already used by another payment", paymentId, query, ip, IpnResponse.UnknownError, ct);
-        }
-
-        var previous = payment.Status;
-        var claimed = success
-            // Giao dịch thành công tới muộn: giao dịch đã bị hệ thống đánh thất bại (quá hạn, thay bằng giao dịch mới, hủy yêu cầu) mà chưa có dữ liệu của cổng
-            // vẫn được ghi nhận vì tiền đã thu.
-            ? await db.Payments.Where(p => p.Id == paymentId && (p.Status == PaymentStatus.PENDING || (p.Status == PaymentStatus.FAILED && p.RawResponse == null)))
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(p => p.Status, PaymentStatus.SUCCEEDED)
-                    .SetProperty(p => p.ProviderTransactionId, gatewayTxn)
-                    .SetProperty(p => p.RawResponse, raw)
-                    .SetProperty(p => p.PaidAt, now), ct) == 1
-            : await db.Payments.Where(p => p.Id == paymentId && p.Status == PaymentStatus.PENDING)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(p => p.Status, PaymentStatus.FAILED)
-                    .SetProperty(p => p.ProviderTransactionId, gatewayTxn)
-                    .SetProperty(p => p.RawResponse, raw), ct) == 1;
-        if (!claimed)
-        {
-            await tx.RollbackAsync(ct);
-            return IpnResponse.AlreadyConfirmed;
-        }
-
-        if (success)
-        {
-            await RecordSuccessAsync(paymentId, payment.InvoiceId, previous, now, ct);
-        }
-        else
-        {
-            audit.Record(AuditAction.BILLING_STATUS_CHANGED, AuditTargets.Payments, paymentId, actor: null,
-                oldValue: new { status = PaymentStatus.PENDING },
-                newValue: new
-                {
-                    status = PaymentStatus.FAILED, invoiceId = payment.InvoiceId, responseCode = callback.ResponseCode,
-                    transactionStatus = callback.TransactionStatus, gatewayTransactionId = gatewayTxn,
-                });
-        }
-
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
-        return IpnResponse.Confirmed;
-    }
-
-    /// <summary>
-    /// Thanh toán thành công: hóa đơn PAID, đăng ký ACTIVE theo loại mua. Hóa đơn đã PAID từ một giao dịch khác (người dùng trả hai lần) thì chỉ ghi nhận giao dịch
-    /// và nhật ký để đối soát, không kích hoạt thêm gói.
-    /// </summary>
-    private async Task RecordSuccessAsync(long paymentId, long invoiceId, PaymentStatus? previous, DateTime now, CancellationToken ct)
-    {
-        var invoice = await db.Invoices.Include(i => i.Subscription!).ThenInclude(s => s.Plan).SingleAsync(i => i.Id == invoiceId, ct);
-        var subscription = invoice.Subscription!;
-        var late = previous == PaymentStatus.FAILED;
-
-        if (invoice.Status == InvoiceStatus.PAID || subscription.Status == SubscriptionStatus.ACTIVE
-            || subscription.Plan is null || subscription.Status == SubscriptionStatus.EXPIRED)
-        {
-            audit.Record(AuditAction.BILLING_STATUS_CHANGED, AuditTargets.Payments, paymentId, actor: null,
-                oldValue: new { status = previous },
-                newValue: new
-                {
-                    status = PaymentStatus.SUCCEEDED, invoiceId = invoice.Id, invoiceStatus = invoice.Status, late,
-                    note = "invoice was already paid or its subscription is no longer waiting; payment recorded for reconciliation, no plan change",
-                });
-            return;
-        }
-
-        var today = VietnamTime.Today(new DateTimeOffset(now, TimeSpan.Zero));
-        var invoiceBefore = invoice.Status;
-        var outcome = await activator.ActivateAsync(invoice, subscription, subscription.Plan, today, late ? "late ipn" : "ipn", ct);
-        audit.Record(AuditAction.BILLING_STATUS_CHANGED, AuditTargets.Payments, paymentId, actor: null,
-            oldValue: new { status = previous, invoiceStatus = invoiceBefore },
-            newValue: new
+        var result = await settlement.SettleAsync(new GatewayPayment(
+            paymentId, BillingRules.VnPayProviderCode,
+            // VNPay báo số tiền đã nhân 100; số tiền lẻ (không chia hết cho 100) cho ra phần thập phân và bị coi là lệch.
+            callback.Amount is { } paid ? paid / 100m : null,
+            callback.IsSuccess, PaymentSettlementService.NormalizeGatewayTransactionId(callback.TransactionNo), raw,
+            new Dictionary<string, object?>
             {
-                status = PaymentStatus.SUCCEEDED, invoiceId = invoice.Id, invoiceNumber = invoice.InvoiceNumber, invoiceStatus = InvoiceStatus.PAID,
-                subscriptionId = subscription.Id, kind = outcome.Kind, startDate = outcome.StartDate, endDate = outcome.EndDate, late,
-            });
+                ["responseCode"] = callback.ResponseCode,
+                ["transactionStatus"] = callback.TransactionStatus,
+            }), ct);
+
+        return result.Kind switch
+        {
+            SettleKind.Confirmed => IpnResponse.Confirmed,
+            SettleKind.AlreadyConfirmed => IpnResponse.AlreadyConfirmed,
+            SettleKind.NotFound => await RejectAsync(result.Reason, paymentId, query, ip, IpnResponse.OrderNotFound, ct),
+            SettleKind.AmountMismatch => await RejectAsync(result.Reason, paymentId, query, ip, IpnResponse.InvalidAmount, ct),
+            _ => await RejectAsync(result.Reason, paymentId, query, ip, IpnResponse.UnknownError, ct),
+        };
     }
 
     /// <summary>Trang trả về của trình duyệt: kiểm chữ ký rồi chuyển sang trang kết quả của web quản trị. Không đọc, không ghi dữ liệu.</summary>
@@ -172,15 +96,5 @@ public sealed class VnPayCallbackService(
             newValue: new { reason, responseCode = response.RspCode, ip, received });
         await db.SaveChangesAsync(ct);
         return response;
-    }
-
-    /// <summary>Mã giao dịch của VNPay; giao dịch chưa tạo ở cổng báo "0" hoặc để trống thì không có mã (không được lưu để khỏi trùng nhau).</summary>
-    private static string? GatewayTransactionId(string? transactionNo) =>
-        string.IsNullOrWhiteSpace(transactionNo) || transactionNo.Trim() == "0" ? null : transactionNo.Trim();
-
-    private DateTime Now()
-    {
-        var now = clock.GetUtcNow().UtcDateTime;
-        return now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMillisecond));
     }
 }
