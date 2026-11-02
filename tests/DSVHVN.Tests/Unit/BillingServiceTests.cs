@@ -232,7 +232,8 @@ public sealed class BillingServiceTests : IDisposable
         var (_, actor) = await _b.NewOrgAsync();
         var created = await _b.H.RunAsync(async sp =>
         {
-            var service = new BillingService(sp.GetRequiredService<IAppDbContext>(), sp.GetRequiredService<RequestValidator>(), new UnconfiguredGateway(),
+            var service = new BillingService(sp.GetRequiredService<IAppDbContext>(), sp.GetRequiredService<RequestValidator>(),
+                new PaymentGatewayRegistry([new VnPayProvider(new UnconfiguredGateway())]),
                 sp.GetRequiredService<PlanGuard>(), sp.GetRequiredService<BillingQueries>(), sp.GetRequiredService<IAuditLogger>(), sp.GetRequiredService<TimeProvider>());
             var ex = await Assert.ThrowsAsync<AppException>(() => service.StartCheckoutAsync(actor, new CheckoutRequest(_b.BasicId), default));
             return (ex.StatusCode, ex.AppMessage.Code);

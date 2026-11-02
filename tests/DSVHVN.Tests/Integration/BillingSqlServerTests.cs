@@ -27,7 +27,7 @@ public sealed class BillingSqlServerTests(SqlServerApiFactory factory) : IClassF
 
         var providers = await factory.WithDbAsync(db => db.PaymentProviders.AsNoTracking().OrderBy(p => p.Code).ToListAsync());
 
-        Assert.Equal([("BANK_TRANSFER", false), ("MOMO", false), ("VNPAY", true), ("ZALOPAY", false)], providers.Select(p => (p.Code!, p.IsActive)));
+        Assert.Equal([("BANK_TRANSFER", false), ("MOMO", false), ("PAYOS", false), ("VNPAY", true), ("ZALOPAY", false)], providers.Select(p => (p.Code!, p.IsActive)));
         Assert.Equal(1, await factory.WithDbAsync(db => db.Plans.CountAsync(p => p.Price == 0m)));
     }
 

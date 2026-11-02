@@ -24,6 +24,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace DSVHVN.Tests.Support;
 
@@ -124,6 +125,30 @@ public sealed class ServiceHarness : IDisposable
             o.HashSecret = VnPayTestKit.HashSecret;
         });
         services.AddSingleton<IVnPayGateway, VnPayGateway>();
+
+        // MoMo và PayOS với khóa thử và máy chủ giả (không gọi mạng): PaymentGatewayTestKit giữ yêu cầu cuối cùng gửi đi và câu trả lời xếp sẵn.
+        services.AddSingleton<PaymentGatewayTestKit>();
+        services.Configure<MoMoOptions>(o =>
+        {
+            o.PartnerCode = PaymentGatewayTestKit.MoMoPartnerCode;
+            o.AccessKey = PaymentGatewayTestKit.MoMoAccessKey;
+            o.SecretKey = PaymentGatewayTestKit.MoMoSecretKey;
+        });
+        services.Configure<PayOsOptions>(o =>
+        {
+            o.ClientId = "payos-client";
+            o.ApiKey = "payos-api-key";
+            o.ChecksumKey = PaymentGatewayTestKit.PayOsChecksumKey;
+            o.OrderCodeOffset = PaymentGatewayTestKit.PayOsOffset;
+        });
+        services.AddSingleton(sp => new MoMoGateway(new HttpClient(sp.GetRequiredService<PaymentGatewayTestKit>().MoMoHandler),
+            sp.GetRequiredService<IOptions<MoMoOptions>>(), sp.GetRequiredService<IOptions<AppLinkOptions>>()));
+        services.AddSingleton<IMoMoGateway>(sp => sp.GetRequiredService<MoMoGateway>());
+        services.AddSingleton<IPaymentGateway>(sp => sp.GetRequiredService<IMoMoGateway>());
+        services.AddSingleton(sp => new PayOsGateway(new HttpClient(sp.GetRequiredService<PaymentGatewayTestKit>().PayOsHandler),
+            sp.GetRequiredService<IOptions<PayOsOptions>>(), sp.GetRequiredService<IOptions<AppLinkOptions>>()));
+        services.AddSingleton<IPayOsGateway>(sp => sp.GetRequiredService<PayOsGateway>());
+        services.AddSingleton<IPaymentGateway>(sp => sp.GetRequiredService<IPayOsGateway>());
         _root = services.BuildServiceProvider();
 
         using var scope = _root.CreateScope();
