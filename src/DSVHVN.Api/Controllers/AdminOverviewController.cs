@@ -20,7 +20,8 @@ public sealed class AdminOverviewController(SystemOverviewService overview) : Ap
 {
     /// <summary>
     /// Số trường (có và không có gói hiệu lực), giáo viên, học sinh đang hoạt động, nội dung (di sản, bài học, bài kiểm tra, lượt nộp, ngân hàng câu hỏi),
-    /// lượt AI toàn hệ thống, số trường theo từng gói; doanh thu tổng, tháng này, hôm nay và số giao dịch thành công.
+    /// lượt AI toàn hệ thống, số trường theo từng gói; doanh thu tổng, tháng này, hôm nay và số giao dịch thành công; số giao dịch thất bại gần đây và danh sách
+    /// thanh toán đến muộn cần xử lý (<c>latePaymentsToReview</c>, <c>latePayments</c>).
     /// </summary>
     [HttpGet]
     [ProducesResponseType<ApiResponse<SystemOverviewDto>>(StatusCodes.Status200OK)]

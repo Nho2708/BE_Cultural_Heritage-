@@ -2,6 +2,7 @@ using System.Text.Json;
 using DSVHVN.Application.Audit;
 using DSVHVN.Application.Billing;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Overview;
 using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Rules;
@@ -14,7 +15,7 @@ namespace DSVHVN.Tests.Unit;
 
 /// <summary>
 /// Xử lý IPN của VNPay: chỉ IPN đổi trạng thái; kiểm chữ ký, tìm giao dịch, so số tiền; thành công thì hóa đơn trả, gói kích hoạt theo loại mua;
-/// IPN lặp không đổi gì; IPN sai bị từ chối và ghi nhật ký; IPN thành công tới muộn vẫn được ghi nhận.
+/// IPN lặp không đổi gì; IPN sai bị từ chối và ghi nhật ký; IPN thành công tới muộn vẫn được ghi nhận (kích hoạt lại gói nếu chưa có gói mới hơn, nếu không thì giữ đăng ký đã hủy và báo quản trị hệ thống).
 /// </summary>
 public sealed class VnPayCallbackServiceTests : IDisposable
 {
@@ -407,6 +408,83 @@ public sealed class VnPayCallbackServiceTests : IDisposable
         await _b.H.Service<BillingService, BillingOverviewDto>(s => s.CancelAsync(other, byUser.Invoice.SubscriptionId, default));
         Assert.Equal("00", (await _b.IpnAsync(byUser.PaymentId, 500_000m)).RspCode);
         Assert.Equal(SubscriptionStatus.ACTIVE, (await _b.SubscriptionAsync(byUser.Invoice.SubscriptionId)).Status);
+    }
+
+    [Fact]
+    public async Task A_late_success_keeps_the_cancelled_subscription_cancelled_when_a_newer_purchase_request_is_waiting()
+    {
+        var (org, actor) = await _b.NewOrgAsync(withFreePlan: false);
+        var old = await _b.CheckoutAsync(actor, _b.BasicId);
+        _b.H.Clock.Advance(TimeSpan.FromHours(25));
+        await _b.H.Service<BillingMaintenanceService, BillingMaintenanceResult>(s => s.RunAsync(false, default));
+        var newer = await _b.CheckoutAsync(actor, _b.ProId);                          // yêu cầu mới hơn đang chờ thanh toán
+
+        Assert.Equal("00", (await _b.IpnAsync(old.PaymentId, 500_000m, transactionNo: "LATE-NEWER")).RspCode);
+
+        var payment = await _b.PaymentAsync(old.PaymentId);
+        Assert.Equal((PaymentStatus.SUCCEEDED, "LATE-NEWER"), (payment.Status, payment.ProviderTransactionId));
+        Assert.NotNull(payment.RawResponse);
+        Assert.Equal(InvoiceStatus.PAID, (await _b.InvoiceAsync(old.Invoice.Id)).Status);
+        var cancelled = await _b.SubscriptionAsync(old.Invoice.SubscriptionId);
+        Assert.Equal((SubscriptionStatus.CANCELLED, null), (cancelled.Status, cancelled.StartDate));
+        Assert.Equal(SubscriptionStatus.PENDING, (await _b.SubscriptionAsync(newer.Invoice.SubscriptionId)).Status);   // gói mới hơn không bị đụng
+        var log = await _b.H.QueryAsync(db => db.AuditLogs.Where(l => l.Action == AuditAction.BILLING_STATUS_CHANGED).OrderByDescending(l => l.Id).FirstAsync());
+        Assert.Contains("\"needsAdminReview\":true", log.NewValue);
+        Assert.Contains("\"late\":true", log.NewValue);
+        Assert.Equal(2, (await _b.SubscriptionsAsync(org.Id)).Count);
+    }
+
+    [Fact]
+    public async Task A_late_success_keeps_the_cancelled_subscription_cancelled_when_a_newer_plan_is_already_active()
+    {
+        var (_, actor) = await _b.NewOrgAsync(withFreePlan: false);
+        var old = await _b.CheckoutAsync(actor, _b.BasicId);
+        await _b.H.Service<BillingService, BillingOverviewDto>(s => s.CancelAsync(actor, old.Invoice.SubscriptionId, default));
+        var newer = await _b.BuyAsync(actor, _b.ProId);                               // đã trả và đang hiệu lực
+        var activeBefore = await _b.SubscriptionAsync(newer.Invoice.SubscriptionId);
+
+        Assert.Equal("00", (await _b.IpnAsync(old.PaymentId, 500_000m)).RspCode);
+
+        Assert.Equal((PaymentStatus.SUCCEEDED, InvoiceStatus.PAID),
+            ((await _b.PaymentAsync(old.PaymentId)).Status, (await _b.InvoiceAsync(old.Invoice.Id)).Status));
+        Assert.Equal(SubscriptionStatus.CANCELLED, (await _b.SubscriptionAsync(old.Invoice.SubscriptionId)).Status);
+        var activeAfter = await _b.SubscriptionAsync(newer.Invoice.SubscriptionId);
+        Assert.Equal((SubscriptionStatus.ACTIVE, activeBefore.StartDate, activeBefore.EndDate), (activeAfter.Status, activeAfter.StartDate, activeAfter.EndDate));
+    }
+
+    [Fact]
+    public async Task A_late_success_that_needs_the_system_admin_shows_in_the_system_overview_for_a_limited_time()
+    {
+        var (_, actor) = await _b.NewOrgAsync(withFreePlan: false, name: "Trường đến muộn");
+        var old = await _b.CheckoutAsync(actor, _b.BasicId);
+        await _b.H.Service<BillingService, BillingOverviewDto>(s => s.CancelAsync(actor, old.Invoice.SubscriptionId, default));
+        var empty = await _b.H.Service<SystemOverviewService, SystemOverviewDto>(s => s.GetAsync(_b.Admin, default));
+        Assert.Equal((0, 0), (empty.LatePaymentsToReview, empty.LatePayments.Count));
+
+        await _b.CheckoutAsync(actor, _b.ProId);
+        await _b.IpnAsync(old.PaymentId, 500_000m);
+
+        var overview = await _b.H.Service<SystemOverviewService, SystemOverviewDto>(s => s.GetAsync(_b.Admin, default));
+        Assert.Equal(1, overview.LatePaymentsToReview);
+        var item = Assert.Single(overview.LatePayments);
+        Assert.Equal((old.PaymentId, old.Invoice.Id, "Trường đến muộn", "Cơ bản", 500_000m),
+            (item.PaymentId, item.InvoiceId, item.OrganizationName, item.PlanName, item.Amount));
+
+        _b.H.Clock.Advance(TimeSpan.FromDays(OverviewRules.LatePaymentReviewDays + 1));
+        var later = await _b.H.Service<SystemOverviewService, SystemOverviewDto>(s => s.GetAsync(_b.Admin, default));
+        Assert.Equal(0, later.LatePaymentsToReview);
+    }
+
+    [Fact]
+    public async Task A_normal_cancelled_or_upgraded_plan_is_not_listed_as_a_late_payment()
+    {
+        var (_, actor) = await _b.NewOrgAsync(withFreePlan: false);
+        await _b.BuyAsync(actor, _b.BasicId);
+        await _b.BuyAsync(actor, _b.ProId);                                           // nâng cấp: gói Cơ bản bị hủy, đã có ngày hiệu lực
+
+        var overview = await _b.H.Service<SystemOverviewService, SystemOverviewDto>(s => s.GetAsync(_b.Admin, default));
+
+        Assert.Equal(0, overview.LatePaymentsToReview);
     }
 
     [Fact]

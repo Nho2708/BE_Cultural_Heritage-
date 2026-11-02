@@ -59,6 +59,7 @@ public sealed class SystemOverviewService(IAppDbContext db, TimeProvider clock)
             await ai.CountAsync(g => g.LessonId == null, ct),
             await ai.CountAsync(g => g.CreatedAt >= monthStart, ct));
 
+        var latePayments = await LatePaymentsAsync(now, ct);
         return new SystemOverviewDto(
             now,
             new SystemSchoolsDto(orgTotal, withPlan, orgTotal - withPlan),
@@ -66,7 +67,25 @@ public sealed class SystemOverviewService(IAppDbContext db, TimeProvider clock)
             activeStudents, content, aiDto,
             await PlanUsageAsync(today, ct),
             await RevenueAsync(today, ct),
-            await db.Payments.AsNoTracking().CountAsync(p => p.Status == PaymentStatus.FAILED && p.CreatedAt >= now.AddDays(-OverviewRules.RecentFailedPaymentDays), ct));
+            await db.Payments.AsNoTracking().CountAsync(p => p.Status == PaymentStatus.FAILED && p.CreatedAt >= now.AddDays(-OverviewRules.RecentFailedPaymentDays), ct),
+            latePayments.Count, latePayments.Items);
+    }
+
+    // Thanh toán thành công đến muộn: hóa đơn PAID nhưng đăng ký vẫn CANCELLED và chưa từng có ngày hiệu lực (đăng ký chưa bao giờ được kích hoạt;
+    // gói đã dùng rồi bị hủy hoặc bị nâng cấp thay thế thì đã có ngày nên không lẫn vào đây).
+    private async Task<(int Count, IReadOnlyList<SystemLatePaymentDto> Items)> LatePaymentsAsync(DateTime now, CancellationToken ct)
+    {
+        var since = now.AddDays(-OverviewRules.LatePaymentReviewDays);
+        var query = db.Payments.AsNoTracking().Where(p => p.Status == PaymentStatus.SUCCEEDED && p.PaidAt >= since
+            && p.Invoice!.Status == InvoiceStatus.PAID && p.Invoice.Subscription!.Status == SubscriptionStatus.CANCELLED
+            && p.Invoice.Subscription.StartDate == null);
+        var count = await query.CountAsync(ct);
+        if (count == 0) return (0, []);
+        var rows = await query.OrderByDescending(p => p.PaidAt).ThenByDescending(p => p.Id).Take(OverviewRules.MaxLatePaymentsListed)
+            .Select(p => new SystemLatePaymentDto(p.Id, p.InvoiceId, p.Invoice!.InvoiceNumber, p.Invoice.OrganizationId, p.Invoice.Organization!.Name,
+                p.Invoice.Subscription!.Plan!.Name, p.Amount, p.PaidAt))
+            .ToListAsync(ct);
+        return (count, rows);
     }
 
     /// <summary>
