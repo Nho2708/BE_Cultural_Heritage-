@@ -154,14 +154,17 @@ public sealed class TeacherLessonsController(LessonService lessons, LessonAiServ
     /// <summary>
     /// AI soạn nội dung bài đúng cấp của lớp (cấp học lấy từ lớp, không gửi lên), độ dài Ngắn / Vừa / Chi tiết trong khoảng của cấp. Mỗi lần
     /// gọi, kể cả tạo lại, là một lượt AI của trường. Trả bản nháp để giáo viên xem và sửa; AI không tự lưu hay xuất bản. 422 khi trường không có
-    /// gói hiệu lực hoặc hết lượt; 503 khi dịch vụ AI lỗi sau các lần thử (lượt không bị tính, nội dung bài giữ nguyên).
+    /// gói hiệu lực hoặc hết lượt; 503 khi dịch vụ AI lỗi sau các lần thử (lượt không bị tính, nội dung bài giữ nguyên). Mỗi giáo viên gọi AI tối đa 10 lần mỗi phút
+    /// (tính chung với AI sinh câu hỏi); vượt thì 429 kèm <c>Retry-After</c>.
     /// </summary>
     [HttpPost("{lessonId:long}/ai/compose")]
+    [RateLimit(RateLimitKind.TeacherAi)]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<ApiResponse<LessonDraftDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<ApiResponse<LessonDraftDto>>> Compose(long lessonId, ComposeLessonRequest request, CancellationToken ct)
     {

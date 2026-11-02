@@ -13,7 +13,7 @@ namespace DSVHVN.Api.Controllers;
 /// <para>
 /// App gắn mã thiết bị làm <c>user_id</c> và mã di sản làm <c>custom_data</c> khi tải quảng cáo. Hợp lệ (kể cả lần gọi lại trùng <c>transaction_id</c>) thì 200 để Google không gọi lại.
 /// Thiếu hoặc sai chữ ký thì 400. Chữ ký đúng nhưng đơn vị quảng cáo lạ, thiếu hoặc sai tham số, thời điểm lệch quá 1 giờ thì vẫn 200 với <c>recorded</c> = false và lý do
-/// (lời gọi thử của nút kiểm địa chỉ trong bảng điều khiển AdMob thuộc loại này); cả hai trường hợp đều không mở khóa và ghi nhật ký thao tác. Giới hạn như API công khai.
+/// (lời gọi thử của nút kiểm địa chỉ trong bảng điều khiển AdMob thuộc loại này); cả hai trường hợp đều không mở khóa và ghi nhật ký thao tác. Giới hạn như API công khai, thêm giới hạn riêng cho lượt sai chữ ký: 300 lượt mỗi phút mỗi IP, vượt thì 429 kèm <c>Retry-After</c> (lượt đúng chữ ký không bị đếm hay chặn).
 /// </para>
 /// </summary>
 [Route("api/v1/ads/admob/ssv")]
@@ -33,6 +33,6 @@ public sealed class AdMobVerificationController(AdRewardService rewards) : ApiCo
     public async Task<ActionResult<ApiResponse<AdRewardResultDto>>> Verify(CancellationToken ct)
     {
         var query = Request.Query.ToDictionary(p => p.Key, p => p.Value.ToString(), StringComparer.Ordinal);
-        return OkEnvelope(await rewards.HandleAdMobAsync(Request.QueryString.Value, query, ct));
+        return OkEnvelope(await rewards.HandleAdMobAsync(Request.QueryString.Value, query, ClientIp, ct));
     }
 }

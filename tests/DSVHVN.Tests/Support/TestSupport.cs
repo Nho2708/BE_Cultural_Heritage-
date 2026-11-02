@@ -6,6 +6,7 @@ using DSVHVN.Application.Common;
 using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Recommendations;
+using DSVHVN.Application.StudentAuth;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Billing;
@@ -53,11 +54,14 @@ public sealed class CapturingEmailSender : IEmailSender
     /// <summary>Có giá trị thì mọi lần gửi ném ngoại lệ này và không giữ thư.</summary>
     public Exception? FailWith { get; set; }
 
-    public Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+    /// <summary>Có giá trị thì mỗi lần gửi chờ tới khi nhiệm vụ này hoàn tất (giả SMTP chậm).</summary>
+    public Task? Gate { get; set; }
+
+    public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
-        if (FailWith is { } error) return Task.FromException(error);
+        if (Gate is { } gate) await gate.WaitAsync(cancellationToken);
+        if (FailWith is { } error) throw error;
         Sent.Enqueue(message);
-        return Task.CompletedTask;
     }
 
     public int CountTo(string email) => Sent.Count(m => string.Equals(m.To, email, StringComparison.OrdinalIgnoreCase));
@@ -72,6 +76,14 @@ public sealed class CapturingEmailSender : IEmailSender
         var match = Regex.Match(mail.TextBody, @"token=([A-Za-z0-9_\-%]+)");
         return match.Success ? Uri.UnescapeDataString(match.Groups[1].Value) : null;
     }
+}
+
+/// <summary>Giữ các thư báo giáo viên (học sinh quên mật khẩu) đã xếp hàng đợi, thay cho tác vụ nền gửi thật.</summary>
+public sealed class CapturingResetNoticeQueue : IStudentResetNoticeQueue
+{
+    public ConcurrentQueue<StudentResetNotice> Items { get; } = new();
+
+    public void Enqueue(StudentResetNotice notice) => Items.Enqueue(notice);
 }
 
 public sealed class TestHostEnvironment : IHostEnvironment
@@ -112,6 +124,9 @@ public sealed class ServiceHarness : IDisposable
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<IAuthThrottle, InMemoryAuthThrottle>();
         services.AddSingleton<ILessonCodeThrottle, InMemoryLessonCodeThrottle>();
+        services.Configure<RateLimitOptions>(_ => { });
+        services.AddSingleton<IRateCounter, InMemoryRateCounter>();
+        services.AddSingleton<IStudentResetNoticeQueue>(ResetNotices);
         services.AddSingleton<ILessonAiClient>(Ai);
         services.Configure<AiOptions>(_ => { });
         services.AddSingleton<IEmailSender>(Mail);
@@ -138,6 +153,9 @@ public sealed class ServiceHarness : IDisposable
 
     public MutableTimeProvider Clock { get; } = new();
     public CapturingEmailSender Mail { get; } = new();
+
+    /// <summary>Hàng đợi thư báo giáo viên (quên mật khẩu của học sinh) của kiểm thử: giữ lại để kiểm, không gửi.</summary>
+    public CapturingResetNoticeQueue ResetNotices { get; } = new();
 
     /// <summary>Nguồn mã bài học của kiểm thử: trả lần lượt các mã được xếp sẵn, hết thì sinh ngẫu nhiên.</summary>
     public ScriptedCodeGenerator Codes { get; } = new();

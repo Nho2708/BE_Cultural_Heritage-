@@ -5,6 +5,7 @@ using DSVHVN.Domain.Guests;
 using DSVHVN.Domain.Rules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DSVHVN.Application.Guests;
 
@@ -19,7 +20,8 @@ namespace DSVHVN.Application.Guests;
 /// <item>Lịch sử chỉ trả cho yêu cầu mang đúng mã của thiết bị; không có chức năng liệt kê hay tìm mã.</item>
 /// </list>
 /// </summary>
-public sealed class GuestService(IAppDbContext db, DiscoveryService discovery, TimeProvider clock, ILogger<GuestService> logger)
+public sealed class GuestService(
+    IAppDbContext db, DiscoveryService discovery, TimeProvider clock, ILogger<GuestService> logger, IRateCounter rates, IOptions<RateLimitOptions> limits)
 {
     private DateTime Now()
     {
@@ -147,12 +149,16 @@ public sealed class GuestService(IAppDbContext db, DiscoveryService discovery, T
     /// <summary>
     /// Ghi một lượt theo yêu cầu của khách. Tìm kiếm cần từ khóa 2-100 ký tự; các loại khác cần đường dẫn của di sản đã xuất bản (không có thì 404).
     /// Trả false khi lượt lặp trong 10 phút (không ghi thêm); vẫn cập nhật lần thấy cuối và ngôn ngữ của thiết bị.
+    /// Mỗi thiết bị ghi tối đa 120 sự kiện mỗi phút (<c>RateLimiting:GuestHistoryEventsPerMinute</c>, tính cả lượt lặp và lượt ghi tự động khi xem); vượt thì 429 kèm <c>Retry-After</c>.
     /// </summary>
     public async Task<bool> RecordAsync(
         string key, ClientPlatform? platform, LanguageCode language, GuestActivityType type, string? slug, string? query, CancellationToken ct)
     {
         if (!Enum.IsDefined(type))
             throw AppException.Validation("type", Messages.Invalid("Loại lượt", "chỉ nhận SEARCH, VIEW, READ_SUMMARY, LISTEN hoặc VIEW_3D"));
+
+        // Giới hạn theo mã thiết bị, đếm trước khi chạm CSDL.
+        rates.EnforcePerMinute("guest-history:" + key, limits.Value.GuestHistoryEventsPerMinute);
 
         long? heritageId = null;
         string? normalizedQuery = null;
@@ -202,7 +208,7 @@ public sealed class GuestService(IAppDbContext db, DiscoveryService discovery, T
     }
 
     /// <summary>
-    /// Ghi một lượt khi khách đang dùng chức năng khác (xem chi tiết, đọc tóm tắt, xem 3D, tìm kiếm). Ghi lịch sử không bao giờ làm hỏng việc chính: lỗi ghi chỉ ghi log
+    /// Ghi một lượt khi khách đang dùng chức năng khác (xem chi tiết, đọc tóm tắt, xem 3D, tìm kiếm). Ghi lịch sử không bao giờ làm hỏng việc chính: vượt giới hạn tần suất của thiết bị thì lượt ghi bị bỏ lặng lẽ, lỗi ghi khác chỉ ghi log
     /// (không kèm mã thiết bị) và bỏ qua; hủy yêu cầu vẫn được báo lên.
     /// </summary>
     public async Task TryRecordAsync(
@@ -215,6 +221,10 @@ public sealed class GuestService(IAppDbContext db, DiscoveryService discovery, T
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
+        }
+        catch (AppException ex) when (ex.StatusCode == 429)
+        {
+            // Thiết bị đã ghi quá 120 sự kiện trong phút này: bỏ lượt ghi tự động, việc chính của yêu cầu vẫn thành công.
         }
         catch (Exception ex)
         {

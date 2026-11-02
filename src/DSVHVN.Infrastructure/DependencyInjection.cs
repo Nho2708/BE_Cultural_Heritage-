@@ -7,6 +7,7 @@ using DSVHVN.Application.Lessons;
 using DSVHVN.Application.Questions;
 using DSVHVN.Application.Recommendations;
 using DSVHVN.Application.SchoolInquiries;
+using DSVHVN.Application.StudentAuth;
 using DSVHVN.Application.Speech;
 using DSVHVN.Application.Students;
 using DSVHVN.Application.Translations;
@@ -54,6 +55,12 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<IAuthThrottle, InMemoryAuthThrottle>();
         services.AddSingleton<ILessonCodeThrottle, InMemoryLessonCodeThrottle>();
+        services.AddOptions<RateLimitOptions>().Bind(configuration.GetSection(RateLimitOptions.Section));
+        services.AddSingleton<IRateCounter, InMemoryRateCounter>();
+        // Thư báo giáo viên khi học sinh quên mật khẩu gửi ở nền để phản hồi không phụ thuộc mã có thật hay không.
+        services.AddSingleton<StudentResetNoticeWorker>();
+        services.AddSingleton<IStudentResetNoticeQueue>(sp => sp.GetRequiredService<StudentResetNoticeWorker>());
+        services.AddHostedService(sp => sp.GetRequiredService<StudentResetNoticeWorker>());
         services.AddEmail(configuration);
         services.AddLessonAi(configuration);
         services.AddFileStorage(configuration);

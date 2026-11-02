@@ -6,7 +6,6 @@ using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Identity;
 using DSVHVN.Domain.Rules;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 namespace DSVHVN.Application.StudentAuth;
 
@@ -22,8 +21,8 @@ public sealed class StudentAuthService(
     IAuthThrottle throttle,
     IAuditLogger audit,
     TimeProvider clock,
-    IAccountMailer mailer,
-    ILogger<StudentAuthService> logger)
+    IRateCounter rates,
+    IStudentResetNoticeQueue queue)
 {
     /// <summary>
     /// Sai thông tin luôn trả cùng một thông điệp (không cho biết sai ô nào). Sai 5 lần liên tiếp trong 15 phút thì tạm khóa đăng nhập
@@ -76,52 +75,41 @@ public sealed class StudentAuthService(
     }
 
     /// <summary>
-    /// Học sinh xin đặt lại mật khẩu:
-    /// Nếu mã học sinh không tồn tại trong hệ thống -> 404 (báo đỏ dưới ô nhập).
-    /// Nếu mã học sinh tồn tại -> gửi email thông báo cho giáo viên chủ nhiệm lớp của học sinh.
+    /// Học sinh xin đặt lại mật khẩu. Mã đúng định dạng thì luôn trả cùng một kết quả trung tính (200), mã có thật hay không, để người ngoài không dò được mã học sinh nào có trong hệ thống
+    /// (không còn 404 và không còn họ tên học sinh hay giáo viên). Mã có thật thì xếp thư báo giáo viên chủ nhiệm vào hàng đợi gửi nền; mã không có thì không gửi gì.
+    /// Việc gửi thư không nằm trong yêu cầu nên mã có và mã không có tốn thời gian như nhau (cùng một truy vấn, một lần xếp hàng đợi tức thì).
+    /// Giới hạn: tối đa 10 yêu cầu mỗi 15 phút cho mỗi địa chỉ IP và 3 yêu cầu mỗi giờ cho mỗi mã học sinh đã chuẩn hóa (đếm cả mã không có thật);
+    /// vượt thì 429 kèm số phút phải chờ và <c>Retry-After</c>. Yêu cầu bị từ chối không được ghi nhận vào bộ đếm của mã.
     /// </summary>
-    public async Task<StudentForgotPasswordResultDto> ForgotPasswordAsync(StudentForgotPasswordRequest request, CancellationToken ct)
+    public async Task<StudentForgotPasswordResultDto> ForgotPasswordAsync(StudentForgotPasswordRequest request, string? ipAddress, CancellationToken ct)
     {
         await validator.EnsureValidAsync(request, ct);
         var code = StudentCredentials.NormalizeStudentCode(request.StudentCode);
+
+        // Kiểm IP trước để một IP đã bị chặn không làm cạn lượt của mã (kẻ lạ không chặn nổi học sinh thật xin đặt lại).
+        if (ipAddress is not null
+            && rates.TryHit("student-forgot:ip:" + ipAddress, AccountRules.MaxStudentForgotPasswordRequestsPerIp, AccountRules.StudentForgotPasswordIpWindow) is { } ipWait)
+            throw AppException.TooManyRequests(Messages.StudentForgotPasswordThrottled(ipWait), ipWait);
+        if (rates.TryHit("student-forgot:code:" + code, AccountRules.MaxStudentForgotPasswordRequestsPerHour, AccountRules.StudentForgotPasswordCodeWindow) is { } codeWait)
+            throw AppException.TooManyRequests(Messages.StudentForgotPasswordThrottled(codeWait), codeWait);
 
         var student = await db.Students
             .Include(s => s.User)
             .Include(s => s.Class).ThenInclude(c => c!.Teacher)
             .SingleOrDefaultAsync(s => s.StudentCode == code && s.DeletedAt == null && s.User!.DeletedAt == null, ct);
 
-        if (student is null)
+        var teacher = student?.Class?.Teacher;
+        if (student is not null && !string.IsNullOrWhiteSpace(teacher?.Email))
         {
-            throw new AppException(404, Messages.StudentAccountNotFound, new Dictionary<string, string>
-            {
-                ["studentCode"] = Messages.StudentAccountNotFound.Text
-            });
+            queue.Enqueue(new StudentResetNotice(
+                teacher!.Email!,
+                teacher.FullName ?? "Thầy/Cô",
+                student.StudentCode ?? code,
+                student.FullName ?? student.User?.FullName ?? "Học sinh",
+                student.Class?.Name ?? "Lớp"));
         }
 
-        var teacher = student.Class?.Teacher;
-        var teacherName = teacher?.FullName ?? "chủ nhiệm";
-        var studentName = student.FullName ?? student.User?.FullName ?? "Học sinh";
-        var className = student.Class?.Name ?? "Lớp";
-
-        if (teacher?.Email is not null && !string.IsNullOrWhiteSpace(teacher.Email))
-        {
-            try
-            {
-                await mailer.SendStudentPasswordResetRequestToTeacherAsync(
-                    teacher.Email,
-                    teacher.FullName ?? "Thầy/Cô",
-                    student.StudentCode ?? code,
-                    studentName,
-                    className,
-                    ct);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogError(ex, "Gửi email thông báo quên mật khẩu cho giáo viên {TeacherId} thất bại", teacher.Id);
-            }
-        }
-
-        return new StudentForgotPasswordResultDto(studentName, teacherName);
+        return StudentForgotPasswordResultDto.Neutral;
     }
 
     /// <summary>Thông tin của em và lớp, kể cả khi đang bị buộc đổi mật khẩu (giao diện cần tên để chào ở màn hình Đổi mật khẩu).</summary>

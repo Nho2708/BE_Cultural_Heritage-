@@ -48,12 +48,15 @@ public sealed class AdminTranslationsController(HeritageTranslationService trans
     /// Nút "Dịch và tóm tắt bằng AI": tóm tắt tiếng Việt rồi dịch nội dung và tóm tắt sang en, ko, zh-Hans, ja. Bản tiếng Việt (tóm tắt) và tiếng Anh vào chờ duyệt; bản Hàn, Trung, Nhật hiện ngay
     /// kèm nhãn "bản dịch máy". Dịch lại thay bản cũ. Không tính lượt AI của trường; ghi <c>ai_generations</c>. Mất tới vài phút khi nội dung dài: Dịch vụ AI chờ tối đa 90 giây mỗi lần, thử lại 2 lần.
     /// 422 khi di sản chưa có nội dung tiếng Việt hoặc đang bị ẩn; 409 khi di sản đang được dịch; 503 khi Dịch vụ AI lỗi (không lưu gì, bản cũ giữ nguyên).
+    /// Mỗi người gọi tối đa 5 lần mỗi phút (kể cả khi chạy tập lệnh dịch hàng loạt); vượt thì 429 kèm <c>Retry-After</c>, tập lệnh cần chờ hết thời gian đó rồi gọi tiếp.
     /// </summary>
     [HttpPost("heritages/{heritageId:long}/translations/generate")]
+    [RateLimit(RateLimitKind.AdminTranslationAi)]
     [ProducesResponseType<ApiResponse<TranslationOverviewDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<ApiResponse<TranslationOverviewDto>>> Generate(long heritageId, CancellationToken ct)
         => OkEnvelope(await translations.GenerateAsync(CurrentActor, heritageId, HttpContext.TraceIdentifier, ct), TranslationMessages.Generated.Text);

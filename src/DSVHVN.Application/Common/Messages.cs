@@ -131,9 +131,18 @@ public static class Messages
     public static readonly AppMessage StudentAccountNotFound = new(MessageCodes.NotFound,
         "Không tìm thấy tài khoản học sinh. Hãy kiểm tra lại mã học sinh rồi thử lại.");
 
-    /// <summary>Đã gửi thông báo xin đặt lại mật khẩu học sinh tới giáo viên chủ nhiệm.</summary>
+    /// <summary>
+    /// Trả lời chung cho mọi yêu cầu quên mật khẩu của học sinh có mã đúng định dạng, mã có thật hay không: cùng một câu để người ngoài không dò được mã học sinh nào có trong hệ thống.
+    /// </summary>
     public static readonly AppMessage StudentPasswordResetRequested = new(MessageCodes.Success,
-        "Đã báo thầy cô, em chờ thầy cô đặt lại mật khẩu nhé.");
+        "Nếu mã học sinh đúng, thầy cô chủ nhiệm của em sẽ nhận được thông báo để đặt lại mật khẩu.");
+
+    /// <summary>429: học sinh (hoặc cùng một địa chỉ IP) xin đặt lại mật khẩu quá nhiều lần; kèm số phút phải chờ.</summary>
+    public static AppMessage StudentForgotPasswordThrottled(TimeSpan remaining)
+    {
+        var minutes = Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
+        return new AppMessage(MessageCodes.TooManyRequests, $"Em đã xin đặt lại mật khẩu quá nhiều lần. Em hãy thử lại sau {minutes} phút.");
+    }
 
     /// <summary>Liên kết đặt mật khẩu hết hạn, đã dùng hoặc đã bị thay bằng liên kết mới.</summary>
     public static readonly AppMessage PasswordLinkInvalid =

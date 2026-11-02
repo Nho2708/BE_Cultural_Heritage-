@@ -56,16 +56,41 @@ public sealed record StudentProfileDto(
 /// <summary>Kết quả đăng nhập và đổi mật khẩu của học sinh: access token hạn 8 giờ kèm thông tin học sinh và cấp học.</summary>
 public sealed record StudentSessionDto(string TokenType, string AccessToken, DateTime ExpiresAt, StudentProfileDto Student);
 
-/// <summary>Yêu cầu quên mật khẩu học sinh: nhập mã học sinh để hệ thống kiểm tra và báo cho giáo viên chủ nhiệm.</summary>
+/// <summary>Yêu cầu quên mật khẩu học sinh: nhập mã học sinh, hệ thống báo cho giáo viên chủ nhiệm nếu mã có thật (người gửi không biết mã có thật hay không).</summary>
 public sealed record StudentForgotPasswordRequest(string? StudentCode);
 
-public sealed record StudentForgotPasswordResultDto(string StudentName, string TeacherName);
+/// <summary>
+/// Kết quả quên mật khẩu của học sinh. Hai trường được giữ nguyên để app và web đã cài vẫn đọc được, nhưng luôn mang giá trị trung tính giống nhau cho mọi mã
+/// (không còn họ tên thật của học sinh hay giáo viên) để không lộ mã học sinh nào có trong hệ thống.
+/// </summary>
+public sealed record StudentForgotPasswordResultDto(string StudentName, string TeacherName)
+{
+    /// <summary>Tên học sinh trung tính: "Em" (đứng một mình hoặc trong câu "Em đã báo..." đều đọc tự nhiên).</summary>
+    public const string NeutralStudentName = "Em";
+
+    /// <summary>Tên giáo viên trung tính: "thầy cô chủ nhiệm" (ghép vào câu "Đã báo thầy cô chủ nhiệm" đều tự nhiên).</summary>
+    public const string NeutralTeacherName = "thầy cô chủ nhiệm";
+
+    public static StudentForgotPasswordResultDto Neutral { get; } = new(NeutralStudentName, NeutralTeacherName);
+}
+
+/// <summary>Thông báo gửi giáo viên chủ nhiệm khi học sinh xin đặt lại mật khẩu; xếp hàng để gửi nền, không làm chậm phản hồi của học sinh.</summary>
+public sealed record StudentResetNotice(string TeacherEmail, string TeacherName, string StudentCode, string StudentName, string ClassName);
+
+/// <summary>Hàng đợi gửi thư báo giáo viên. Xếp vào là trả ngay; việc gửi chạy nền và lỗi gửi chỉ ghi log.</summary>
+public interface IStudentResetNoticeQueue
+{
+    void Enqueue(StudentResetNotice notice);
+}
 
 public sealed class StudentForgotPasswordRequestValidator : AbstractValidator<StudentForgotPasswordRequest>
 {
     public StudentForgotPasswordRequestValidator()
     {
-        RuleFor(x => x.StudentCode).RequiredField("mã học sinh");
+        RuleFor(x => x.StudentCode).Cascade(CascadeMode.Stop)
+            .RequiredField("mã học sinh")
+            .Must(code => StudentCredentials.NormalizeStudentCode(code).Length <= AccountRules.StudentCodeMaxLength)
+            .WithAppMessage(Messages.Invalid("Mã học sinh", $"dài quá {AccountRules.StudentCodeMaxLength} ký tự"));
     }
 }
 
