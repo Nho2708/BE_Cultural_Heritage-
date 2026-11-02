@@ -36,6 +36,7 @@ dotnet user-secrets set "Seed:AdminPassword" "<mật khẩu của bạn>" --proj
 Cách an toàn:
 
 - Email luôn ở chế độ Log (`Email__Mode=Log`): không gửi thư thật dù User Secrets đang cấu hình SMTP. Liên kết đặt mật khẩu được đọc từ log của backend.
+- Backend tạm nới giới hạn AI theo phút của quản trị và giáo viên (`RateLimiting__AdminTranslationAiRequestsPerMinute`, `RateLimiting__TeacherAiRequestsPerMinute`) vì script dịch và soạn bài bằng AI giả lập liên tục; backend chạy hằng ngày và máy chủ vẫn giữ giới hạn trong `appsettings.json`.
 - Nơi lưu tệp là `Local` (tệp mô hình 3D nằm trong `src/DSVHVN.Api/storage/`, đã được bỏ qua khỏi git), dịch vụ AI chạy bản giả lập.
 - Cơ sở dữ liệu đã có trường demo thì script báo và thoát, không nạp trùng. Muốn nạp lại thì xoá cơ sở dữ liệu rồi chạy lại.
 - Tiến trình backend do script bật được tắt theo PID khi xong hoặc khi lỗi.
