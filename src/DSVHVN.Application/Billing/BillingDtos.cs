@@ -122,7 +122,14 @@ public sealed record PurchaseQuoteDto(
     string Confirmation,
     string? TeacherWarning);
 
-public sealed record CheckoutRequest(int? PlanId);
+/// <summary>Chọn gói và phương thức thanh toán. <c>ProviderCode</c> để trống thì dùng VNPay như trước.</summary>
+public sealed record CheckoutRequest(int? PlanId, string? ProviderCode = null);
+
+/// <summary>Chọn phương thức khi thanh toán (lại) một hóa đơn. <c>ProviderCode</c> để trống thì dùng VNPay.</summary>
+public sealed record PayInvoiceRequest(string? ProviderCode = null);
+
+/// <summary>Một phương thức thanh toán đang dùng được, cho hộp chọn ở màn hình Chọn gói và thanh toán.</summary>
+public sealed record PaymentProviderDto(string Code, string Name);
 
 public sealed class CheckoutRequestValidator : AbstractValidator<CheckoutRequest>
 {
@@ -130,6 +137,7 @@ public sealed class CheckoutRequestValidator : AbstractValidator<CheckoutRequest
     {
         var required = Messages.Required("gói cần mua");
         RuleFor(x => x.PlanId).NotNull().WithErrorCode(required.Code).WithMessage(required.Text);
+        RuleFor(x => x.ProviderCode).MaximumLength(30).WithErrorCode(MessageCodes.Invalid).WithMessage("Phương thức thanh toán không hợp lệ.");
     }
 }
 
@@ -169,7 +177,8 @@ public sealed record PaymentStartDto(
     long PaymentId,
     string PaymentUrl,
     DateTime ExpiresAt,
-    PurchaseKind? Kind);
+    PurchaseKind? Kind,
+    string? ProviderCode = null);
 
 /// <summary>Kết quả của một lần thanh toán cho trang kết quả: chỉ đọc trạng thái do IPN ghi nhận.</summary>
 public enum PaymentOutcome

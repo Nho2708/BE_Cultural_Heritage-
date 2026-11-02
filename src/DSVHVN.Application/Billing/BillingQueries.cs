@@ -35,7 +35,7 @@ public static class BillingMapper
 /// Các thao tác đọc của luồng Gói và thanh toán: tổng quan gói của trường, danh sách gói đang bán, xác nhận mua, hóa đơn và giao dịch,
 /// trang kết quả thanh toán. Quản trị trường chỉ thấy dữ liệu của trường mình (id của trường khác trả 404); quản trị hệ thống thấy toàn bộ.
 /// </summary>
-public sealed class BillingQueries(IAppDbContext db, PlanGuard planGuard, TimeProvider clock)
+public sealed class BillingQueries(IAppDbContext db, PlanGuard planGuard, PaymentGatewayRegistry gateways, TimeProvider clock)
 {
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
@@ -93,8 +93,22 @@ public sealed class BillingQueries(IAppDbContext db, PlanGuard planGuard, TimePr
         }).ToList();
     }
 
+    /// <summary>
+    /// Phương thức thanh toán dùng được cho hộp chọn: cổng đã có khóa cấu hình <b>và</b> đang bật ở <c>payment_providers</c>, VNPay đứng đầu rồi theo mã.
+    /// </summary>
+    public async Task<IReadOnlyList<PaymentProviderDto>> ListPaymentProvidersAsync(CancellationToken ct)
+    {
+        var active = (await db.PaymentProviders.AsNoTracking().Where(p => p.IsActive).Select(p => p.Code).ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return gateways.All
+            .Where(g => g.IsConfigured && g.Code is { } code && active.Contains(code))
+            .OrderBy(g => g.Code == BillingRules.VnPayProviderCode ? 0 : 1).ThenBy(g => g.Code, StringComparer.Ordinal)
+            .Select(g => new PaymentProviderDto(g.Code, g.DisplayName))
+            .ToList();
+    }
+
     /// <summary>Khối xác nhận sau khi chọn gói; gói không mua được thì 422 kèm lý do.</summary>
-    public async Task<PurchaseQuoteDto> GetQuoteAsync(Actor actor, int planId, CancellationToken ct)
+    public async Task<PurchaseQuoteDto> GetQuoteAsync(Actor actor, int planId, CancellationToken ct, string gatewayName = "VNPay")
     {
         var orgId = actor.RequireOrganizationId();
         var plan = await db.Plans.AsNoTracking().SingleOrDefaultAsync(p => p.Id == planId, ct)
@@ -111,7 +125,7 @@ public sealed class BillingQueries(IAppDbContext db, PlanGuard planGuard, TimePr
               "giáo viên mới cho tới khi số giáo viên giảm xuống dưới hạn mức."
             : null;
         return new PurchaseQuoteDto(plan.Id, plan.Name, kind, plan.Price ?? 0m, start, end,
-            BillingMessages.PaymentConfirm(plan.Price ?? 0m, plan.Name ?? string.Empty, kind, start, snapshot.Effective?.Plan).Text, warning);
+            BillingMessages.PaymentConfirm(plan.Price ?? 0m, plan.Name ?? string.Empty, kind, start, snapshot.Effective?.Plan, gatewayName).Text, warning);
     }
 
     /// <summary>
@@ -167,7 +181,7 @@ public sealed class BillingQueries(IAppDbContext db, PlanGuard planGuard, TimePr
                 invoiceDto, BillingMapper.ToDto(payment), BillingMapper.ToDetail(subscription, planGuard.Today()), false);
 
         if (payment.Status == PaymentStatus.PENDING)
-            return new PaymentResultDto(PaymentOutcome.PROCESSING, BillingMessages.PaymentWaiting.Text, invoiceDto, BillingMapper.ToDto(payment), null, false);
+            return new PaymentResultDto(PaymentOutcome.PROCESSING, BillingMessages.PaymentWaitingFrom(payment.Provider?.Name ?? "cổng thanh toán").Text, invoiceDto, BillingMapper.ToDto(payment), null, false);
 
         var canPayAgain = invoiceDto.CanPay;
         var message = canPayAgain && invoice.DueAt is { } due

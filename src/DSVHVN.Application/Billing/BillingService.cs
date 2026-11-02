@@ -11,15 +11,15 @@ using Microsoft.EntityFrameworkCore;
 namespace DSVHVN.Application.Billing;
 
 /// <summary>
-/// Các thao tác ghi của quản trị trường về gói của trường: mua, gia hạn, nâng cấp qua VNPay (tạo đăng ký chờ thanh toán, hóa đơn chưa trả và giao dịch chờ
+/// Các thao tác ghi của quản trị trường về gói của trường: mua, gia hạn, nâng cấp qua cổng đã chọn (VNPay, MoMo, PayOS; tạo đăng ký chờ thanh toán, hóa đơn chưa trả và giao dịch chờ
 /// trong một giao dịch CSDL rồi dựng địa chỉ VNPay), thanh toán lại hóa đơn chưa trả, hủy gói hoặc hủy yêu cầu mua, kích hoạt gói Miễn phí.
 /// Mọi thao tác khóa dòng trường trước khi đọc trạng thái gói để hai yêu cầu cùng lúc của một trường chạy tuần tự. Gói chỉ ACTIVE khi IPN hợp lệ
-/// về tới <see cref="VnPayCallbackService"/>; các thao tác ở đây không bao giờ kích hoạt gói trả phí.
+/// về tới <see cref="PaymentSettlementService"/> (qua <see cref="VnPayCallbackService"/>, <see cref="MoMoCallbackService"/> hoặc <see cref="PayOsCallbackService"/>); các thao tác ở đây không bao giờ kích hoạt gói trả phí.
 /// </summary>
 public sealed class BillingService(
     IAppDbContext db,
     RequestValidator validator,
-    IVnPayGateway gateway,
+    PaymentGatewayRegistry gateways,
     PlanGuard planGuard,
     BillingQueries queries,
     IAuditLogger audit,
@@ -33,11 +33,11 @@ public sealed class BillingService(
     {
         await validator.EnsureValidAsync(request, ct);
         var orgId = actor.RequireOrganizationId();
-        EnsureGatewayReady();
-        return await CheckoutAsync(actor, orgId, request.PlanId!.Value, ct);
+        var gateway = ResolveGateway(request.ProviderCode);
+        return await CheckoutAsync(actor, orgId, request.PlanId!.Value, gateway, ct);
     }
 
-    private async Task<PaymentStartDto> CheckoutAsync(Actor actor, long orgId, int planId, CancellationToken ct)
+    private async Task<PaymentStartDto> CheckoutAsync(Actor actor, long orgId, int planId, IPaymentGateway gateway, CancellationToken ct)
     {
         Invoice invoice;
         Payment payment;
@@ -53,7 +53,7 @@ public sealed class BillingService(
             var (assessedKind, block) = PurchaseRules.Assess(snapshot, plan);
             if (block is not null) throw AppException.BusinessRule(block);
             kind = assessedKind;
-            var provider = await ActiveProviderAsync(ct);
+            var provider = await ActiveProviderAsync(gateway, ct);
 
             var subscription = new Subscription { OrganizationId = orgId, PlanId = plan.Id, Status = SubscriptionStatus.PENDING };
             invoice = new Invoice
@@ -82,7 +82,7 @@ public sealed class BillingService(
             await tx.CommitAsync(ct);
         }
 
-        return await StartDtoAsync(actor, invoice, payment, kind, ct);
+        return await StartDtoAsync(actor, invoice, payment, kind, gateway, ct);
     }
 
     /// <summary>
@@ -90,10 +90,14 @@ public sealed class BillingService(
     /// (nếu còn) được chuyển thất bại trước; nếu cổng VNPay vẫn ghi nhận kết quả thành công cho giao dịch cũ thì IPN đó vẫn được xử lý.
     /// Hóa đơn quá hạn, đã trả hoặc đã hủy thì 422.
     /// </summary>
-    public async Task<PaymentStartDto> PayInvoiceAsync(Actor actor, long invoiceId, CancellationToken ct)
+    public Task<PaymentStartDto> PayInvoiceAsync(Actor actor, long invoiceId, CancellationToken ct) =>
+        PayInvoiceAsync(actor, invoiceId, providerCode: null, ct);
+
+    /// <summary>Như trên, cho phép chọn lại phương thức (cổng) cho lần thanh toán mới; để trống thì dùng VNPay.</summary>
+    public async Task<PaymentStartDto> PayInvoiceAsync(Actor actor, long invoiceId, string? providerCode, CancellationToken ct)
     {
         var orgId = actor.RequireOrganizationId();
-        EnsureGatewayReady();
+        var gateway = ResolveGateway(providerCode);
 
         Invoice invoice;
         Payment payment;
@@ -111,7 +115,7 @@ public sealed class BillingService(
             if (invoice.Subscription?.Status != SubscriptionStatus.PENDING)
                 throw AppException.BusinessRule(BillingMessages.InvoiceNotPayable("Yêu cầu mua gói của hóa đơn này không còn chờ thanh toán."));
 
-            var provider = await ActiveProviderAsync(ct);
+            var provider = await ActiveProviderAsync(gateway, ct);
             var stale = await db.Payments.AsNoTracking().Where(p => p.InvoiceId == invoice.Id && p.Status == PaymentStatus.PENDING)
                 .Select(p => p.Id).ToListAsync(ct);
             foreach (var id in stale)
@@ -128,7 +132,7 @@ public sealed class BillingService(
             await tx.CommitAsync(ct);
         }
 
-        return await StartDtoAsync(actor, invoice, payment, kind: null, ct);
+        return await StartDtoAsync(actor, invoice, payment, kind: null, gateway, ct);
     }
 
     /// <summary>
@@ -233,28 +237,45 @@ public sealed class BillingService(
 
     // ---- Dùng chung ----
 
-    private async Task<PaymentStartDto> StartDtoAsync(Actor actor, Invoice invoice, Payment payment, PurchaseKind? kind, CancellationToken ct)
+    private async Task<PaymentStartDto> StartDtoAsync(Actor actor, Invoice invoice, Payment payment, PurchaseKind? kind, IPaymentGateway gateway, CancellationToken ct)
     {
         var created = payment.CreatedAt!.Value;
         var expires = created + BillingRules.PaymentWindow;
         var orderInfo = SearchText.Fold($"Thanh toan hoa don {invoice.InvoiceNumber}");
-        var url = gateway.CreatePaymentUrl(new VnPayPaymentRequest(
-            payment.Id, payment.Amount ?? 0m, orderInfo, created, expires, IPv4Of(actor.IpAddress)));
+        string url;
+        try
+        {
+            url = await gateway.CreatePaymentUrlAsync(new PaymentStartContext(
+                payment.Id, payment.Amount ?? 0m, invoice.InvoiceNumber ?? string.Empty, orderInfo, created, expires, IPv4Of(actor.IpAddress)), ct);
+        }
+        catch (PaymentGatewayException)
+        {
+            // Cổng không tạo được giao dịch: đóng giao dịch chờ vừa tạo; hóa đơn vẫn chưa trả nên thanh toán lại hoặc chọn cổng khác được.
+            await PaymentClaims.TryFailPendingAsync(db, payment.Id, ct);
+            throw new AppException(503, BillingMessages.GatewayUnavailableFor(gateway.DisplayName));
+        }
 
         var loaded = await db.Invoices.AsNoTracking().Include(i => i.Subscription!).ThenInclude(s => s.Plan)
             .SingleAsync(i => i.Id == invoice.Id, ct);
-        return new PaymentStartDto(BillingMapper.ToDto(loaded, Now()), payment.Id, url, expires, kind);
+        return new PaymentStartDto(BillingMapper.ToDto(loaded, Now()), payment.Id, url, expires, kind, gateway.Code);
     }
 
-    private void EnsureGatewayReady()
+    /// <summary>
+    /// Cổng theo mã người dùng chọn (để trống thì VNPay như trước khi có nhiều cổng). Mã lạ thì 422; cổng chưa có khóa cấu hình thì 503.
+    /// Việc cổng có đang bật trong <c>payment_providers</c> kiểm ở <see cref="ActiveProviderAsync"/>.
+    /// </summary>
+    private IPaymentGateway ResolveGateway(string? providerCode)
     {
-        if (!gateway.IsConfigured) throw new AppException(503, BillingMessages.GatewayUnavailable);
+        var code = string.IsNullOrWhiteSpace(providerCode) ? BillingRules.VnPayProviderCode : providerCode;
+        var gateway = gateways.Find(code) ?? throw AppException.BusinessRule(BillingMessages.ProviderNotSupported);
+        if (!gateway.IsConfigured) throw new AppException(503, BillingMessages.GatewayUnavailableFor(gateway.DisplayName));
+        return gateway;
     }
 
-    private async Task<PaymentProvider> ActiveProviderAsync(CancellationToken ct) =>
+    private async Task<PaymentProvider> ActiveProviderAsync(IPaymentGateway gateway, CancellationToken ct) =>
         await db.PaymentProviders.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Code == BillingRules.VnPayProviderCode && p.IsActive, ct)
-        ?? throw new AppException(503, BillingMessages.GatewayUnavailable);
+            .FirstOrDefaultAsync(p => p.Code == gateway.Code && p.IsActive, ct)
+        ?? throw new AppException(503, BillingMessages.GatewayUnavailableFor(gateway.DisplayName));
 
     /// <summary>
     /// Số hóa đơn kế tiếp của ngày: số lớn nhất đã có cộng một. Khóa đánh số giữ tới hết giao dịch nên hai trường mua cùng lúc không lấy trùng số;

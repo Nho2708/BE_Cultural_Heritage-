@@ -27,9 +27,10 @@ public static class BillingMessages
     // ---- Danh mục đã chốt ----
 
     /// <summary>Hộp xác nhận trước khi chuyển sang VNPay; <c>{hieu_luc}</c> theo loại mua.</summary>
-    public static AppMessage PaymentConfirm(decimal amount, string planName, PurchaseKind kind, DateOnly? startDate, Plan? currentPlan = null) => new(
+    public static AppMessage PaymentConfirm(decimal amount, string planName, PurchaseKind kind, DateOnly? startDate, Plan? currentPlan = null,
+        string gatewayName = "VNPay") => new(
         BillingMessageCodes.PaymentConfirm,
-        $"Trường sẽ thanh toán {BillingRules.FormatMoney(amount)} đồng cho gói {planName} qua VNPay. {EffectOf(kind, startDate, currentPlan)} Tiếp tục?");
+        $"Trường sẽ thanh toán {BillingRules.FormatMoney(amount)} đồng cho gói {planName} qua {gatewayName}. {EffectOf(kind, startDate, currentPlan)} Tiếp tục?");
 
     /// <summary>Phần <c>{hieu_luc}</c> của hộp xác nhận. Nâng cấp từ gói Miễn phí không có tiền để hoàn nên chỉ báo gói Miễn phí kết thúc.</summary>
     public static string EffectOf(PurchaseKind kind, DateOnly? startDate, Plan? currentPlan = null) => kind switch
@@ -61,6 +62,10 @@ public static class BillingMessages
     /// <summary>Trang kết quả: chưa nhận IPN.</summary>
     public static readonly AppMessage PaymentWaiting = new(
         BillingMessageCodes.PaymentWaiting, "Hệ thống đang chờ xác nhận từ VNPay. Trang sẽ tự cập nhật khi có kết quả.");
+
+    /// <summary>Trang kết quả: chưa nhận IPN, theo tên cổng của giao dịch.</summary>
+    public static AppMessage PaymentWaitingFrom(string gatewayName) => new(
+        BillingMessageCodes.PaymentWaiting, $"Hệ thống đang chờ xác nhận từ {gatewayName}. Trang sẽ tự cập nhật khi có kết quả.");
 
     /// <summary>Hộp xác nhận hủy gói trả phí đang hiệu lực.</summary>
     public static AppMessage CancelPlanConfirm(string planName) => new(
@@ -105,6 +110,14 @@ public static class BillingMessages
 
     public static readonly AppMessage GatewayUnavailable = new(BillingMessageCodes.PaymentGatewayUnavailable,
         "Không thể thanh toán lúc này. Cổng VNPay chưa sẵn sàng, bạn hãy thử lại sau hoặc liên hệ quản trị viên.");
+
+    /// <summary>Cổng cụ thể chưa sẵn sàng (chưa có khóa hoặc đã tắt trong <c>payment_providers</c>).</summary>
+    public static AppMessage GatewayUnavailableFor(string gatewayName) => new(BillingMessageCodes.PaymentGatewayUnavailable,
+        $"Không thể thanh toán lúc này. Cổng {gatewayName} chưa sẵn sàng, bạn hãy chọn phương thức khác, thử lại sau hoặc liên hệ quản trị viên.");
+
+    /// <summary>Mã phương thức thanh toán không có trong danh sách.</summary>
+    public static readonly AppMessage ProviderNotSupported = new(MessageCodes.Invalid,
+        "Phương thức thanh toán không hợp lệ. Hãy chọn một phương thức trong danh sách.");
 
     public static AppMessage PlanNotFound(string action) => Messages.NotFound(action, "gói dịch vụ");
 
