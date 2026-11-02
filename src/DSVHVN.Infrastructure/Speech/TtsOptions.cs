@@ -5,10 +5,13 @@ namespace DSVHVN.Infrastructure.Speech;
 /// <summary>Nguồn giọng đọc của máy chủ (<c>Tts:Provider</c>).</summary>
 public enum TtsProvider
 {
-    /// <summary>Mặc định: FPT.AI như trước. Chưa có khóa thì trả liên kết null.</summary>
+    /// <summary>FPT.AI (dịch vụ ngoài, không còn là mặc định). Chưa có khóa thì trả liên kết null.</summary>
     FptAi,
 
-    /// <summary>Giọng tự host: gọi Dịch vụ AI nội bộ (VieNeu-TTS), lưu MP3 vào kho tệp và nhớ đệm trong bảng <c>speech_clips</c>.</summary>
+    /// <summary>
+    /// Mặc định: giọng tự host, gọi Dịch vụ AI nội bộ (VieNeu-TTS), lưu MP3 vào kho tệp và nhớ đệm trong bảng <c>speech_clips</c>.
+    /// Máy không có Dịch vụ AI (máy dev, máy demo chưa cài) thì trả liên kết null để giao diện dùng giọng của thiết bị.
+    /// </summary>
     SelfHosted,
 
     /// <summary>Tắt giọng của máy chủ: luôn trả liên kết null, giao diện dùng giọng của thiết bị.</summary>
@@ -17,13 +20,13 @@ public enum TtsProvider
 
 /// <summary>
 /// Cấu hình giọng đọc (mục <c>Tts</c>). <see cref="Provider"/> chọn dịch vụ lúc tạo (không đọc ngay lúc đăng ký nên cấu hình ghi đè về sau vẫn có hiệu lực).
-/// Google Cloud đặt <c>SelfHosted</c>; máy demo giữ mặc định <c>FptAi</c>.
+/// Mặc định <c>SelfHosted</c> cho mọi máy (Google Cloud, máy demo, máy dev); không máy nào dùng FPT.AI trừ khi cấu hình <c>FptAi</c> rõ ràng.
 /// </summary>
 public sealed class TtsOptions
 {
     public const string Section = "Tts";
 
-    public TtsProvider Provider { get; set; } = TtsProvider.FptAi;
+    public TtsProvider Provider { get; set; } = TtsProvider.SelfHosted;
 
     /// <summary>Giọng của chế độ <c>SelfHosted</c>; mặc định "Mai Anh" của VieNeu-TTS.</summary>
     public string Voice { get; set; } = SpeechRules.DefaultVoice;

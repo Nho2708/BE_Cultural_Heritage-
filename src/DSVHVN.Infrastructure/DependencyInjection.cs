@@ -210,8 +210,9 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Giọng đọc: <c>Tts:Provider</c> chọn nguồn lúc tạo dịch vụ (không đọc ngay lúc đăng ký). <c>FptAi</c> (mặc định) là FPT.AI giọng Ban Mai (<c>FptAi</c>: ApiKey, Voice, Speed; không có ApiKey thì trả null
-    /// và không gọi ra ngoài); <c>SelfHosted</c> là giọng VieNeu-TTS của Dịch vụ AI nội bộ với bộ nhớ đệm bền và hàng đợi tạo trước (<c>Tts</c>: Voice, WaitSeconds...); <c>None</c> luôn trả null.
+    /// Giọng đọc: <c>Tts:Provider</c> chọn nguồn lúc tạo dịch vụ (không đọc ngay lúc đăng ký). <c>FptAi</c> là FPT.AI giọng Ban Mai, chỉ dùng khi cấu hình rõ (<c>FptAi</c>: ApiKey, Voice, Speed; không có ApiKey thì trả null
+    /// và không gọi ra ngoài); <c>SelfHosted</c> (mặc định) là giọng VieNeu-TTS của Dịch vụ AI nội bộ với bộ nhớ đệm bền và hàng đợi tạo trước (<c>Tts</c>: Voice, WaitSeconds...); <c>None</c> luôn trả null.
+    /// Máy không có Dịch vụ AI thì giọng tự host trả null (không lỗi) và giao diện dùng giọng của thiết bị.
     /// Yêu cầu sinh giọng gửi tới Dịch vụ AI dùng cùng mục <c>Ai</c> (địa chỉ và khóa nội bộ) với các việc AI khác.
     /// </summary>
     private static void AddSpeech(this IServiceCollection services, IConfiguration configuration)

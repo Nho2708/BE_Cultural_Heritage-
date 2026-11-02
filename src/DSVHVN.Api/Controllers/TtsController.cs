@@ -14,7 +14,7 @@ public sealed record TtsPrefetchRequest(string[]? Texts);
 public sealed record TtsPrefetchResponse(int Queued);
 
 /// <summary>
-/// Chuyển đổi văn bản thành giọng nói (Text-to-Speech). Nguồn giọng theo <c>Tts:Provider</c>: FPT.AI (mặc định), giọng tự host có bộ nhớ đệm hoặc tắt.
+/// Chuyển đổi văn bản thành giọng nói (Text-to-Speech). Nguồn giọng theo <c>Tts:Provider</c>: giọng tự host có bộ nhớ đệm (mặc định), FPT.AI hoặc tắt.
 /// Cần đăng nhập (mọi vai trò, theo chính sách mặc định của hệ thống); không có giọng của máy chủ thì trả liên kết null và client dùng giọng đọc có sẵn của thiết bị.
 /// </summary>
 [Route("api/v1/tts")]

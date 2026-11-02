@@ -9,13 +9,13 @@ Mục `Tts` của cấu hình (`appsettings.json`):
 
 | Khóa | Mặc định | Ý nghĩa |
 |---|---|---|
-| `Tts:Provider` | `FptAi` | `FptAi` như trước (chưa có khóa thì trả liên kết null) · `SelfHosted` giọng tự host có bộ nhớ đệm · `None` luôn trả null |
+| `Tts:Provider` | `SelfHosted` | `SelfHosted` giọng tự host có bộ nhớ đệm · `FptAi` dịch vụ ngoài, chỉ khi cấu hình rõ (chưa có khóa thì trả liên kết null) · `None` luôn trả null |
 | `Tts:Voice` | `vieneu-mai-anh` | Mã giọng gửi sang Dịch vụ AI và dùng làm tên thư mục trong kho tệp (chữ thường, số, gạch nối, tối đa 64 ký tự; sai thì dùng giọng mặc định) |
 | `Tts:WaitSeconds` | `30` | Yêu cầu nghe ngay chờ tối đa chừng này giây rồi trả null; lần sinh vẫn chạy tiếp và được nhớ đệm |
 | `Tts:AiTimeoutSeconds` | `120` | Thời gian chờ một lần gọi Dịch vụ AI |
 | `Tts:PrefetchRetrySeconds`, `Tts:PrefetchMaxAttempts` | `5`, `3` | Nghỉ và số lần thử một đoạn tạo trước bị lỗi (vd Dịch vụ AI đang nạp mô hình) |
 
-`SelfHosted` dùng chung `Ai:BaseUrl` và `Ai:InternalKey` với các việc AI khác (tiêu đề `X-Internal-Key`). Google Cloud đặt `SelfHosted` (`deploy/google-cloud/tao-cau-hinh-may-chu.ps1`); máy demo giữ mặc định.
+`SelfHosted` dùng chung `Ai:BaseUrl` và `Ai:InternalKey` với các việc AI khác (tiêu đề `X-Internal-Key`). `SelfHosted` là mặc định của mọi máy (Google Cloud, máy demo, máy dev); máy không có Dịch vụ AI (hoặc thiếu `Ai:InternalKey`) thì API trả liên kết `null` và giao diện dùng giọng thiết bị, không lỗi.
 Nguồn giọng chọn lúc dịch vụ được tạo lần đầu, không đọc ngay lúc đăng ký, nên cấu hình ghi đè về sau vẫn có hiệu lực.
 
 ## 2. API

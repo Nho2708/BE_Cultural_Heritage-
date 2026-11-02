@@ -59,7 +59,7 @@ nên bản trước thường vẫn chạy; script in lệnh khôi phục từ b
 
 ## Giọng đọc tự host
 
-Cấu hình máy chủ do `tao-cau-hinh-may-chu.ps1` sinh đặt `Tts:Provider = SelfHosted` (máy demo giữ mặc định `FptAi`): nút Nghe của cấp 1 xin `POST /api/v1/tts`,
+Cấu hình máy chủ do `tao-cau-hinh-may-chu.ps1` sinh đặt `Tts:Provider = SelfHosted` (cũng là mặc định của API; không máy nào dùng FPT.AI): nút Nghe của cấp 1 xin `POST /api/v1/tts`,
 API tra bảng `speech_clips` (băm SHA-256 của chữ đã gộp khoảng trắng cộng mã giọng); chưa có thì gọi `POST http://ai:8000/v1/tts` bằng khóa nội bộ, lưu MP3 vào
 `du-lieu/storage/giong-doc/<giọng>/<băm>.mp3` (phục vụ ở `/files/giong-doc/...`) và nhớ lại, nên mỗi câu chỉ sinh một lần. Mỗi lúc Dịch vụ AI chỉ nhận một yêu cầu; yêu cầu
 nghe ngay đi trước việc tạo trước (lúc thầy cô xuất bản bài hoặc bài chơi của lớp cấp 1, và lời gọi `/api/v1/tts/prefetch` của giao diện). Chờ quá 30 giây

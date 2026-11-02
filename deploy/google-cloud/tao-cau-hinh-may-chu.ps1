@@ -131,7 +131,7 @@ Dat 'Ai:Mode' 'Remote'
 Dat 'Ai:BaseUrl' 'http://ai:8000'
 Dat 'Ai:InternalKey' $biMat['KhoaNoiBoAi']
 
-# Giọng đọc tiếng Việt do chính Dịch vụ AI này sinh (VieNeu-TTS, giọng Mai Anh) và nhớ đệm trong CSDL + kho tệp; máy demo giữ mặc định FPT.AI.
+# Giọng đọc tiếng Việt do chính Dịch vụ AI này sinh (VieNeu-TTS, giọng Mai Anh) và nhớ đệm trong CSDL + kho tệp (cũng là mặc định của API, không máy nào dùng FPT.AI).
 Dat 'Tts:Provider' 'SelfHosted'
 Dat 'Tts:Voice' 'vieneu-mai-anh'
 
@@ -184,7 +184,9 @@ foreach ($dong in Get-Content -LiteralPath $TepKhoaAi -Encoding UTF8) {
     $bienAi[$ten] = $Matches[2].Trim().Trim('"').Trim("'")
 }
 $bienAi['AI_INTERNAL_KEY'] = $biMat['KhoaNoiBoAi']
-$nhaCungCap = if ($bienAi.Contains('AI_PROVIDER') -and $bienAi['AI_PROVIDER']) { $bienAi['AI_PROVIDER'].ToLowerInvariant() } else { 'anthropic' }
+$nhaCungCap = if ($bienAi.Contains('AI_PROVIDER') -and $bienAi['AI_PROVIDER']) { $bienAi['AI_PROVIDER'].ToLowerInvariant() } else { 'gemini' }
+# Mặc định Gemini; ghi rõ vào ai.env để Dịch vụ AI (mặc định của riêng nó là anthropic) dùng đúng nhà cung cấp mà script này giữ khóa.
+if (-not $bienAi.Contains('AI_PROVIDER') -or -not $bienAi['AI_PROVIDER']) { $bienAi['AI_PROVIDER'] = $nhaCungCap }
 # Chỉ đưa lên máy chủ khóa của nhà cung cấp đang dùng.
 $tienToBo = if ($nhaCungCap -eq 'gemini') { 'ANTHROPIC_' } else { 'GEMINI_' }
 foreach ($ten in @($bienAi.Keys | Where-Object { $_.StartsWith($tienToBo) })) { $bienAi.Remove($ten) }
