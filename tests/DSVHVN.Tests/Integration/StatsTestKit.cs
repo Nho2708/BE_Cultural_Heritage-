@@ -82,6 +82,15 @@ public sealed class StatsTestKit(ApiFactory factory)
         });
         var questions = new List<DSVHVN.Application.Questions.QuestionDetailDto>();
         foreach (var (from, type) in picks) questions.Add(await Quizzes.QuestionAsync(from, type));
+
+        // Bài kiểm tra chỉ nhận câu về di sản đã gắn với bài học: gắn thêm di sản của các câu chọn từ bộ dựng khác vào bài học của bài này.
+        var extraHeritageIds = picks.Select(p => p.From.Heritage.Id).Where(id => id != s.Heritage.Id).Distinct().ToList();
+        if (extraHeritageIds.Count > 0)
+            await Factory.WithDbAsync(async db =>
+            {
+                foreach (var id in extraHeritageIds) db.LessonHeritages.Add(new DSVHVN.Domain.Lessons.LessonHeritage { LessonId = s.LessonId, HeritageId = id });
+                return await db.SaveChangesAsync();
+            });
         await Quizzes.AddQuestionsAsync(s.Token, quiz.Id, questions.Select(q => q.Id), 2m);
         var published = (await Quizzes.PublishAsync(s.Token, quiz.Id)).Quiz;
         await Quizzes.SetQuizTimesAsync(published.Id, DateTime.UtcNow.AddHours(-1), DateTime.UtcNow.AddHours(3));

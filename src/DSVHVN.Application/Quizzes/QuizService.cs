@@ -85,7 +85,8 @@ public sealed class QuizService(
 
     /// <summary>
     /// Hộp "Chọn câu từ ngân hàng": câu đã duyệt, chưa xóa, dùng chung mọi trường, chỉ câu có dạng và cấp dùng được ở cấp của lớp (câu khác không hiện).
-    /// Mặc định lọc theo các di sản của bài học; lọc thêm dạng, độ khó, di sản, từ khóa. Câu đã có trong bài đánh dấu <c>InQuiz</c>.
+    /// Luôn chỉ gồm câu về các di sản đã gắn với bài học; lọc thêm dạng, độ khó, di sản (phải là di sản của bài, nếu không thì trả trang rỗng), từ khóa.
+    /// Câu đã có trong bài đánh dấu <c>InQuiz</c>.
     /// </summary>
     public async Task<QuizCandidatePageDto> CandidatesAsync(Actor actor, long quizId, QuizCandidateQuery query, CancellationToken ct)
     {
@@ -98,11 +99,8 @@ public sealed class QuizService(
         var questions = db.Questions.AsNoTracking()
             .Where(q => q.DeletedAt == null && q.ReviewStatus == ReviewStatus.APPROVED
                         && q.LevelMin <= levelByte && q.LevelMax >= levelByte && nullableTypes.Contains(q.QuestionType));
-        if (query.HeritageId is null && query.LessonHeritagesOnly != false)
-        {
-            var lessonHeritages = db.LessonHeritages.Where(lh => lh.LessonId == quiz.LessonId).Select(lh => lh.HeritageId);
-            questions = questions.Where(q => lessonHeritages.Contains(q.HeritageId));
-        }
+        var lessonHeritages = db.LessonHeritages.Where(lh => lh.LessonId == quiz.LessonId).Select(lh => lh.HeritageId);
+        questions = questions.Where(q => lessonHeritages.Contains(q.HeritageId));
         questions = QuestionService.ApplyFilters(questions,
             new QuestionListQuery(QuestionType: query.QuestionType, DifficultyLevel: query.DifficultyLevel, HeritageId: query.HeritageId, Keyword: query.Keyword));
 
@@ -228,7 +226,8 @@ public sealed class QuizService(
     // ---- Câu hỏi trong bài ----
 
     /// <summary>
-    /// Thêm câu từ ngân hàng vào cuối bài Nháp. Mỗi câu phải đã duyệt, chưa xóa, có dạng và cấp dùng được ở cấp của lớp, chưa có trong bài; tổng không quá 50 câu.
+    /// Thêm câu từ ngân hàng vào cuối bài Nháp. Mỗi câu phải đã duyệt, chưa xóa, về một di sản đã gắn với bài học của bài kiểm tra (422 nếu không),
+    /// có dạng và cấp dùng được ở cấp của lớp, chưa có trong bài; tổng không quá 50 câu.
     /// Một câu sai thì không thêm câu nào.
     /// </summary>
     public async Task<QuizDetailDto> AddQuestionsAsync(Actor actor, long quizId, AddQuizQuestionsRequest request, CancellationToken ct)
@@ -248,7 +247,9 @@ public sealed class QuizService(
                     $"Bài kiểm tra có tối đa {QuizRules.MaxQuestions} câu, hiện có {already.Count} câu."));
 
             var found = await db.Questions.Where(q => ids.Contains(q.Id)).ToDictionaryAsync(q => q.Id, ct);
+            var lessonHeritageIds = (await db.LessonHeritages.Where(lh => lh.LessonId == quiz.LessonId).Select(lh => lh.HeritageId).ToListAsync(ct)).ToHashSet();
             var invalid = new Dictionary<string, string>();
+            var outside = new Dictionary<string, string>();
             var mismatched = new Dictionary<string, string>();
             for (var i = 0; i < ids.Count; i++)
             {
@@ -257,11 +258,15 @@ public sealed class QuizService(
                     invalid[field] = Messages.Invalid("Câu hỏi", "chỉ chọn được câu đã duyệt trong ngân hàng").Text;
                 else if (already.Contains(ids[i]))
                     invalid[field] = Messages.Invalid("Câu hỏi", "đã có trong bài kiểm tra").Text;
+                else if (!lessonHeritageIds.Contains(question.HeritageId))
+                    outside[field] = Messages.QuestionOutsideLessonHeritage.Text;
                 else if (!QuizRules.QuestionFitsLevel(question.QuestionType, question.LevelMin, question.LevelMax, level))
                     mismatched[field] = Messages.QuestionLevelMismatch(QuestionTypes.NameOf(question.QuestionType), level).Text;
             }
             if (invalid.Count > 0)
                 throw new AppException(400, new AppMessage(MessageCodes.Invalid, invalid.Values.First()), invalid.Concat(mismatched).ToDictionary(x => x.Key, x => x.Value));
+            if (outside.Count > 0)
+                throw new AppException(422, Messages.QuestionOutsideLessonHeritage, outside);
             if (mismatched.Count > 0)
                 throw new AppException(422, new AppMessage(MessageCodes.QuestionLevelMismatch, mismatched.Values.First()), mismatched);
 

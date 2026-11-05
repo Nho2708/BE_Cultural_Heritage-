@@ -51,12 +51,11 @@ public sealed record DuplicateQuizRequest(string? Name = null);
 
 public sealed record QuizListQuery(long? LessonId, long? ClassId, QuizStatus? Status, string? Keyword, int? Page, int? PageSize);
 
-/// <summary>Hộp chọn câu từ ngân hàng: mặc định chỉ câu của các di sản của bài học (<c>LessonHeritagesOnly</c> = false để xem mọi di sản).</summary>
+/// <summary>Hộp chọn câu từ ngân hàng: luôn chỉ gồm câu của các di sản đã gắn với bài học; <c>HeritageId</c> thu hẹp thêm về một di sản của bài.</summary>
 public sealed record QuizCandidateQuery(
     QuestionType? QuestionType,
     DifficultyLevel? DifficultyLevel,
     long? HeritageId,
-    bool? LessonHeritagesOnly,
     string? Keyword,
     int? Page,
     int? PageSize);

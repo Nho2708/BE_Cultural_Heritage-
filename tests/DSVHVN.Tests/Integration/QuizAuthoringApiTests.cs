@@ -382,13 +382,13 @@ public sealed class QuizAuthoringApiTests(ApiFactory factory) : IClassFixture<Ap
     }
 
     [Fact]
-    public async Task The_candidate_box_defaults_to_the_heritages_of_the_lesson_and_can_open_to_every_heritage()
+    public async Task The_candidate_box_only_lists_questions_about_the_heritages_of_the_lesson()
     {
         var s = await _k.SetupAsync(2);
         var quiz = await _k.CreateAsync(s);
         var mine = await _k.QuestionAsync(s, QuestionType.SINGLE_CHOICE);
 
-        // Một câu của di sản khác (do giáo viên khác của trường tạo).
+        // Một câu của di sản khác (do giáo viên khác của trường tạo), di sản này không gắn với bài học.
         var (otherHeritage, otherImages) = await _k.Questions.HeritageAsync("Văn Miếu");
         var otherQuestion = await _k.Questions.CreateAsync(s.Token, QuestionTestKit.Samples(otherHeritage.Id, otherImages)[QuestionType.SINGLE_CHOICE]);
 
@@ -397,15 +397,60 @@ public sealed class QuizAuthoringApiTests(ApiFactory factory) : IClassFixture<Ap
         Assert.DoesNotContain(otherQuestion.Id, byLesson.Items.Select(x => x.Question.Id));
         Assert.All(byLesson.Items, x => Assert.Equal(s.Heritage.Id, x.Question.HeritageId));
 
-        var all = await DiscoveryTestKit.Expect(Http.GetAsync<QuizCandidatePageDto>($"{Q}/{quiz.Id}/question-candidates?lessonHeritagesOnly=false&pageSize=100", s.Token));
-        Assert.Contains(otherQuestion.Id, all.Items.Select(x => x.Question.Id));
+        // Tham số cũ lessonHeritagesOnly không còn tác dụng: vẫn chỉ thấy câu của di sản trong bài học.
+        var oldFlag = await DiscoveryTestKit.Expect(Http.GetAsync<QuizCandidatePageDto>($"{Q}/{quiz.Id}/question-candidates?lessonHeritagesOnly=false&pageSize=100", s.Token));
+        Assert.DoesNotContain(otherQuestion.Id, oldFlag.Items.Select(x => x.Question.Id));
 
-        var one = await DiscoveryTestKit.Expect(Http.GetAsync<QuizCandidatePageDto>($"{Q}/{quiz.Id}/question-candidates?heritageId={otherHeritage.Id}&pageSize=100", s.Token));
-        Assert.All(one.Items, x => Assert.Equal(otherHeritage.Id, x.Question.HeritageId));
+        // Chọn một di sản của bài học thì thu hẹp về di sản đó; chọn di sản ngoài bài học thì trang rỗng.
+        var inside = await DiscoveryTestKit.Expect(Http.GetAsync<QuizCandidatePageDto>($"{Q}/{quiz.Id}/question-candidates?heritageId={s.Heritage.Id}&pageSize=100", s.Token));
+        Assert.Contains(mine.Id, inside.Items.Select(x => x.Question.Id));
+        var outside = await DiscoveryTestKit.Expect(Http.GetAsync<QuizCandidatePageDto>($"{Q}/{quiz.Id}/question-candidates?heritageId={otherHeritage.Id}&pageSize=100", s.Token));
+        Assert.Empty(outside.Items);
+        Assert.Equal(0, outside.TotalItems);
+    }
 
-        // Câu đã duyệt của người khác dùng chung: thêm được vào bài của mình.
-        var added = await _k.AddQuestionsAsync(s.Token, quiz.Id, [otherQuestion.Id]);
+    [Fact]
+    public async Task Adding_a_question_about_a_heritage_outside_the_lesson_is_refused_and_adds_nothing()
+    {
+        var s = await _k.SetupAsync(2);
+        var quiz = await _k.CreateAsync(s);
+        var mine = await _k.QuestionAsync(s, QuestionType.SINGLE_CHOICE);
+        var (otherHeritage, otherImages) = await _k.Questions.HeritageAsync("Văn Miếu");
+        var outsider = await _k.Questions.CreateAsync(s.Token, QuestionTestKit.Samples(otherHeritage.Id, otherImages)[QuestionType.SINGLE_CHOICE]);
+
+        var (res, body) = await Http.PostAsync<object>($"{Q}/{quiz.Id}/questions", new { questionIds = new[] { mine.Id, outsider.Id } }, s.Token);
+        AssertFail(res, body, HttpStatusCode.UnprocessableEntity, "QUESTION_OUTSIDE_LESSON_HERITAGE");
+        Assert.Equal("Câu hỏi không thuộc di sản của bài học. Chỉ thêm được câu hỏi về các di sản đã gắn với bài học.", body.Message);
+        Assert.Equal(["questionIds[1]"], body.Errors!.Keys);
+        Assert.Equal(0, (await _k.GetAsync(s.Token, quiz.Id)).QuestionCount);   // câu hợp lệ đi kèm cũng không được thêm
+
+        var added = await _k.AddQuestionsAsync(s.Token, quiz.Id, [mine.Id]);
         Assert.Equal(1, added.QuestionCount);
+    }
+
+    [Fact]
+    public async Task A_heritage_cannot_leave_the_lesson_while_one_of_its_quizzes_still_has_questions_about_it()
+    {
+        var s = await _k.SetupAsync(2, publishLesson: false);
+        var lessonUrl = $"{LessonTestKit.Teacher}/{s.LessonId}";
+        var (second, secondImages) = await _k.Questions.HeritageAsync("Văn Miếu");
+        await DiscoveryTestKit.Expect(Http.PutAsync<DSVHVN.Application.Lessons.LessonDetailDto>(lessonUrl, new { heritageIds = new[] { s.Heritage.Id, second.Id } }, s.Token));
+
+        var quiz = await _k.CreateAsync(s, "Kiểm tra về Văn Miếu");
+        var aboutSecond = await _k.Questions.CreateAsync(s.Token, QuestionTestKit.Samples(second.Id, secondImages)[QuestionType.SINGLE_CHOICE]);
+        await _k.AddQuestionsAsync(s.Token, quiz.Id, [aboutSecond.Id]);
+
+        // Bỏ di sản còn câu hỏi trong bài kiểm tra: bị chặn, bài học giữ nguyên hai di sản.
+        var (res, body) = await Http.PutAsync<object>(lessonUrl, new { heritageIds = new[] { s.Heritage.Id } }, s.Token);
+        AssertFail(res, body, HttpStatusCode.UnprocessableEntity, "BLOCKED");
+        Assert.Equal($"Không thể đổi di sản của bài. Bài kiểm tra «Kiểm tra về Văn Miếu» còn câu hỏi về di sản «{second.Name}». " +
+                     "Bỏ các câu đó khỏi bài kiểm tra trước khi bỏ di sản khỏi bài học.", body.Message);
+        Assert.Equal(2, (await DiscoveryTestKit.Expect(Http.GetAsync<DSVHVN.Application.Lessons.LessonDetailDto>(lessonUrl, s.Token))).Heritages.Count);
+
+        // Bỏ các câu đó khỏi bài kiểm tra rồi thì bỏ được di sản.
+        await DiscoveryTestKit.Expect(Http.DeleteAsync<QuizDetailDto>($"{Q}/{quiz.Id}/questions/{aboutSecond.Id}", s.Token));
+        var after = await DiscoveryTestKit.Expect(Http.PutAsync<DSVHVN.Application.Lessons.LessonDetailDto>(lessonUrl, new { heritageIds = new[] { s.Heritage.Id } }, s.Token));
+        Assert.Equal([s.Heritage.Id], after.Heritages.Select(h => h.Id));
     }
 
     // ---- Danh sách bài kiểm tra ----

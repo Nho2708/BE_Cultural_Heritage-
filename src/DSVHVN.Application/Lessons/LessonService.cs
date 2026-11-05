@@ -207,7 +207,7 @@ public sealed class LessonService(
     /// Lưu bài học (bài Nháp hoặc Đã xuất bản; bài Lưu trữ phải xuất bản lại mới sửa được). Nội dung phải đúng khung của cấp lớp: loại phần
     /// dùng được theo cấp, hình chọn trong thư viện ảnh của các di sản của bài, mốc nối với sự kiện của các di sản của bài. Độ dài ngoài khoảng của
     /// cấp chỉ cảnh báo. Bài đã xuất bản sửa được, thay đổi hiện ngay cho học sinh và vẫn phải giữ đủ điều kiện xuất bản; không đủ thì không lưu gì.
-    /// Di sản của bài chỉ đổi được khi bài còn Nháp.
+    /// Di sản của bài chỉ đổi được khi bài còn Nháp, và không bỏ được di sản mà bài kiểm tra của bài còn câu hỏi về nó (422).
     /// </summary>
     public async Task<LessonDetailDto> UpdateAsync(Actor actor, long lessonId, UpdateLessonRequest request, CancellationToken ct)
     {
@@ -227,6 +227,7 @@ public sealed class LessonService(
                 throw AppException.BusinessRule(Messages.Blocked("đổi di sản của bài", "Chỉ đổi được di sản khi bài học còn là bản nháp."));
             await EnsureAllPublishedAsync(newIds, ct);
             var removed = await db.LessonHeritages.Where(lh => lh.LessonId == lesson.Id && !newIds.Contains(lh.HeritageId)).ToListAsync(ct);
+            await EnsureNoQuizQuestionsAboutAsync(lesson.Id, removed.Select(r => r.HeritageId).ToList(), ct);
             db.LessonHeritages.RemoveRange(removed);
             foreach (var id in newIds.Except(currentIds)) db.LessonHeritages.Add(new LessonHeritage { LessonId = lesson.Id, HeritageId = id });
         }
@@ -362,7 +363,7 @@ public sealed class LessonService(
     /// chưa có mã ở lớp đích, chép tiêu đề, tóm tắt, ý chính, các phần nội dung và di sản (di sản đã ẩn bị bỏ và báo số lượng; hình và mốc
     /// lấy từ di sản bị bỏ cũng bị gỡ). Lớp đích khác cấp thì vẫn chép nguyên nội dung kèm lời nhắc xem lại hoặc nhờ AI soạn lại.
     /// Tùy chọn <c>IncludeQuizzes</c> chép kèm các bài kiểm tra chưa xóa của bài thành bài kiểm tra nháp của bài mới: cùng câu, điểm, thứ tự, mô tả, độ khó,
-    /// xáo câu, cho xem đáp án; giờ mở, giờ đóng để trống; câu đã ẩn hoặc xóa và câu có dạng hoặc cấp không dùng được ở cấp của lớp đích bị bỏ (báo số câu);
+    /// xáo câu, cho xem đáp án; giờ mở, giờ đóng để trống; câu đã ẩn hoặc xóa, câu có dạng hoặc cấp không dùng được ở cấp của lớp đích và câu về di sản không còn trong bài mới bị bỏ (báo số câu);
     /// thời gian làm chuẩn hóa theo cấp lớp đích. Không chép lượt làm bài. Bài gốc không đổi.
     /// </summary>
     public async Task<DuplicateLessonResultDto> DuplicateAsync(Actor actor, long lessonId, DuplicateLessonRequest request, CancellationToken ct)
@@ -421,7 +422,7 @@ public sealed class LessonService(
                 .OrderBy(q => q.Id).ToListAsync(ct);
             foreach (var quiz in sourceQuizzes)
             {
-                var (quizCopy, skippedHere) = QuizCopier.Copy(quiz, actor.UserId, name: null, targetLevel);
+                var (quizCopy, skippedHere) = QuizCopier.Copy(quiz, actor.UserId, name: null, targetLevel, keptIds.ToHashSet());
                 quizCopy.Lesson = copy;
                 db.Quizzes.Add(quizCopy);
                 copiedQuizzes++;
@@ -455,6 +456,22 @@ public sealed class LessonService(
         var published = await PublishedHeritageIdsAsync(ids, ct);
         if (published.Count != ids.Count)
             throw AppException.Validation("heritageIds", Messages.Invalid("Di sản của bài", "chỉ chọn được di sản đã xuất bản"));
+    }
+
+    /// <summary>
+    /// Không bỏ di sản khỏi bài học khi một bài kiểm tra chưa xóa của bài còn câu hỏi về di sản đó (bài kiểm tra chỉ chứa câu về di sản của bài học).
+    /// Báo tên bài kiểm tra và di sản đầu tiên vướng.
+    /// </summary>
+    private async Task EnsureNoQuizQuestionsAboutAsync(long lessonId, IReadOnlyCollection<long> removedHeritageIds, CancellationToken ct)
+    {
+        if (removedHeritageIds.Count == 0) return;
+        var blocking = await db.QuizQuestions.AsNoTracking()
+            .Where(x => x.Quiz!.LessonId == lessonId && x.Quiz.DeletedAt == null && removedHeritageIds.Contains(x.Question!.HeritageId))
+            .OrderBy(x => x.QuizId).ThenBy(x => x.SortOrder)
+            .Select(x => new { QuizName = x.Quiz!.Name, HeritageName = x.Question!.Heritage!.Name })
+            .FirstOrDefaultAsync(ct);
+        if (blocking is not null)
+            throw AppException.BusinessRule(Messages.LessonHeritageStillInQuiz(blocking.QuizName ?? string.Empty, blocking.HeritageName ?? string.Empty));
     }
 
     private async Task<List<long>> PublishedHeritageIdsAsync(IReadOnlyCollection<long> ids, CancellationToken ct) =>

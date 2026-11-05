@@ -34,7 +34,7 @@ Khuôn phản hồi chung `{ success, data, message, errorCode, traceId, errors 
 | GET | `/teacher/lessons` | `classId`, `status` (`DRAFT`/`PUBLISHED`/`ARCHIVED`), `heritageType`, `keyword` (trong tiêu đề), `page`, `pageSize` | 200 trang bài `{ id, title, classId, className, grade, schoolLevel, status, accessCode, heritages[], quizCount, createdAt, updatedAt }`, bài mới sửa xếp trước | 400 |
 | POST | `/teacher/lessons` | `{ classId, title, heritageIds[] }` | 201 chi tiết bài **Nháp** (chưa có mã). Cần **gói hiệu lực**; 1-10 di sản đã xuất bản, không lặp; lớp phải là lớp của giáo viên | 400 theo trường (`REQUIRED`/`INVALID`); 404 (lớp không phải của mình); 422 `PLAN_REQUIRED` |
 | GET | `/teacher/lessons/{lessonId}` | — | 200 chi tiết: nội dung, các phần, di sản, **khung của cấp** (`frame`: khoảng số từ, ba mức độ dài AI, loại phần dùng được, luồng học), số từ, **điều kiện xuất bản** (`readiness`: `missing`, `warnings`), số bài kiểm tra, mã và đường dẫn nếu đã xuất bản, **hạn mức lượt AI** (`aiQuota`) | 404 |
-| PUT | `/teacher/lessons/{lessonId}` | `{ title?, summary?, keyPoints[]?, sections[]?, heritageIds[]? }`; trường để null thì giữ nguyên, có giá trị thì thay toàn bộ | 200 chi tiết sau khi lưu | 400 theo trường (`sections[2].imageUrl`, `keyPoints[1]`...); 404; 422 `NOT_READY` (bài Đã xuất bản không còn đủ điều kiện, **không lưu gì**), 422 `BLOCKED` (bài Lưu trữ; đổi di sản khi bài không còn là Nháp) |
+| PUT | `/teacher/lessons/{lessonId}` | `{ title?, summary?, keyPoints[]?, sections[]?, heritageIds[]? }`; trường để null thì giữ nguyên, có giá trị thì thay toàn bộ | 200 chi tiết sau khi lưu | 400 theo trường (`sections[2].imageUrl`, `keyPoints[1]`...); 404; 422 `NOT_READY` (bài Đã xuất bản không còn đủ điều kiện, **không lưu gì**), 422 `BLOCKED` (bài Lưu trữ; đổi di sản khi bài không còn là Nháp; bỏ di sản mà bài kiểm tra của bài còn câu hỏi về nó) |
 | DELETE | `/teacher/lessons/{lessonId}` | — | 200, xóa mềm | 404; 422 `BLOCKED` khi bài đã có bài kiểm tra (chỉ lưu trữ) |
 | POST | `/teacher/lessons/{lessonId}/publish` | — | 200 `{ lesson, codeCreated, accessCode, message }`; lần đầu sinh mã (`message` là câu "Đã xuất bản bài học. Mã bài học: …"), xuất bản lại giữ mã | 404; 422 `NOT_READY` ("Chưa đủ điều kiện xuất bản bài học. Còn thiếu: …") |
 | POST | `/teacher/lessons/{lessonId}/archive` | — | 200 | 404; 422 `BLOCKED` (bài Nháp; bài còn bài kiểm tra đang mở) |
@@ -225,7 +225,7 @@ Backend **kiểm kết quả** trước khi dùng: nội dung rỗng hoặc khô
 | 404 | `BLOCKED` | Lớp hoặc bài không phải của giáo viên (kể cả cùng trường), hoặc không tồn tại |
 | 404 | `LESSON_CODE_INVALID` | Mã sai, bài chưa xuất bản, đã lưu trữ, đã xóa, hoặc không thuộc lớp của em |
 | 422 | `NOT_READY` | Xuất bản hoặc lưu bài Đã xuất bản khi chưa đủ điều kiện ("Chưa đủ điều kiện …. Còn thiếu: …") |
-| 422 | `BLOCKED` | Bài Lưu trữ; đổi di sản khi không là Nháp; xóa bài đã có bài kiểm tra; lưu trữ bài Nháp hoặc bài còn bài kiểm tra đang mở; gọi AI khi bài Lưu trữ hoặc không còn di sản đang xuất bản |
+| 422 | `BLOCKED` | Bài Lưu trữ; đổi di sản khi không là Nháp; bỏ di sản còn câu hỏi trong bài kiểm tra của bài; xóa bài đã có bài kiểm tra; lưu trữ bài Nháp hoặc bài còn bài kiểm tra đang mở; gọi AI khi bài Lưu trữ hoặc không còn di sản đang xuất bản |
 | 422 | `PLAN_REQUIRED` | Trường không có gói hiệu lực khi tạo, nhân bản bài hoặc gọi AI |
 | 422 | `AI_QUOTA_REACHED` | Trường đã dùng hết lượt AI của kỳ |
 | 429 | `LESSON_CODE_BLOCKED` | Nhập sai mã quá nhiều lần (theo tài khoản hoặc IP) |

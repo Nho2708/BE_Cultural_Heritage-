@@ -42,8 +42,8 @@ giờ trả về là UTC (`Z`), giao diện đổi sang giờ Việt Nam khi hi�
 | GET | `/teacher/quizzes/{id}` | — | 200 chi tiết (mục 2.2) | 404 |
 | PUT | `/teacher/quizzes/{id}` | Như tạo nhưng không có `lessonId`; **gửi đủ mọi trường**, trường để trống là xóa giá trị (hai cờ `shuffleQuestions`, `showAnswersAfterSubmit` để trống là `false`) | 200 chi tiết | 400; 404; 422 (bài đã đóng; bài đã phát hành mà đổi trường khóa) |
 | DELETE | `/teacher/quizzes/{id}` | — | 200, **xóa mềm** bài nháp | 404; 422 (đã phát hành hoặc đã đóng) |
-| GET | `/teacher/quizzes/{id}/question-candidates` | `questionType`, `difficultyLevel`, `heritageId`, `lessonHeritagesOnly` (mặc định `true`), `keyword`, `page`, `pageSize` | 200 trang `{ question{ như một dòng của ngân hàng câu hỏi }, inQuiz }` kèm `level` và `allowedTypes`; chỉ câu đã duyệt, chưa xóa, dùng được ở cấp của lớp | 404 |
-| POST | `/teacher/quizzes/{id}/questions` | `{ questionIds[], point? }` (`point` mặc định 1) | 200 chi tiết; thêm vào cuối, đánh thứ tự tiếp, tính lại tổng điểm | 400 (câu không chọn được, đã có trong bài, điểm sai); 404; 422 `QUESTION_LEVEL_MISMATCH` (dạng hoặc cấp không hợp lớp), `BLOCKED` (đã phát hành, quá 50 câu) |
+| GET | `/teacher/quizzes/{id}/question-candidates` | `questionType`, `difficultyLevel`, `heritageId`, `keyword`, `page`, `pageSize` | 200 trang `{ question{ như một dòng của ngân hàng câu hỏi }, inQuiz }` kèm `level` và `allowedTypes`; chỉ câu đã duyệt, chưa xóa, **về các di sản đã gắn với bài học**, dùng được ở cấp của lớp; `heritageId` không phải di sản của bài thì trang rỗng | 404 |
+| POST | `/teacher/quizzes/{id}/questions` | `{ questionIds[], point? }` (`point` mặc định 1) | 200 chi tiết; thêm vào cuối, đánh thứ tự tiếp, tính lại tổng điểm | 400 (câu không chọn được, đã có trong bài, điểm sai); 404; 422 `QUESTION_OUTSIDE_LESSON_HERITAGE` (câu về di sản chưa gắn với bài học), `QUESTION_LEVEL_MISMATCH` (dạng hoặc cấp không hợp lớp), `BLOCKED` (đã phát hành, quá 50 câu) |
 | PUT | `/teacher/quizzes/{id}/questions` | `{ items[{ questionId, point }] }`: danh sách đầy đủ theo thứ tự mới | 200 chi tiết; câu không có trong danh sách bị bỏ; thứ tự đánh lại từ 1 | 400 (câu chưa có trong bài, trùng, điểm sai); 404; 422 (đã phát hành) |
 | DELETE | `/teacher/quizzes/{id}/questions/{questionId}` | — | 200 chi tiết; các câu còn lại đánh lại thứ tự | 404; 422 (đã phát hành) |
 | POST | `/teacher/quizzes/{id}/publish` | — | 200 `{ quiz, message }` | 404; 422 `NOT_READY` (kèm danh sách còn thiếu), `PLAN_REQUIRED`, `BLOCKED` (đã đóng) |
@@ -93,7 +93,10 @@ openAt, closeAt, shuffleQuestions, showAnswersAfterSubmit, totalPoint, status, s
 - `point` mỗi câu **lớn hơn 0, không quá 100, bước 0,25**, mặc định 1. `sort_order` **liên tục từ 1**, đánh lại sau mỗi lần bỏ câu hoặc đổi thứ tự.
 - `total_point` = tổng `point`, tính lại **trong cùng giao dịch** mỗi khi thêm, bỏ câu, đổi điểm (bài nháp) và một lần nữa khi phát hành. Tối đa 50 × 100 = 5000, vừa `decimal(6,2)`.
 - Một câu sai trong danh sách thêm thì **không thêm câu nào**.
-- Câu hỏi không bắt buộc thuộc di sản của bài; hộp chọn câu **mặc định lọc theo các di sản của bài học** (`lessonHeritagesOnly=false` để xem mọi di sản).
+- **Bài kiểm tra chỉ chứa câu đã duyệt về các di sản đã gắn với bài học của nó.** Hộp chọn câu luôn lọc theo các di sản của bài học (không có cách tắt; chọn `heritageId` ngoài bài học thì trang rỗng).
+  Thêm câu về di sản khác bài học trả 422 `QUESTION_OUTSIDE_LESSON_HERITAGE` với câu "Câu hỏi không thuộc di sản của bài học. Chỉ thêm được câu hỏi về các di sản đã gắn với bài học." (kèm `errors` theo câu, không thêm câu nào).
+- Giữ quy tắc khi di sản của bài đổi: bài học Nháp **không bỏ được** một di sản mà bài kiểm tra chưa xóa của bài còn câu hỏi về nó (422 `BLOCKED`, nêu tên bài kiểm tra và di sản; hãy bỏ các câu đó khỏi bài kiểm tra trước).
+  Nhân bản bài kiểm tra cùng bài học giữ nguyên câu; nhân bản bài học kèm bài kiểm tra chỉ chép câu về các di sản còn trong bài mới (di sản đã ẩn bị bỏ thì câu về nó cũng bị bỏ và tính vào số câu bỏ qua).
 
 ### 3.4 Phát hành
 
@@ -167,8 +170,9 @@ Hai mã có sẵn trong danh sách 21 mã của đặc tả; không thêm mã m�
 | 401 / 403 | `FORBIDDEN` | Chưa đăng nhập; không phải giáo viên |
 | 404 | `BLOCKED` | Bài kiểm tra, bài học, lớp không tồn tại, đã xóa hoặc của giáo viên khác; câu không có trong bài khi bỏ |
 | 422 | `NOT_READY` | Phát hành khi chưa đủ điều kiện (kèm danh sách còn thiếu) |
+| 422 | `QUESTION_OUTSIDE_LESSON_HERITAGE` | Thêm câu về di sản chưa gắn với bài học của bài kiểm tra |
 | 422 | `QUESTION_LEVEL_MISMATCH` | Thêm câu có dạng hoặc cấp không dùng được ở cấp của lớp |
-| 422 | `BLOCKED` | Bài đã phát hành mà thêm, bỏ, đổi câu hoặc đổi trường khóa; bài đã đóng mà sửa hoặc phát hành; xóa bài đã phát hành; đóng bài nháp; quá 50 câu; bài học Lưu trữ |
+| 422 | `BLOCKED` | Bài đã phát hành mà thêm, bỏ, đổi câu hoặc đổi trường khóa; bài đã đóng mà sửa hoặc phát hành; xóa bài đã phát hành; đóng bài nháp; quá 50 câu; bài học Lưu trữ; (ở bài học) bỏ di sản còn câu hỏi trong bài kiểm tra |
 | 422 | `PLAN_REQUIRED` | Tạo, nhân bản, phát hành khi trường không có gói hiệu lực |
 
 ## 6. Cấu hình
