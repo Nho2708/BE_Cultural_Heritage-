@@ -21,8 +21,9 @@ public sealed class AdsOptions
     public bool GateEnabled { get; set; }
 
     /// <summary>
-    /// Cho phép app khai báo "thiết bị này không có quảng cáo" bằng tiêu đề <c>X-Ads-Unavailable: true</c> (bản demo iOS bằng Expo Go, không có mô-đun quảng cáo).
-    /// Chỉ bật ở môi trường phát triển và demo; môi trường thật để tắt (mặc định) thì khai báo bị bỏ qua và khách không tự tắt được cổng.
+    /// Cho phép app khai báo "bản này không có quảng cáo" bằng tiêu đề <c>X-Ads-Unavailable: true</c> (bản trên Google Play dựng không có thư viện quảng cáo,
+    /// bản chạy trong Expo Go). Máy chủ Google Cloud bật để app trên Google Play mở thẳng tóm tắt và nghe; tắt (mặc định) thì khai báo bị bỏ qua.
+    /// Tiêu đề do app tự gửi nên ai cố ý gửi cũng mở được; cổng quảng cáo chỉ để mời xem quảng cáo, không bảo vệ dữ liệu riêng tư nào.
     /// </summary>
     public bool AllowNoAdsDeclaration { get; set; }
 

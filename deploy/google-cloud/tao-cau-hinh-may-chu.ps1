@@ -151,7 +151,9 @@ $ios = @(); $ios += Lay-DanhSach 'Ads:AdMob:IosAdUnitIds'; if ($dev.Ads.AdMob.Io
 $duongDanQc = @(); if ($dev.Ads.AdManager.AdUnitPaths) { $duongDanQc += @($dev.Ads.AdManager.AdUnitPaths) }
 $duongDanQc += Lay-DanhSach 'Ads:AdManager:AdUnitPaths'
 Dat 'Ads:GateEnabled' (-not $TatCongQuangCao)
-Dat 'Ads:AllowNoAdsDeclaration' $false
+# App trên Google Play là bản không quảng cáo (nhóm chốt 05/11/2026): app khai báo X-Ads-Unavailable để khách mở tóm tắt và nghe không cần xem quảng cáo.
+# Web và APK cài riêng vẫn có cổng quảng cáo như cũ.
+Dat 'Ads:AllowNoAdsDeclaration' $true
 Dat 'Ads:AdMob:AndroidAdUnitIds' @($android | Select-Object -Unique)
 Dat 'Ads:AdMob:IosAdUnitIds' @($ios | Select-Object -Unique)
 Dat 'Ads:AdManager:AdUnitPaths' @($duongDanQc | Select-Object -Unique)
