@@ -23,78 +23,72 @@ skinparam ClassBackgroundColor #FFFFFF
 skinparam ClassBorderColor #3B5B85
 skinparam ClassHeaderBackgroundColor #E8EEF6
 skinparam PackageBorderColor #8A9BB3
-skinparam nodesep 18
-skinparam ranksep 55
+skinparam nodesep 22
+skinparam ranksep 50
 skinparam componentStyle rectangle
 skinparam ArrowFontSize 11
 skinparam PackageStyle rectangle
 skinparam ActorFontSize 12
 
-actor "Quản trị hệ thống, Quản trị trường, Giáo viên" as nguoiQuanTri
-actor "Học sinh" as hocSinh
-actor "Khách tham quan" as khach
+actor "Thành viên nhóm (tài khoản quản trị)" as thanhVien
+actor "Quản trị hệ thống, quản trị trường, giáo viên" as nguoiQuanTri
+actor "Học sinh, khách tham quan" as nguoiHoc
 
-package "Phía người dùng" as phiaNguoiDung {
-  component "<b>Web quản trị</b>\nReact 19, Vite\n<size:10>quantri.diviet.id.vn</size>" as webQuanTri
-  component "<b>Web học tập</b>\nReact 19, Vite\n<size:10>diviet.id.vn</size>" as webHocTap
-  component "<b>App mobile</b>\nReact Native 0.86, Expo SDK 57\n<size:10>Android (APK)</size>" as app
+rectangle "Hệ thống DiViet" as heThong {
+  package "Tầng trình bày" as tangTrinhBay {
+    component "<b>Công cụ tạo thuyết minh</b>\nchạy ngoài máy chủ, Python\nVieNeu-TTS, MeloTTS" as congCu
+    component "<b>Web quản trị</b>\nReact 19, Vite" as webQuanTri
+    component "<b>Web học tập</b>\nReact 19, Vite" as webHocTap
+    component "<b>App mobile</b>\nReact Native, Expo" as app
+  }
+  package "Tầng ứng dụng" as tangUngDung {
+    package "<b>Backend API</b> — ASP.NET Core 9" as backend {
+      component "<b>Lớp API</b>\ncontroller, xác thực JWT, giới hạn tần suất, phát tệp" as lopApi
+      component "<b>Lớp Application</b>\ndịch vụ theo use case, quy tắc nghiệp vụ, tác vụ nền" as lopApp
+      component "<b>Lớp Domain</b>\nthực thể, trạng thái, quy tắc" as lopDomain
+      component "<b>Lớp Infrastructure</b>\nEF Core, kho tệp, VNPay, SMTP, gọi Dịch vụ AI" as lopInfra
+    }
+    component "<b>Dịch vụ AI</b> — Python FastAPI\ndịch và tóm tắt, soạn bài, sinh câu hỏi,\ngợi ý theo nội dung, giọng đọc VieNeu-TTS" as ai
+  }
+  package "Tầng dữ liệu" as tangDuLieu {
+    database "<b>SQL Server 2019</b>\ncơ sở dữ liệu ứng dụng" as sql
+    folder "<b>Kho tệp</b>\nảnh, mô hình 3D, tệp thuyết minh, tệp giọng đọc" as kho
+  }
 }
 
-node "<b>Máy ảo Google Cloud</b>\nUbuntu 24.04, Docker Compose" as mayAo {
-  component "<b>Caddy 2.11</b>\ncửa vào HTTPS, tự cấp chứng chỉ" as edge
-  component "<b>Hai web tĩnh</b>\nCaddy" as web
-  component "<b>Backend API (ASP.NET Core 9 Web API)</b>\nkèm tác vụ nền" as api
-  component "<b>Dịch vụ AI, Python</b>\nFastAPI, VieNeu-TTS" as ai
-  database "<b>SQL Server 2019</b>\nExpress" as sql
-  folder "<b>Kho tệp trên đĩa</b>" as kho
+rectangle "Hệ thống ngoài" as heThongNgoai {
+  component "Google Ad Manager" as adManager
+  component "OpenStreetMap và OSRM" as osm
+  component "Google AdMob" as admob
+  component "Nhà cung cấp mô hình ngôn ngữ (Google Gemini)" as llm
+  component "Cổng thanh toán VNPay" as vnpay
+  component "Dịch vụ email (SMTP)" as smtp
 }
 
-rectangle "Dịch vụ do máy chủ gọi" as ngoaiMayChu {
-  component "<b>Nhà cung cấp LLM</b>\nGoogle Gemini\n<size:10>mặc định; Claude là lựa chọn cấu hình</size>" as llm
-  component "<b>Dịch vụ email (SMTP)</b>\nsupport@diviet.id.vn" as smtp
-  component "<b>Hugging Face</b>\n<size:10>tải mô hình giọng đọc lần chạy đầu</size>" as hf
-  component "<b>FPT.AI Text-to-Speech</b>\n<size:10>phương án thay thế, không máy nào bật</size>" as fpt
-  component "<b>Cloudinary</b>\n<size:10>kho tệp thay đĩa (Storage:Provider)</size>" as cloudinaryKho
-  component "<b>gstatic.com</b>\n<size:10>khóa công khai xác minh AdMob</size>" as gstatic
-}
-
-rectangle "Thanh toán và quảng cáo" as thanhToanQuangCao {
-  component "<b>Cổng VNPay (môi trường thử nghiệm)</b>" as vnpay
-  component "<b>Google AdMob</b>\n+ Google UMP" as admob
-  component "<b>Google Ad Manager</b>\nGoogle Publisher Tag" as adManager
-}
-
-component "<b>Dịch vụ do trình duyệt và app gọi trực tiếp</b>\n\n<b>OpenStreetMap</b>: ảnh nền bản đồ\n<b>FOSSGIS OSRM</b>: tìm đường\n<b>Google Maps</b>: liên kết chỉ đường\n<b>Wikimedia Commons</b>: ảnh di sản\n<b>Cloudinary</b>: video giới thiệu\n<b>Google Fonts</b>: phông chữ" as ngoaiTrinhDuyet
-
+thanhVien --> congCu
 nguoiQuanTri --> webQuanTri
-hocSinh --> webHocTap
-hocSinh --> app
-khach --> webHocTap
-khach --> app
+nguoiHoc --> webHocTap
+nguoiHoc --> app
 
-webQuanTri --> edge : HTTPS, JSON /api/v1
-webHocTap --> edge : HTTPS, JSON /api/v1
-app --> edge : HTTPS, JSON /api/v1
+congCu --> lopApi : tệp thuyết minh MP3 (API quản trị, HTTPS)
+webQuanTri --> lopApi : HTTPS, REST/JSON
+webHocTap --> lopApi : HTTPS, REST/JSON
+app --> lopApi : HTTPS, REST/JSON
 
-edge --> web : trang tĩnh
-edge --> api : /api, /files
-api --> sql : EF Core
-api --> kho : ảnh, mô hình 3D, tệp thuyết minh, tệp giọng đọc
-api --> ai : HTTP nội bộ, X-Internal-Key
+lopApi --> lopApp
+lopApp --> lopDomain
+lopInfra ..|> lopApp
+lopInfra --> sql : EF Core
+lopInfra --> kho : đọc, ghi tệp
+lopInfra --> ai : HTTP nội bộ
 
 ai --> llm : lời nhắc, kết quả JSON
-ai --> hf : mô hình giọng đọc
-api --> smtp : thư đặt mật khẩu, thư báo quên mật khẩu, thư liên hệ
-api ..> fpt : văn bản cần đọc
-api ..> cloudinaryKho : ảnh, mô hình 3D, tệp thuyết minh\n(khi chọn Cloudinary)
-api --> gstatic : tải khóa xác minh AdMob
-
-webQuanTri --> vnpay : chuyển trình duyệt sang trang thanh toán
-vnpay --> edge : IPN kết quả thanh toán
-app --> admob : quảng cáo có thưởng
-admob --> edge : xác minh phía máy chủ
-webHocTap --> adManager : quảng cáo có thưởng
-
-webHocTap --> ngoaiTrinhDuyet
-app --> ngoaiTrinhDuyet
+lopInfra --> vnpay : yêu cầu thanh toán
+vnpay --> lopApi : kết quả thanh toán (IPN)
+lopInfra --> smtp : thư điện tử
+webHocTap --> adManager : quảng cáo có thưởng (web)
+app --> admob : quảng cáo có thưởng (app)
+admob --> lopApi : xác minh phần thưởng
+webHocTap --> osm : ảnh nền bản đồ, tuyến đường
+app --> osm : ảnh nền bản đồ, tuyến đường
 @enduml

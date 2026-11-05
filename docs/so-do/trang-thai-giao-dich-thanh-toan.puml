@@ -33,6 +33,5 @@ PENDING --> FAILED : VNPay IPN\nreports failure\n[valid signature,\nmatching amo
 PENDING --> FAILED : Background job:\nno IPN within\n30 minutes
 PENDING --> FAILED : School Administrator\npays the invoice again\nor cancels the\npurchase request
 FAILED --> SUCCEEDED : Late successful VNPay IPN\n[payment failed by the system;\nthe money is always recorded]
-FAILED --> [*]
 SUCCEEDED --> [*]
 @enduml
