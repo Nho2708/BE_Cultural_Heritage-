@@ -32,6 +32,5 @@ UNPAID --> PAID : IPN VNPay thành công\n[chữ ký hợp lệ,\nđúng số ti
 UNPAID --> CANCELLED : Quản trị trường\nhủy yêu cầu mua
 UNPAID --> CANCELLED : Tác vụ nền: quá hạn\n24 giờ [không còn\ngiao dịch chờ]
 CANCELLED --> PAID : IPN VNPay thành công đến muộn\n[giao dịch do hệ thống đánh thất bại;\ntiền luôn được ghi nhận]
-CANCELLED --> [*]
 PAID --> [*]
 @enduml

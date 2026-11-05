@@ -39,6 +39,5 @@ ACTIVE --> CANCELLED : IPN VNPay thành công\ncủa gói nâng cấp (hủy\ng�
 ACTIVE --> EXPIRED : Tác vụ nền 00:05\nhằng ngày [đã qua\nngày hết hạn]
 CANCELLED --> ACTIVE : IPN VNPay thành công đến muộn\n[yêu cầu mua đã bị hủy, hóa đơn\nchưa trả, trường chưa có gói mới hơn\nđang chờ thanh toán hoặc hiệu lực]
 CANCELLED --> CANCELLED : IPN VNPay thành công đến muộn\n[trường đã có gói mới hơn: giữ nguyên,\nquản trị hệ thống xử lý thủ công]
-CANCELLED --> [*]
 EXPIRED --> [*]
 @enduml

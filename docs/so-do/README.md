@@ -7,7 +7,7 @@ Sơ đồ thiết kế của DiViet lưu bằng PlantUML và DBML để xem lạ
 | `dsvhvn.dbml` | Mô hình dữ liệu: 43 bảng, 69 khóa ngoại, 10 nhóm bảng, khớp snapshot migration |
 | `erd-tong-quat.puml` | ERD tổng quát, chỉ có cột khóa |
 | `erd-chi-tiet.puml` | ERD đủ mọi cột |
-| `kien-truc-he-thong.puml` | Kiến trúc tổng thể |
+| `kien-truc-he-thong.puml` | Kiến trúc logic ba tầng (trình bày, ứng dụng, dữ liệu) và hệ thống ngoài; chi tiết máy chủ ở sơ đồ triển khai |
 | `trien-khai-he-thong.puml` | Triển khai trên Google Cloud, CI và CD |
 | `hoat-dong-*.puml` | 6 luồng nghiệp vụ chính, mỗi tác nhân một làn |
 | `trang-thai-*.puml` | Vòng đời của 16 thực thể có trạng thái (kể cả trường, `trang-thai-truong.puml`) |
