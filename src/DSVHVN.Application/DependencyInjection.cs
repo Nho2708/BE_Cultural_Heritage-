@@ -74,6 +74,8 @@ public static class DependencyInjection
         // Bản không làm gì; Infrastructure thay bằng hàng đợi thật khi Tts:Provider là SelfHosted.
         services.TryAddSingleton<ISpeechPrefetcher, NullSpeechPrefetcher>();
         services.AddScoped<SpeechWarmUp>();
+        services.AddScoped<SpeechTextPolicy>();
+        services.AddScoped<SpeechRequestService>();
         services.AddScoped<DiscoveryService>();
         services.AddScoped<HeritagePreviewService>();
         services.AddSingleton<IStudentCredentialGenerator, RandomStudentCredentialGenerator>();

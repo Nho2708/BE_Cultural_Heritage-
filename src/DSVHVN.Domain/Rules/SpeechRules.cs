@@ -38,9 +38,12 @@ public static partial class SpeechRules
     public static string? Normalize(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
-        var normalized = WhiteSpace().Replace(text.Trim(), " ");
+        var normalized = Collapse(text);
         return normalized.Length is >= 1 and <= TextMaxLength ? normalized : null;
     }
+
+    /// <summary>Cắt hai đầu và gộp mọi dãy khoảng trắng thành một dấu cách, không giới hạn độ dài (dùng cho cả đoạn nội dung dài để so một câu có nằm trong đó không).</summary>
+    public static string Collapse(string? text) => string.IsNullOrWhiteSpace(text) ? string.Empty : WhiteSpace().Replace(text.Trim(), " ");
 
     /// <summary>Mã giọng hợp lệ: chữ thường, chữ số và gạch nối, bắt đầu bằng chữ hoặc số, tối đa <see cref="VoiceFolderMaxLength"/> ký tự (an toàn làm tên thư mục).</summary>
     public static bool IsValidVoice(string? voice) => voice is not null && VoicePattern().IsMatch(voice);

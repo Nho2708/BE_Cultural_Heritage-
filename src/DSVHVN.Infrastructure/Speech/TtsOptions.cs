@@ -21,6 +21,8 @@ public enum TtsProvider
 /// <summary>
 /// Cấu hình giọng đọc (mục <c>Tts</c>). <see cref="Provider"/> chọn dịch vụ lúc tạo (không đọc ngay lúc đăng ký nên cấu hình ghi đè về sau vẫn có hiệu lực).
 /// Mặc định <c>SelfHosted</c> cho mọi máy (Google Cloud, máy demo, máy dev); không máy nào dùng FPT.AI trừ khi cấu hình <c>FptAi</c> rõ ràng.
+/// Khóa <c>Tts:OnlyPublishedContent</c> của cùng mục (chỉ tạo giọng mới cho nội dung đã xuất bản, mặc định bật) đọc ở
+/// <see cref="DSVHVN.Application.Speech.SpeechAccessOptions"/> vì quy tắc nằm ở tầng Application.
 /// </summary>
 public sealed class TtsOptions
 {

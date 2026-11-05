@@ -72,7 +72,12 @@ public class SelfHostedSpeechFactory : ApiFactory
         new("Tts:PrefetchRetrySeconds", "0.01"),
         new("Ai:BaseUrl", "http://ai.kiem-thu:8000"),
         new("Ai:InternalKey", InternalKey),
+        // Các kiểm thử của bộ sinh giọng gửi chữ tự do bằng tài khoản quản trị: tắt quy tắc chỉ tạo giọng cho nội dung đã xuất bản (quy tắc có kiểm thử riêng).
+        new("Tts:OnlyPublishedContent", OnlyPublishedContent ? "true" : "false"),
     ];
+
+    /// <summary>Quy tắc chỉ tạo giọng mới cho nội dung đã xuất bản; lớp con bật lên để kiểm thử quy tắc qua HTTP.</summary>
+    protected virtual bool OnlyPublishedContent => false;
 
     protected override void Dispose(bool disposing)
     {

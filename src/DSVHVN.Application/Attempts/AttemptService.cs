@@ -24,13 +24,14 @@ namespace DSVHVN.Application.Attempts;
 /// <item>Quiz bật xáo câu thì thứ tự câu cố định suốt lượt; các thẻ, cột, mục cần xáo luôn được xáo theo cách tất định từ mã lượt.</item>
 /// </list>
 /// </summary>
-public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle, AttemptResultService results, ISpeechPrefetcher speech)
+public sealed class AttemptService(
+    IAppDbContext db, AttemptLifecycle lifecycle, AttemptResultService results, ISpeechPrefetcher speech, SpeechTextPolicy speechTexts)
 {
     private DateTime Now => lifecycle.Now;
 
     /// <summary>Kết quả của lượt đã nộp (xem lại từ lịch sử hoặc trang bài học).</summary>
     public async Task<StudentAttemptResultDto> GetResultAsync(Actor actor, long attemptId, CancellationToken ct) =>
-        await results.GetAsync(await StudentContext.LoadAsync(db, actor, ct), attemptId, ct);
+        AllowResultSpeech(actor, await results.GetAsync(await StudentContext.LoadAsync(db, actor, ct), attemptId, ct));
 
     // ---- Trước khi làm ----
 
@@ -79,7 +80,7 @@ public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle,
         var student = await StudentContext.LoadAsync(db, actor, ct);
 
         var existing = await db.Attempts.AsNoTracking().Where(a => a.QuizId == quizId && a.StudentId == student.Id).Select(a => a.Id).SingleOrDefaultAsync(ct);
-        if (existing != 0) return (await ViewAsync(student, existing, ct), false);
+        if (existing != 0) return (AllowAttemptSpeech(actor, await ViewAsync(student, existing, ct)), false);
 
         var quiz = await FindQuizAsync(student, quizId, ct);
         if (quiz is null || quiz.LessonStatus != ContentStatus.PUBLISHED) throw NotFoundQuiz();
@@ -112,11 +113,28 @@ public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle,
             db.Attempts.Remove(attempt);
             var winner = await db.Attempts.AsNoTracking().Where(a => a.QuizId == quizId && a.StudentId == student.Id).Select(a => a.Id).SingleOrDefaultAsync(ct);
             if (winner == 0) throw;
-            return (await ViewAsync(student, winner, ct), false);
+            return (AllowAttemptSpeech(actor, await ViewAsync(student, winner, ct)), false);
         }
-        var view = await ViewAsync(student, attempt.Id, ct);
+        var view = AllowAttemptSpeech(actor, await ViewAsync(student, attempt.Id, ct));
         WarmSpeech(view);
         return (view, true);
+    }
+
+    /// <summary>
+    /// Lời đọc cả câu của lượt (cấp 1, đọc to) theo thứ tự riêng của lượt: máy chủ vừa dựng cho chính em nên ghi nhận để em được nghe bằng giọng của máy chủ
+    /// ngay, không phải chờ bộ chữ được phép của em làm mới (xem <see cref="SpeechTextPolicy"/>).
+    /// </summary>
+    private StudentAttemptDto AllowAttemptSpeech(Actor actor, StudentAttemptDto view)
+    {
+        if (view.ReadAloud) speechTexts.Grant(actor.UserId, SpeechWarmUpTexts.ForAttempt(view.Questions));
+        return view;
+    }
+
+    /// <summary>Cấp 1: số sao và lời khen của trang kết quả máy chủ viết riêng cho lượt này; ghi nhận để em nghe lời khen bằng giọng của máy chủ.</summary>
+    private StudentAttemptResultDto AllowResultSpeech(Actor actor, StudentAttemptResultDto result)
+    {
+        if (result.Level == 1 && result.Stars is { } stars) speechTexts.Grant(actor.UserId, [LevelOneSpeech.ResultSpeech(stars, result.Praise)]);
+        return result;
     }
 
     /// <summary>
@@ -134,7 +152,7 @@ public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle,
     public async Task<StudentAttemptDto> GetAsync(Actor actor, long attemptId, CancellationToken ct)
     {
         var student = await StudentContext.LoadAsync(db, actor, ct);
-        return await ViewAsync(student, attemptId, ct);
+        return AllowAttemptSpeech(actor, await ViewAsync(student, attemptId, ct));
     }
 
     /// <summary>
@@ -283,7 +301,7 @@ public sealed class AttemptService(IAppDbContext db, AttemptLifecycle lifecycle,
             await FinishAsync(attempt, student.Level, status, AttemptFinisher.SubmitTime(now, deadline), ct);
         }
         await tx.CommitAsync(ct);
-        return await results.GetAsync(student, attemptId, ct);
+        return AllowResultSpeech(actor, await results.GetAsync(student, attemptId, ct));
     }
 
     // ---- Nội bộ ----

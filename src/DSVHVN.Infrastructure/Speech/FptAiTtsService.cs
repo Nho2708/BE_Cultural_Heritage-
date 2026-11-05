@@ -26,6 +26,12 @@ public sealed class FptAiTtsService(
         [property: JsonPropertyName("message")] string? Message
     );
 
+    /// <summary>
+    /// Đường dẫn FPT.AI trả về chỉ nhớ tạm trong bộ nhớ của máy chủ và hết hạn sau một thời gian, không phải bộ nhớ đệm bền dùng chung,
+    /// nên luôn trả null: mọi chữ đều đi qua quy tắc tạo giọng trước khi gọi FPT.AI.
+    /// </summary>
+    public Task<string?> FindCachedAsync(string text, CancellationToken ct = default) => Task.FromResult<string?>(null);
+
     public async Task<string?> SynthesizeAsync(string text, CancellationToken ct = default)
     {
         var trimmed = text?.Trim();

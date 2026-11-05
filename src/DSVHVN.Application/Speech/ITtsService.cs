@@ -8,4 +8,10 @@ namespace DSVHVN.Application.Speech;
 public interface ITtsService
 {
     Task<string?> SynthesizeAsync(string text, CancellationToken ct = default);
+
+    /// <summary>
+    /// Đường dẫn tệp âm thanh của chữ nếu đã có sẵn trong bộ nhớ đệm của giọng hiện tại; không tạo gì mới. null khi chưa có, khi nguồn giọng không có bộ nhớ đệm
+    /// dùng chung, hoặc khi tra lỗi.
+    /// </summary>
+    Task<string?> FindCachedAsync(string text, CancellationToken ct = default);
 }
