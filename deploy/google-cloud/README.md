@@ -71,6 +71,8 @@ nghe ngay đi trước việc tạo trước (lúc thầy cô xuất bản bài 
   `trien-khai.sh ai` và `cap-nhat-ha-tang.sh` (khi `ai` đang chạy) tự chạy việc này trước khi tạo lại `ai`; chạy tay: `cd /opt/dsvhvn && sudo docker compose run --rm --no-deps ai-mo-hinh`.
   Không đụng tới volume này thì không cần làm gì thêm.
 - **Bật giọng ở Dịch vụ AI**: ảnh mặc định bật (`GIONG_DOC_BAT`); chưa nạp xong hay hỏng thì Dịch vụ AI trả 503 và API trả liên kết `null`, không lỗi.
+- **Chỉ nội dung đã xuất bản**: cấu hình đặt `Tts:OnlyPublishedContent = true` (cũng là mặc định): API chỉ tạo giọng mới cho chữ thuộc bài học, bài chơi đã xuất bản mà người gọi được xem
+  và các câu cố định của khu học cấp 1; tiếng đã có vẫn trả cho mọi người, chữ khác trả liên kết `null` (xem `docs/giong-doc.md` mục 3).
 - **Tắt hẳn** giọng của máy chủ: đặt `Tts:Provider = None` trong `cau-hinh/appsettings.Production.json` (sửa `tao-cau-hinh-may-chu.ps1`, chạy lại với `-TaiLen`).
 - **Dung lượng**: mỗi câu vài chục KB (mono 64-96 kbps); `giong-doc/` nằm trong `du-lieu/storage` nên đi cùng sao lưu và chuyển dữ liệu của kho tệp. Xóa thư mục này mà giữ bảng `speech_clips` thì liên kết cũ trả 404,
   nên muốn tạo lại hết thì xóa cả hai: `DELETE FROM speech_clips`.

@@ -236,6 +236,8 @@ public static class DependencyInjection
                 }
             });
         services.AddOptions<TtsOptions>().Bind(configuration.GetSection(TtsOptions.Section));
+        // Cùng mục Tts: quy tắc chỉ tạo giọng cho nội dung đã xuất bản (Tts:OnlyPublishedContent) nằm ở tầng Application.
+        services.AddOptions<SpeechAccessOptions>().Bind(configuration.GetSection(SpeechAccessOptions.Section));
 
         services.AddSingleton<FptAiTtsService>(sp =>
         {

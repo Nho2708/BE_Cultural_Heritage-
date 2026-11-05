@@ -128,6 +128,23 @@ public sealed class SelfHostedTtsService : ITtsService, ISpeechPrefetcher
         }
     }
 
+    /// <summary>Tra bộ nhớ đệm của giọng hiện tại, không sinh gì. Tra lỗi thì trả null (người gọi xét tiếp như chữ chưa có tiếng).</summary>
+    public async Task<string?> FindCachedAsync(string text, CancellationToken ct = default)
+    {
+        var normalized = SpeechRules.Normalize(text);
+        if (normalized is null) return null;
+        var voice = Voice;
+        try
+        {
+            return await LookupAsync(SpeechRules.Hash(normalized, voice), voice, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Không tra được bộ nhớ đệm giọng đọc.");
+            return null;
+        }
+    }
+
     // ---- Tạo trước ----
 
     public int Enqueue(IEnumerable<string?> texts)
@@ -351,4 +368,6 @@ public sealed class SelfHostedTtsService : ITtsService, ISpeechPrefetcher
 public sealed class NoTtsService : ITtsService
 {
     public Task<string?> SynthesizeAsync(string text, CancellationToken ct = default) => Task.FromResult<string?>(null);
+
+    public Task<string?> FindCachedAsync(string text, CancellationToken ct = default) => Task.FromResult<string?>(null);
 }

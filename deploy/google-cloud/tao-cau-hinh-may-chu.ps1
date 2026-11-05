@@ -134,6 +134,8 @@ Dat 'Ai:InternalKey' $biMat['KhoaNoiBoAi']
 # Giọng đọc tiếng Việt do chính Dịch vụ AI này sinh (VieNeu-TTS, giọng Mai Anh) và nhớ đệm trong CSDL + kho tệp (cũng là mặc định của API, không máy nào dùng FPT.AI).
 Dat 'Tts:Provider' 'SelfHosted'
 Dat 'Tts:Voice' 'vieneu-mai-anh'
+# Chỉ tạo giọng mới cho chữ thuộc nội dung đã xuất bản mà người gọi được xem (tiếng đã có vẫn phục vụ mọi người).
+Dat 'Tts:OnlyPublishedContent' $true
 
 Dat 'Storage:Provider' 'Local'
 Dat 'Storage:Local:RootPath' '/data/storage'
