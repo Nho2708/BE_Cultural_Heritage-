@@ -57,7 +57,8 @@ internal static class QuizCopier
 {
     /// <param name="source">Bài kiểm tra nguồn, đã nạp <c>Questions</c> kèm <c>Question</c>.</param>
     /// <param name="targetLevel">Cấp của lớp đích khi nhân bản sang lớp khác (bỏ câu không hợp cấp, chuẩn hóa thời gian làm); null khi ở cùng lớp.</param>
-    public static (Quiz Copy, int SkippedQuestions) Copy(Quiz source, long createdBy, string? name, int? targetLevel)
+    /// <param name="allowedHeritageIds">Các di sản của bài học đích khi chép sang bài học khác (bỏ câu về di sản không còn trong bài đích); null khi ở cùng bài học.</param>
+    public static (Quiz Copy, int SkippedQuestions) Copy(Quiz source, long createdBy, string? name, int? targetLevel, IReadOnlySet<long>? allowedHeritageIds = null)
     {
         var copy = new Quiz
         {
@@ -77,6 +78,7 @@ internal static class QuizCopier
         {
             var question = item.Question!;
             var drop = QuizQuestionRules.IsGone(question)
+                       || (allowedHeritageIds is not null && !allowedHeritageIds.Contains(question.HeritageId))
                        || (targetLevel is { } l && !QuizRules.QuestionFitsLevel(question.QuestionType, question.LevelMin, question.LevelMax, l));
             if (drop)
             {

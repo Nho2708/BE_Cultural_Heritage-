@@ -54,6 +54,7 @@ public static class MessageCodes
     public const string QuizClosed = "QUIZ_CLOSED";
     public const string QuizDuplicated = "QUIZ_DUPLICATED";
     public const string QuestionLevelMismatch = "QUESTION_LEVEL_MISMATCH";
+    public const string QuestionOutsideLessonHeritage = "QUESTION_OUTSIDE_LESSON_HERITAGE";
     public const string QuizNotOpen = "QUIZ_NOT_OPEN";
     public const string QuizEnded = "QUIZ_ENDED";
     public const string AttemptFinished = "ATTEMPT_FINISHED";
@@ -320,6 +321,14 @@ public static class Messages
     /// <summary>Thêm câu vào bài kiểm tra, hoặc phát hành, khi câu có dạng hoặc cấp không dùng được ở cấp của lớp.</summary>
     public static AppMessage QuestionLevelMismatch(string typeName, int level) =>
         new(MessageCodes.QuestionLevelMismatch, $"Câu hỏi dạng \"{typeName}\" không dùng được ở lớp cấp {level}.");
+
+    /// <summary>Thêm câu vào bài kiểm tra khi câu hỏi về một di sản chưa gắn với bài học của bài kiểm tra.</summary>
+    public static readonly AppMessage QuestionOutsideLessonHeritage = new(MessageCodes.QuestionOutsideLessonHeritage,
+        "Câu hỏi không thuộc di sản của bài học. Chỉ thêm được câu hỏi về các di sản đã gắn với bài học.");
+
+    /// <summary>Bỏ di sản khỏi bài học khi bài kiểm tra của bài vẫn còn câu hỏi về di sản đó.</summary>
+    public static AppMessage LessonHeritageStillInQuiz(string quizName, string heritageName) => new(MessageCodes.Blocked,
+        $"Không thể đổi di sản của bài. Bài kiểm tra «{quizName}» còn câu hỏi về di sản «{heritageName}». Bỏ các câu đó khỏi bài kiểm tra trước khi bỏ di sản khỏi bài học.");
 
     // ---- Làm bài của học sinh (xưng "em") ----
 

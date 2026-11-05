@@ -113,6 +113,26 @@ public sealed class QuizLessonApiTests(ApiFactory factory) : IClassFixture<ApiFa
     }
 
     [Fact]
+    public async Task Duplicating_drops_the_questions_about_a_heritage_that_does_not_come_along_to_the_new_lesson()
+    {
+        var s = await _k.SetupAsync(2, publishLesson: false);
+        var (second, secondImages) = await _k.Questions.HeritageAsync("Văn Miếu");
+        await DiscoveryTestKit.Expect(Http.PutAsync<LessonDetailDto>($"{L}/{s.LessonId}", new { heritageIds = new[] { s.Heritage.Id, second.Id } }, s.Token));
+        var quiz = await _k.CreateAsync(s, "Hai di sản");
+        var first = await _k.QuestionAsync(s, QuestionType.SINGLE_CHOICE);
+        var aboutSecond = await _k.Questions.CreateAsync(s.Token, QuestionTestKit.Samples(second.Id, secondImages)[QuestionType.SINGLE_CHOICE]);
+        await _k.AddQuestionsAsync(s.Token, quiz.Id, [first.Id, aboutSecond.Id]);
+        await _k.Questions.Lesson.ArchiveHeritageAsync(second.Id);   // di sản đã ẩn không được chép sang bài mới
+        var target = await _k.Questions.Lesson.Classroom.CreateClassAsync(s.Token, "9A1", 9);
+
+        var result = await DuplicateAsync(s.Token, s.LessonId, target.Id, includeQuizzes: true);
+
+        Assert.Equal((1, 1), (result.CopiedQuizzes, result.SkippedQuestions));
+        var copy = await _k.GetAsync(s.Token, (await QuizzesOfAsync(result.Lesson.Id)).Single().Id);
+        Assert.Equal([first.Id], copy.Questions.Select(x => x.QuestionId));
+    }
+
+    [Fact]
     public async Task A_quiz_without_any_usable_question_is_still_copied_as_an_empty_draft()
     {
         var s = await _k.SetupAsync(3);

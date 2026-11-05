@@ -93,21 +93,22 @@ public sealed class TeacherQuizzesController(QuizService quizzes, StudentNotific
     }
 
     /// <summary>
-    /// Hộp "Chọn câu từ ngân hàng": câu đã duyệt, chưa xóa, dùng chung mọi trường, chỉ câu có dạng và cấp dùng được ở cấp của lớp. Mặc định lọc theo các di sản của bài học
-    /// (<c>lessonHeritagesOnly=false</c> để xem mọi di sản); lọc thêm dạng câu, độ khó, di sản, từ khóa. Câu đã có trong bài có <c>inQuiz</c> = true.
+    /// Hộp "Chọn câu từ ngân hàng": câu đã duyệt, chưa xóa, dùng chung mọi trường, chỉ câu có dạng và cấp dùng được ở cấp của lớp. Luôn chỉ gồm câu về các di sản đã gắn với bài học
+    /// (<c>heritageId</c> không phải di sản của bài thì trả trang rỗng); lọc thêm dạng câu, độ khó, di sản, từ khóa. Câu đã có trong bài có <c>inQuiz</c> = true.
     /// </summary>
     [HttpGet("{quizId:long}/question-candidates")]
     [ProducesResponseType<ApiResponse<QuizCandidatePageDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<QuizCandidatePageDto>>> Candidates(
         long quizId, [FromQuery] QuestionType? questionType, [FromQuery] DifficultyLevel? difficultyLevel, [FromQuery] long? heritageId,
-        [FromQuery] bool? lessonHeritagesOnly, [FromQuery] string? keyword, [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct)
+        [FromQuery] string? keyword, [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct)
         => OkEnvelope(await quizzes.CandidatesAsync(CurrentActor, quizId,
-            new QuizCandidateQuery(questionType, difficultyLevel, heritageId, lessonHeritagesOnly, keyword, page, pageSize), ct));
+            new QuizCandidateQuery(questionType, difficultyLevel, heritageId, keyword, page, pageSize), ct));
 
     /// <summary>
-    /// Thêm câu từ ngân hàng vào cuối bài Nháp, mỗi câu <c>point</c> điểm (mặc định 1, bước 0,25, tối đa 100). Chỉ nhận câu đã duyệt, chưa xóa, có dạng và cấp dùng được
-    /// ở cấp của lớp, chưa có trong bài; tối đa 50 câu. Một câu sai thì không thêm câu nào (400 với câu không chọn được, 422 với câu không hợp cấp của lớp).
+    /// Thêm câu từ ngân hàng vào cuối bài Nháp, mỗi câu <c>point</c> điểm (mặc định 1, bước 0,25, tối đa 100). Chỉ nhận câu đã duyệt, chưa xóa, về di sản đã gắn với bài học,
+    /// có dạng và cấp dùng được ở cấp của lớp, chưa có trong bài; tối đa 50 câu. Một câu sai thì không thêm câu nào (400 với câu không chọn được,
+    /// 422 với câu về di sản ngoài bài học hoặc không hợp cấp của lớp).
     /// </summary>
     [HttpPost("{quizId:long}/questions")]
     [ProducesResponseType<ApiResponse<QuizDetailDto>>(StatusCodes.Status200OK)]
