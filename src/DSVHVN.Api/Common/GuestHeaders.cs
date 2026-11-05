@@ -10,8 +10,8 @@ public static class GuestHeaders
     public const string ClientPlatform = "X-Client-Platform";
 
     /// <summary>
-    /// <c>X-Ads-Unavailable: true</c>: app khai báo thiết bị không có quảng cáo (bản demo iOS bằng Expo Go). Máy chủ chỉ chấp nhận khi cấu hình <c>Ads:AllowNoAdsDeclaration</c> bật
-    /// (môi trường phát triển và demo); môi trường thật bỏ qua nên khách không tự tắt được cổng quảng cáo.
+    /// <c>X-Ads-Unavailable: true</c>: app khai báo bản đang chạy không có quảng cáo (bản trên Google Play, bản chạy trong Expo Go). Máy chủ chỉ chấp nhận khi cấu hình
+    /// <c>Ads:AllowNoAdsDeclaration</c> bật (máy chủ Google Cloud bật để app trên Google Play mở thẳng tóm tắt và nghe); tắt thì bỏ qua tiêu đề này.
     /// </summary>
     public const string AdsUnavailable = "X-Ads-Unavailable";
 }
