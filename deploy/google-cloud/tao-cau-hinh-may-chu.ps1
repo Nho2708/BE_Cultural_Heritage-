@@ -16,8 +16,11 @@
   Chép ba tệp lên máy chủ và cài bằng /opt/dsvhvn/bin/nap-cau-hinh.sh (API, Dịch vụ AI đang chạy được tạo lại).
 .PARAMETER TepKhoaAi
   Tệp khóa của Dịch vụ AI trên máy dev, mặc định %APPDATA%\DSVHVN\ai-service.env.
+.PARAMETER BatCongQuangCao
+  Bật cổng quảng cáo (Ads:GateEnabled = true). Từ 08/11/2026 sản phẩm không chạy quảng cáo nên mặc định cổng tắt:
+  tóm tắt và thuyết minh mở cho mọi người.
 .PARAMETER TatCongQuangCao
-  Tắt cổng quảng cáo (Ads:GateEnabled = false).
+  Giữ để lệnh cũ vẫn chạy; cổng đã tắt sẵn, tham số này không còn tác dụng.
 .PARAMETER DiaChiTaiApp
   Địa chỉ tải APK in trên phiếu đăng nhập học sinh (App:MobileAppDownloadUrl). Mặc định là tệp diviet.apk của
   bản phát hành mới nhất trong repo frontend; truyền chuỗi rỗng để phiếu không ghi địa chỉ tải.
@@ -27,6 +30,7 @@
 param(
     [switch]$TaiLen,
     [string]$TepKhoaAi = (Join-Path $env:APPDATA 'DSVHVN\ai-service.env'),
+    [switch]$BatCongQuangCao,
     [switch]$TatCongQuangCao,
     [string]$DiaChiTaiApp = 'https://github.com/Nho2708/FE_Cultural_Heritage-/releases/latest/download/diviet.apk'
 )
@@ -152,7 +156,7 @@ $android = @(); $android += Lay-DanhSach 'Ads:AdMob:AndroidAdUnitIds'; if ($dev.
 $ios = @(); $ios += Lay-DanhSach 'Ads:AdMob:IosAdUnitIds'; if ($dev.Ads.AdMob.IosAdUnitIds) { $ios += @($dev.Ads.AdMob.IosAdUnitIds) }
 $duongDanQc = @(); if ($dev.Ads.AdManager.AdUnitPaths) { $duongDanQc += @($dev.Ads.AdManager.AdUnitPaths) }
 $duongDanQc += Lay-DanhSach 'Ads:AdManager:AdUnitPaths'
-Dat 'Ads:GateEnabled' (-not $TatCongQuangCao)
+Dat 'Ads:GateEnabled' ([bool]$BatCongQuangCao -and -not $TatCongQuangCao)
 # App trên Google Play là bản không quảng cáo (nhóm chốt 05/11/2026): app khai báo X-Ads-Unavailable để khách mở tóm tắt và nghe không cần xem quảng cáo.
 # Web và APK cài riêng vẫn có cổng quảng cáo như cũ.
 Dat 'Ads:AllowNoAdsDeclaration' $true
