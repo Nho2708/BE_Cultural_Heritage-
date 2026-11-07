@@ -1,5 +1,7 @@
 # Luồng Quảng cáo Google có thưởng (Backend)
 
+> **Từ 08/11/2026 sản phẩm không chạy quảng cáo.** Cổng quảng cáo tắt (`Ads:GateEnabled = false`) ở mọi môi trường; hai script cấu hình máy chủ (`deploy/google-cloud/tao-cau-hinh-may-chu.ps1`, `scripts/trien-khai/tao-cau-hinh-may-demo.ps1`) chỉ bật lại khi truyền `-BatCongQuangCao`. Tóm tắt và thuyết minh mở cho mọi người. Mã dưới đây còn giữ nhưng không dùng.
+
 Phần backend cho **cổng quảng cáo** của khách tham quan: khách xem hết một quảng cáo **thật của Google** (app: **AdMob**, quảng cáo có thưởng; web: **Ad Manager**, quảng cáo có thưởng cho web) thì mở được
 **tóm tắt và nghe thuyết minh của một di sản** trong **24 giờ**, trên đúng thiết bị đó. Mọi thứ khác miễn phí, không cần quảng cáo: tìm kiếm, bản đồ, dòng thời gian, nội dung đầy đủ của di sản, ảnh,
 xem 3D, gợi ý, lịch sử. Chỉ mở khóa khi **Google xác nhận người xem đã nhận thưởng**; máy chủ **không bao giờ** tin tham số máy khách tự khai. Học sinh đã đăng nhập không bao giờ thấy quảng cáo.
