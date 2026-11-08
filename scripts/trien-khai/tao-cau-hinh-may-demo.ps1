@@ -13,8 +13,11 @@
   Tệp cấu hình đích, mặc định C:\dsvhvn\cau-hinh\appsettings.Production.json.
 .PARAMETER DiaChiNgrok
   Địa chỉ công khai của đường hầm ngrok (đã khai cho VNPay và AdMob).
+.PARAMETER BatCongQuangCao
+  Bật cổng quảng cáo (Ads:GateEnabled = true). Từ 08/11/2026 sản phẩm không chạy quảng cáo nên mặc định cổng tắt:
+  tóm tắt và thuyết minh mở cho mọi người.
 .PARAMETER TatCongQuangCao
-  Tắt cổng quảng cáo (Ads:GateEnabled = false).
+  Giữ để lệnh cũ vẫn chạy; cổng đã tắt sẵn, tham số này không còn tác dụng.
 .PARAMETER TepBiMat
   Ghi đè đường dẫn secrets.json (mặc định suy ra từ UserSecretsId trong csproj).
 .PARAMETER CheDoAi
@@ -30,6 +33,7 @@ param(
     [string]$TenCsdl = 'dsvhvn_demo',
     [string]$TepDich = 'C:\dsvhvn\cau-hinh\appsettings.Production.json',
     [string]$DiaChiNgrok = 'https://maynard-unphysical-planographically.ngrok-free.dev',
+    [switch]$BatCongQuangCao,
     [switch]$TatCongQuangCao,
     [string]$TepBiMat,
     [ValidateSet('TuDong', 'Remote', 'Simulated')][string]$CheDoAi = 'TuDong',
@@ -179,7 +183,7 @@ $ios = @(); if ($dev.Ads.AdMob.IosAdUnitIds) { $ios += @($dev.Ads.AdMob.IosAdUni
 $ios += Lay-DanhSach 'Ads:AdMob:IosAdUnitIds'
 $duongDanQc = @(); if ($dev.Ads.AdManager.AdUnitPaths) { $duongDanQc += @($dev.Ads.AdManager.AdUnitPaths) }
 $duongDanQc += Lay-DanhSach 'Ads:AdManager:AdUnitPaths'
-Dat 'Ads:GateEnabled' (-not $TatCongQuangCao)
+Dat 'Ads:GateEnabled' ([bool]$BatCongQuangCao -and -not $TatCongQuangCao)
 Dat 'Ads:AllowNoAdsDeclaration' $false
 Dat 'Ads:AdMob:AndroidAdUnitIds' @($android | Select-Object -Unique)
 Dat 'Ads:AdMob:IosAdUnitIds' @($ios | Select-Object -Unique)
