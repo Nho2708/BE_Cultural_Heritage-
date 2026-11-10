@@ -81,6 +81,18 @@ public sealed class AllowedSpeechTextsBuilder
     }
 
     /// <summary>
+    /// Một bài học của lớp cấp 2 hoặc 3: các câu tạo trước lúc xuất bản (<see cref="SpeechWarmUpTexts.ForReadingLesson"/>), cộng các đoạn nội dung để so câu (tóm tắt và từng
+    /// phần Bài đọc, cả bản gốc lẫn bản đã bỏ ký hiệu Markdown) vì nút "Nghe bài đọc" của web và app tách câu hơi khác máy chủ.
+    /// </summary>
+    public AllowedSpeechTextsBuilder AddReadingLesson(string? summary, IReadOnlyCollection<LessonSection> sections)
+    {
+        _exact.AddRange(SpeechWarmUpTexts.ForReadingLesson(summary, sections));
+        AddPassage(summary);
+        foreach (var section in sections.Where(s => s.SectionType == LessonSectionType.READING)) AddPassage(section.Body);
+        return this;
+    }
+
+    /// <summary>
     /// Một bài chơi: các chữ tạo trước lúc phát hành (<see cref="SpeechWarmUpTexts.ForQuiz"/>, lời khen theo mọi vị trí vì bước Nhớ lại đánh số câu khác), cộng nội dung
     /// câu nguyên văn (app và bước Nhớ lại đọc riêng lời câu), lời chỉ đáp án theo nhãn phương án khi câu chưa có giải thích, lời gợi ý khi ghép cặp hoặc sắp xếp
     /// đúng một phần, và lời đọc trang giới thiệu bài chơi.
@@ -140,7 +152,9 @@ public sealed class AllowedSpeechTextsBuilder
 /// <list type="bullet">
 /// <item>Học sinh của lớp cấp 1 (khối 1-5), còn hoạt động: các bài học Đã xuất bản, chưa xóa của lớp em (kể cả câu mang về nhà và thẻ album của di sản đã xuất bản),
 /// các bài chơi đã phát hành hoặc đã đóng của các bài đó, các lượt em đang làm, khung lớp của em và lời cổ vũ.</item>
-/// <item>Học sinh cấp 2, 3, giáo viên, quản trị trường, quản trị hệ thống: bộ rỗng. Giao diện của các vai trò này không xin giọng của máy chủ (xem trước của giáo viên
+/// <item>Học sinh của lớp cấp 2 và 3 (khối 6-12), còn hoạt động: nội dung chính (tóm tắt) và các phần Bài đọc của các bài học Đã xuất bản, chưa xóa của lớp em, cho nút
+/// "Nghe bài đọc"; không có gì khác.</item>
+/// <item>Giáo viên, quản trị trường, quản trị hệ thống: bộ rỗng. Giao diện của các vai trò này không xin giọng của máy chủ (xem trước của giáo viên
 /// dùng giọng của thiết bị), nên chỉ còn câu cố định và tiếng đã có sẵn.</item>
 /// </list>
 /// Bộ chữ của mỗi người được nhớ <see cref="AllowedTtl"/> để không truy vấn lại ở mỗi lần bấm nghe. Tiếng đã có trong bộ nhớ đệm vẫn được trả cho mọi người
@@ -211,9 +225,18 @@ public sealed class SpeechTextPolicy(IAppDbContext db, IMemoryCache cache, IOpti
             .Where(s => s.UserId == actor.UserId && s.DeletedAt == null && s.IsActive && s.Class!.DeletedAt == null)
             .Select(s => new { s.Id, s.ClassId, s.Class!.Grade, ClassName = s.Class.Name, TeacherName = s.Class.Teacher!.FullName })
             .SingleOrDefaultAsync(ct);
-        if (student is null || SchoolClass.SchoolLevelOf(student.Grade) != 1) return AllowedSpeechTexts.Empty;
+        if (student is null) return AllowedSpeechTexts.Empty;
 
         var builder = new AllowedSpeechTextsBuilder();
+        if (SchoolClass.SchoolLevelOf(student.Grade) != 1)
+        {
+            // Cấp 2 và 3: chỉ nút "Nghe bài đọc" của bài học (nội dung chính và các phần Bài đọc).
+            var readingLessons = await db.Lessons.AsNoTracking().Include(l => l.Sections)
+                .Where(l => l.ClassId == student.ClassId && l.DeletedAt == null && l.Status == ContentStatus.PUBLISHED)
+                .ToListAsync(ct);
+            foreach (var lesson in readingLessons) builder.AddReadingLesson(lesson.Summary, lesson.Sections);
+            return builder.Build();
+        }
 
         // Bài học Đã xuất bản, chưa xóa của lớp em: đúng những bài em mở được bằng mã.
         var lessons = await db.Lessons.AsNoTracking().Include(l => l.Sections)

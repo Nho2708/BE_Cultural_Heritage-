@@ -105,11 +105,11 @@ public sealed class SpeechRulesTests
     // ---- Tách câu ----
 
     [Fact]
-    public void Sentences_split_after_sentence_ending_punctuation_followed_by_a_space()
+    public void Sentences_split_after_a_full_stop_exclamation_or_question_mark_followed_by_a_space_but_not_after_an_ellipsis()
     {
         var sentences = SpeechRules.SplitSentences("Hội Gióng rất vui. Em có thích không? Có chứ! Tuyệt quá… Hết rồi.");
 
-        Assert.Equal(["Hội Gióng rất vui.", "Em có thích không?", "Có chứ!", "Tuyệt quá…", "Hết rồi."], sentences);
+        Assert.Equal(["Hội Gióng rất vui.", "Em có thích không?", "Có chứ!", "Tuyệt quá… Hết rồi."], sentences);
     }
 
     [Fact]

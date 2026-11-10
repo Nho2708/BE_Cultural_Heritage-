@@ -56,7 +56,7 @@ public static partial class SpeechRules
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(voice + "\n" + normalizedText)));
 
     /// <summary>
-    /// Tách chữ thành câu ở chỗ sau dấu kết câu (<c>. ! ? …</c>, có thể kèm ngoặc hoặc nháy đóng) mà theo sau là khoảng trắng; dấu kết câu ở cuối chữ ở lại với câu cuối.
+    /// Tách chữ thành câu ở chỗ sau dấu kết câu (<c>. ! ?</c>, có thể kèm ngoặc hoặc nháy đóng; dấu chấm lửng <c>…</c> không phải dấu kết câu vì giao diện, dùng <c>Intl.Segmenter</c>, không tách ở đó) mà theo sau là khoảng trắng; dấu kết câu ở cuối chữ ở lại với câu cuối.
     /// Câu được cắt khoảng trắng, bỏ câu rỗng. Chữ rỗng trả danh sách rỗng.
     /// </summary>
     public static IReadOnlyList<string> SplitSentences(string? text)
@@ -74,6 +74,6 @@ public static partial class SpeechRules
     [GeneratedRegex(@"^[a-z0-9][a-z0-9-]{0,63}$")]
     private static partial Regex VoicePattern();
 
-    [GeneratedRegex(@"(?<=[.!?…]+[""')\]”’」』]*)\s+")]
+    [GeneratedRegex(@"(?<=[.!?]+[""')\]”’」』]*)\s+")]
     private static partial Regex SentenceBoundary();
 }

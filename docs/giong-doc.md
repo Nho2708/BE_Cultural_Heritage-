@@ -1,4 +1,4 @@
-# Giọng đọc tiếng Việt tự host cho cấp 1
+# Giọng đọc tiếng Việt tự host cho cấp 1, và nút Nghe bài đọc của cấp 2, 3
 
 Nút Nghe của cấp 1 xin giọng từ máy chủ trước, thay cho giọng của thiết bị (thiết bị không có giọng tiếng Việt thì đọc chữ Việt bằng giọng Anh). Máy chủ tự tạo giọng bằng
 VieNeu-TTS giọng "Mai Anh" (cùng giọng thuyết minh tạo sẵn của tóm tắt), qua Dịch vụ AI nội bộ; không dùng dịch vụ ngoài. Đặc tả: `doc/huong-moi/09-dac-ta-cap-1-moi.md` mục 7.
@@ -8,7 +8,7 @@ Sản phẩm có ba đường âm thanh:
 | Đường | Dùng cho | Nơi tạo và lưu |
 |---|---|---|
 | Thuyết minh tạo sẵn | Tab "Nghe" của di sản (tóm tắt ngắn, năm ngôn ngữ) | Tạo bằng công cụ ngoại tuyến trên máy phát triển rồi tải lên qua API quản trị; bảng `heritage_narrations`, thư mục `thuyet-minh/`. Máy chủ không tạo giọng cho đường này (xem `docs/da-ngon-ngu.md` mục 14) |
-| Giọng của máy chủ cho cấp 1 | Nút Nghe và tự đọc to của khu học cấp 1 (web học tập, app chế độ Học sinh) | Máy chủ tạo khi cần hoặc tạo trước (tài liệu này); bảng `speech_clips`, thư mục `giong-doc/`. Chỉ tạo giọng mới cho nội dung đã xuất bản người gọi được xem (mục 3) |
+| Giọng của máy chủ cho cấp 1 (và nút Nghe bài đọc của cấp 2, 3) | Nút Nghe và tự đọc to của khu học cấp 1; nút Nghe bài đọc của bài học cấp 2 và 3 (web học tập, app chế độ Học sinh) | Máy chủ tạo khi cần hoặc tạo trước (tài liệu này); bảng `speech_clips`, thư mục `giong-doc/`. Chỉ tạo giọng mới cho nội dung đã xuất bản người gọi được xem (mục 3) |
 | Giọng của thiết bị | Mọi chỗ còn lại, và khi máy chủ trả liên kết `null` | Trình duyệt hoặc điện thoại tự đọc, chỉ khi thiết bị có giọng tiếng Việt |
 
 ## 1. Cấu hình
@@ -51,7 +51,9 @@ Chữ được tạo giọng mới khi:
     câu bất kỳ nằm trong một đoạn Kể chuyện, chú thích, tóm tắt hay ý chính, vì web, app và máy chủ tách câu hơi khác nhau), thẻ album của di sản đã xuất bản của các bài, bài chơi đã phát hành hoặc đã đóng của các bài
     (nội dung, giải thích, lời đọc cả câu, lời phản hồi, lời chỉ đáp án theo nhãn, lời gợi ý khi ghép cặp hay sắp xếp đúng một phần, lời giới thiệu bài chơi), lượt em đang làm, khung "Lớp của em",
     lời chào nhắc tên bài hoặc số sao.
-  - Học sinh cấp 2, 3, giáo viên, quản trị trường, quản trị hệ thống: rỗng. Giao diện các vai trò này không xin giọng của máy chủ (xem trước của giáo viên trong web quản trị dùng giọng của thiết bị).
+  - Học sinh lớp cấp 2 và 3 (khối 6-12), còn hoạt động (từ 11/11/2026, cho nút "Nghe bài đọc"): nội dung chính (tóm tắt) và các phần Bài đọc của bài học Đã xuất bản, chưa xóa của lớp em, từng câu và cả đoạn (web và app tách câu hơi khác máy chủ). Không có gì khác:
+    không bài chơi, không thẻ album, không khung lớp.
+  - Giáo viên, quản trị trường, quản trị hệ thống: rỗng. Giao diện các vai trò này không xin giọng của máy chủ (xem trước của giáo viên trong web quản trị dùng giọng của thiết bị).
 
 Còn lại dùng giọng của thiết bị: thẻ học sinh ở trang Hồ sơ (có số sao và số ngày học), câu ôn của bước Nhớ lại lấy từ bài đã lưu trữ, thông báo lỗi máy chủ đọc trong bảng phản hồi, và trong tối đa
 3 phút sau khi thầy cô xuất bản bài mới nếu tiếng tạo trước chưa xong.
@@ -74,11 +76,14 @@ chưa có thì sinh ở bậc thấp; lỗi thì nghỉ rồi xếp lại tối 
 Tạo trước lúc xuất bản (`SpeechWarmUp`, chỉ khi `SelfHosted`; xếp vào hàng đợi rồi đi tiếp, không chờ sinh và không bao giờ làm hỏng lần xuất bản):
 
 - Xuất bản bài học của lớp khối 1-5 (cấp 1): tiêu đề và từng câu của các phần Kể chuyện, từng câu chú thích của phần Hình, từng câu của các ý chính, câu mang về nhà (`AlbumRules.TakeHomeQuestion`).
+- Xuất bản bài học của lớp khối 6-12 (cấp 2 và 3, từ 11/11/2026): từng câu của **nội dung chính** (tóm tắt của bài) rồi của **mỗi phần Bài đọc** theo thứ tự; các chữ khác (ý chính, mốc thời gian, đoạn trích tư liệu gốc, câu hỏi gợi suy nghĩ, chú thích hình) không đọc nên không tạo
+  (`SpeechWarmUpTexts.ForReadingLesson`). Cách tách câu **khớp từng ký tự** với giao diện (web học tập và app); bộ câu mẫu chung nằm ở `ReadingSpeechTests` của backend và kiểm thử lời đọc bài của web, đổi bên nào thì đổi cả hai.
+  Giao diện chỉ xin tạo trước khoảng 10 câu đầu của nội dung chính mỗi lần mở bài (giới hạn 40 đoạn mỗi lần xin của `/tts/prefetch`).
 - Phát hành bài kiểm tra của bài học thuộc lớp khối 1-5: nội dung và giải thích của từng câu hỏi, chữ trên thẻ hình của câu Chọn hình đúng, lời đọc cả câu như bài chơi web
   đọc (lời câu, phương án, lời hướng dẫn; trừ ghép cặp và sắp xếp vì mỗi lượt xáo một kiểu) và lời phản hồi có giải thích theo vị trí câu (bài xáo câu thì cả ba lời khen).
   Chữ dựng ở `LevelOneSpeech`, khớp từng ký tự với lời đọc của web; hai bên giữ cùng bộ câu mẫu trong kiểm thử (`LevelOneSpeechTests` và `quiz/speech.test.ts` của web học tập).
 - Học sinh cấp 1 bắt đầu một lượt bài chơi: lời đọc cả câu của mọi câu theo đúng thứ tự câu, phương án, hình và bước đang hiện cho em (`AttemptService`, chỉ lúc tạo lượt mới).
-- Chữ đi qua `PlainText.FromMarkdown` trước khi tách câu (dấu kết câu `. ! ? …`, có thể kèm ngoặc hoặc nháy đóng, rồi khoảng trắng), giống cách giao diện chuẩn bị chữ để đọc, nên băm khớp với lời gọi nghe ngay.
+- Chữ đi qua `PlainText.FromMarkdown` trước khi tách câu (dấu kết câu `. ! ?`, có thể kèm ngoặc hoặc nháy đóng, rồi khoảng trắng; dấu chấm lửng `…` **không** là dấu kết câu vì giao diện tách bằng `Intl.Segmenter` và không tách ở đó, đổi ngày 11/11/2026, áp dụng cho cả cấp 1, 2 và 3), giống cách giao diện chuẩn bị chữ để đọc, nên băm khớp với lời gọi nghe ngay.
 
 ## 6. Triển khai
 
@@ -87,7 +92,7 @@ uid 10002 của ảnh AI. Xem `deploy/google-cloud/README.md`, mục "Giọng đ
 
 ## 7. Kiểm thử
 
-Quy tắc thuần (`SpeechRulesTests`, `SpeechWarmUpTextsTests`), cổng ưu tiên (`PriorityGateTests`), dịch vụ với Dịch vụ AI giả (`SelfHostedTtsServiceTests`: sai rồi trúng chỉ một lời gọi, đồng thời một lần sinh,
+Quy tắc thuần (`SpeechRulesTests`, `SpeechWarmUpTextsTests`, `ReadingSpeechTests` cho bộ câu mẫu của cấp 2 và 3), cổng ưu tiên (`PriorityGateTests`), dịch vụ với Dịch vụ AI giả (`SelfHostedTtsServiceTests`: sai rồi trúng chỉ một lời gọi, đồng thời một lần sinh,
 mỗi lúc một lời gọi, ưu tiên và nâng bậc, chờ có hạn, 503 và các lỗi, hàng đợi tạo trước, nhật ký không chứa chữ), API (`SpeechApiTests`: hợp đồng, tệp phục vụ ở `/files`, 202 và kiểm lỗi của prefetch, tạo trước lúc xuất bản bài
 lớp khối 2 mà không phải lớp khối 8, nguồn `FptAi` và `None` không đổi), quy tắc chỉ tạo giọng cho nội dung đã xuất bản (`SpeechTextPolicyTests` trên SQLite: bài của lớp em, chữ lạ, bài nháp,
 lớp khác, giáo viên, chữ ghi nhận, tiếng có sẵn, tắt quy tắc; `SpeechContentRuleApiTests` qua HTTP) và SQL Server LocalDB (`SpeechSqlServerTests`: migration, ràng buộc, hai máy chủ cùng sinh).
