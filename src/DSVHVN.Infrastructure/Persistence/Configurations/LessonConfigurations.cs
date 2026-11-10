@@ -11,12 +11,21 @@ internal sealed class LessonConfiguration : IEntityTypeConfiguration<Lesson>
 {
     public void Configure(EntityTypeBuilder<Lesson> b)
     {
-        b.ToTable("lessons", t => t.HasEnumCheck<Lesson, ContentStatus>("lessons", "status"));
+        b.ToTable("lessons", t =>
+        {
+            t.HasEnumCheck<Lesson, ContentStatus>("lessons", "status");
+            // Cột được NULL (bài không ở thư viện): CHECK không chặn NULL.
+            t.HasEnumCheck<Lesson, LessonSampleStatus>("lessons", "sample_status");
+        });
         b.Property(x => x.Title).HasMaxLength(255);
         b.Property(x => x.Summary);
         b.Property(x => x.KeyPoints);
         b.Property(x => x.Status).AsEnumText();
         b.Property(x => x.AccessCode).HasMaxLength(10);
+
+        // Thư viện bài mẫu dùng chung: trạng thái đề xuất, người duyệt, lý do, và bài mẫu mà bài này được tạo từ đó.
+        b.Property(x => x.SampleStatus).AsEnumText();
+        b.Property(x => x.SampleNote).HasMaxLength(500);
 
         // UNIQUE có lọc: bài chưa xuất bản chưa có mã.
         b.HasIndex(x => x.AccessCode).IsUnique().HasFilter("[access_code] IS NOT NULL")
@@ -24,6 +33,12 @@ internal sealed class LessonConfiguration : IEntityTypeConfiguration<Lesson>
 
         b.HasOne(x => x.Teacher).WithMany().HasForeignKey(x => x.TeacherId).IsRequired().OnDelete(DeleteBehavior.Restrict);
         b.HasOne(x => x.Class).WithMany().HasForeignKey(x => x.ClassId).IsRequired().OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.SampleReviewer).WithMany().HasForeignKey(x => x.SampleReviewedBy).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(x => x.SourceLesson).WithMany().HasForeignKey(x => x.SourceLessonId).OnDelete(DeleteBehavior.Restrict);
+
+        // Chỉ mục lọc: thư viện và màn hình duyệt chỉ đọc các bài có trạng thái thư viện; đếm lượt dùng chỉ đọc các bài tạo từ bài mẫu.
+        b.HasIndex(x => x.SampleStatus).HasFilter("[sample_status] IS NOT NULL").HasDatabaseName("IX_lessons_sample_status");
+        b.HasIndex(x => x.SourceLessonId).HasFilter("[source_lesson_id] IS NOT NULL").HasDatabaseName("IX_lessons_source_lesson_id");
     }
 }
 
@@ -50,10 +65,11 @@ internal sealed class AiGenerationConfiguration : IEntityTypeConfiguration<AiGen
             t.HasEnumCheck<AiGeneration, AiTaskType>("ai_generations", "task_type");
             t.HasEnumCheck<AiGeneration, AiTaskStatus>("ai_generations", "status");
             t.HasCheckConstraint("CK_ai_generations_subject",
-                "([lesson_id] IS NOT NULL AND [heritage_id] IS NULL AND [task_type] IN ('LESSON_SUMMARY', 'QUIZ_GENERATION')) " +
+                "([lesson_id] IS NOT NULL AND [heritage_id] IS NULL AND [task_type] IN ('LESSON_SUMMARY', 'QUIZ_GENERATION', 'LESSON_SECTION_REWRITE')) " +
                 "OR ([lesson_id] IS NULL AND [heritage_id] IS NOT NULL AND [task_type] IN ('HERITAGE_TRANSLATION', 'HERITAGE_SUMMARY'))");
         });
-        b.Property(x => x.TaskType).AsEnumText();
+        // LESSON_SECTION_REWRITE dài 22 ký tự nên cột rộng hơn 20 của các cột enum khác.
+        b.Property(x => x.TaskType).AsEnumText(30);
         b.Property(x => x.InputSnapshot);
         b.Property(x => x.Params);
         b.Property(x => x.Model).HasMaxLength(100);

@@ -7,8 +7,8 @@ nay là **15 migration**. Các mục 3 đến 16 bên dưới ghi từng đợt 
 | Mục | Giá trị |
 |---|---|
 | CSDL phát triển | `sep490_dsvhvn` trên `(localdb)\MSSQLLocalDB`, collation `Vietnamese_CI_AI` (EF Core tạo database với collation của model) |
-| Migration | 15 tệp trong `src/DSVHVN.Infrastructure/Persistence/Migrations/`: `KhoiTaoCsdl` (28/09/2026), `ChuanHoaLoaiNguonThamChieu`, `ThemCotTimKiemKhongDauChoDiSan`, `ThemPhanNoiDungBaiHocTheoCap`, `ThemDangCauHoiVaCapPhuHop`, `ThemBanDichVaTomTatDiSan`, `ThemCauTraLoiTungPhan`, `ThemMoHinh3DCuaDiSan`, `ThemRangBuocGoiVaThanhToan`, `ThemKhachThamQuanVaLichSu`, `ThemLuotMoKhoaQuangCao`, `ThemThuyetMinhTaoSan` (20/10/2026), `ThemKiemTungCauVaBaiHocDaXong` (25/10/2026), `ThemBoNhoDemGiongDoc` (25/10/2026), `ThemMaBaiKiemTraLuotMoBaiVaThongBaoHocSinh` (31/10/2026); `ChuanHoaLoaiNguonThamChieu` chỉ sửa dữ liệu |
-| Số liệu (đối chiếu snapshot ngày 03/11/2026) | **43 bảng** · **69 khóa ngoại** (4 Cascade: `password_reset_tokens.user_id` và ba bảng bản dịch của giai đoạn, sự kiện, ảnh; còn lại Restrict) · **54 CHECK** · **15 migration** · **9 bảng xóa mềm** (`deleted_at`: `organizations`, `users`, `classes`, `students`, `heritages`, `heritage_models`, `lessons`, `questions`, `quizzes`) · 10 nhóm bảng |
+| Migration | 15 tệp trong `src/DSVHVN.Infrastructure/Persistence/Migrations/`: `KhoiTaoCsdl` (28/09/2026), `ChuanHoaLoaiNguonThamChieu`, `ThemCotTimKiemKhongDauChoDiSan`, `ThemPhanNoiDungBaiHocTheoCap`, `ThemDangCauHoiVaCapPhuHop`, `ThemBanDichVaTomTatDiSan`, `ThemCauTraLoiTungPhan`, `ThemMoHinh3DCuaDiSan`, `ThemRangBuocGoiVaThanhToan`, `ThemKhachThamQuanVaLichSu`, `ThemLuotMoKhoaQuangCao`, `ThemThuyetMinhTaoSan` (20/10/2026), `ThemKiemTungCauVaBaiHocDaXong` (25/10/2026), `ThemBoNhoDemGiongDoc` (25/10/2026), `ThemMaBaiKiemTraLuotMoBaiVaThongBaoHocSinh` (31/10/2026), `ThemThuVienBaiMauVaVietLaiMotPhan` (10/11/2026); `ChuanHoaLoaiNguonThamChieu` chỉ sửa dữ liệu |
+| Số liệu (đối chiếu snapshot ngày 10/11/2026) | **43 bảng** · **71 khóa ngoại** (4 Cascade: `password_reset_tokens.user_id` và ba bảng bản dịch của giai đoạn, sự kiện, ảnh; còn lại Restrict) · **55 CHECK** · **16 migration** · **9 bảng xóa mềm** (`deleted_at`: `organizations`, `users`, `classes`, `students`, `heritages`, `heritage_models`, `lessons`, `questions`, `quizzes`) · 10 nhóm bảng |
 | Dữ liệu khởi tạo trong migration khởi tạo | 4 vai trò: 1 ADMIN, 2 ORG_ADMIN, 3 TEACHER, 4 STUDENT |
 | Dữ liệu nạp lúc khởi động | Gói "Miễn phí"; tài khoản quản trị hệ thống (mật khẩu từ User Secrets); 34 tỉnh/thành và di sản đợt 1 (chỉ Development) |
 
@@ -287,3 +287,20 @@ Migration `ThemBoNhoDemGiongDoc` (25/10/2026), chỉ thêm bảng, nên chạy �
 - Không có `deleted_at` hay `updated_at`: một dòng là một tệp MP3 không đổi; muốn tạo lại thì xóa dòng (và tệp nếu muốn).
 
 Số liệu sau migration: 41 bảng, 376 cột trong database (thêm 7), 63 khóa ngoại, 53 CHECK (thêm 2), 10 UNIQUE có lọc, 20 UNIQUE thường (thêm 1). Chi tiết luồng: [giong-doc.md](giong-doc.md).
+
+## 17. Phần CSDL của luồng "Thư viện bài mẫu và viết lại một phần bằng AI"
+
+Migration `ThemThuVienBaiMauVaVietLaiMotPhan` (10/11/2026), chỉ thêm cột và ràng buộc (và nới một cột), nên chạy được trên CSDL có dữ liệu. Không có câu SQL nào dùng cột mới trong cùng migration nên không cần bọc `EXEC`.
+Script idempotent chạy thử từ migration ngay trước, như CI.
+
+| Bảng | Thay đổi |
+|---|---|
+| `lessons` | Thêm `sample_status` (nvarchar(20) NULL, CHECK `CK_lessons_sample_status` IN `PENDING`, `APPROVED`, `REJECTED`; NULL là không ở thư viện), `sample_requested_at` (`datetime2(3)` NULL), `sample_reviewed_at` (`datetime2(3)` NULL), `sample_reviewed_by` (bigint NULL, khóa ngoại `fk_lessons_sample_reviewed_by` tới `users`, NO ACTION), `sample_note` (nvarchar(500) NULL), `source_lesson_id` (bigint NULL, khóa ngoại `fk_lessons_source_lesson_id` tới chính `lessons`, NO ACTION) |
+| `lessons` (chỉ mục) | `IX_lessons_sample_status` lọc `[sample_status] IS NOT NULL`; `IX_lessons_source_lesson_id` lọc `[source_lesson_id] IS NOT NULL`; `IX_lessons_sample_reviewed_by` (chỉ mục khóa ngoại thường) |
+| `ai_generations` | `task_type` nhận thêm `LESSON_SECTION_REWRITE`: **cột nới từ nvarchar(20) lên nvarchar(30)** vì giá trị mới dài 22 ký tự; hai CHECK `CK_ai_generations_task_type` và `CK_ai_generations_subject` được dựng lại (loại mới thuộc nhánh "gắn bài học" của `CK_ai_generations_subject`) |
+
+- Trạng thái thư viện về NULL (xóa cả `sample_requested_at`, `sample_reviewed_at`, `sample_reviewed_by`, `sample_note`) khi giáo viên rút bài, lưu trữ hoặc xóa bài. Sửa nội dung bài đang `APPROVED` thì về `PENDING` và `sample_requested_at` = lúc lưu.
+- `source_lesson_id` chỉ ghi khi dùng bài mẫu từ thư viện (nhân bản thường không ghi). Số "lượt dùng" của bài mẫu là số bài có `source_lesson_id` trỏ tới nó, kể cả bài đã bị xóa mềm (lượt dùng đã xảy ra).
+- Mã thao tác mới của `audit_logs.action` (cột không có CHECK nên không đụng CSDL): `LESSON_SAMPLE_REQUESTED`, `LESSON_SAMPLE_WITHDRAWN`, `LESSON_SAMPLE_APPROVED`, `LESSON_SAMPLE_REJECTED`, `LESSON_SAMPLE_USED`, đối tượng `target_type` = `lessons`.
+
+Số liệu sau migration: 43 bảng, 398 cột trong database (thêm 6), 71 khóa ngoại (thêm 2), 55 CHECK (thêm 1), 10 UNIQUE có lọc, 21 UNIQUE thường. Chi tiết luồng: [bai-hoc-theo-cap.md](bai-hoc-theo-cap.md) mục 10 và 11.

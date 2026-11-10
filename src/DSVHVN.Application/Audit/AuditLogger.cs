@@ -83,6 +83,11 @@ public static class AuditLabels
         AuditAction.BILLING_STATUS_CHANGED => "Hệ thống đổi trạng thái gói, hóa đơn, giao dịch",
         AuditAction.IPN_REJECTED => "Từ chối IPN",
         AuditAction.AD_REWARD_REJECTED => "Từ chối phần thưởng quảng cáo",
+        AuditAction.LESSON_SAMPLE_REQUESTED => "Đề xuất bài học vào thư viện bài mẫu",
+        AuditAction.LESSON_SAMPLE_WITHDRAWN => "Rút bài học khỏi thư viện bài mẫu",
+        AuditAction.LESSON_SAMPLE_APPROVED => "Duyệt bài mẫu vào thư viện",
+        AuditAction.LESSON_SAMPLE_REJECTED => "Từ chối hoặc gỡ bài mẫu khỏi thư viện",
+        AuditAction.LESSON_SAMPLE_USED => "Dùng bài mẫu cho lớp của mình",
         _ => action.ToString(),
     };
 

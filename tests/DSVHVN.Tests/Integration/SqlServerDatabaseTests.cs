@@ -26,7 +26,8 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         "ai_generations.heritage_id", "ai_generations.lesson_id", "attempt_answer_parts.answer_id", "attempt_answer_parts.selected_answer_id",
         "attempt_answers.answer_id", "audit_logs.user_id", "guest_activities.heritage_id",
         "heritage_summaries.ai_generation_id", "heritage_summaries.reviewed_by", "heritage_translations.ai_generation_id",
-        "heritage_translations.reviewed_by", "heritages.province_id", "lesson_sections.event_id", "media.event_id", "media.heritage_id",
+        "heritage_translations.reviewed_by", "heritages.province_id", "lesson_sections.event_id", "lessons.sample_reviewed_by", "lessons.source_lesson_id",
+        "media.event_id", "media.heritage_id",
         "questions.ai_generation_id", "questions.reviewed_by", "student_notifications.quiz_id", "users.organization_id",
     ];
 
@@ -42,12 +43,12 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.Equal("Vietnamese_CI_AI",
             (await SqlAsync<string>($"SELECT CAST(DATABASEPROPERTYEX(DB_NAME(), 'Collation') AS nvarchar(128)) AS [Value]")).Single());
         Assert.Equal(43, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(392, (await SqlAsync<int>(   // quizzes.access_code + 5 cột của lesson_visits + 10 cột của student_notifications + 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 17 cột của heritage_models (luồng mô hình 3D) + 9 cột của attempt_answer_parts và 2 cột parts_total, parts_correct của attempt_answers (luồng học tập) + 9 cột của ad_unlocks (luồng quảng cáo Google) + 10 cột của heritage_narrations (thuyết minh tạo sẵn) + 4 cột của lesson_completions và attempt_answers.try_count (bài chơi dạng luyện tập) + 7 cột của speech_clips (giọng đọc tự host)
+        Assert.Equal(398, (await SqlAsync<int>(   // 6 cột thư viện bài mẫu của lessons (sample_status, sample_requested_at, sample_reviewed_at, sample_reviewed_by, sample_note, source_lesson_id) + quizzes.access_code + 5 cột của lesson_visits + 10 cột của student_notifications + 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 17 cột của heritage_models (luồng mô hình 3D) + 9 cột của attempt_answer_parts và 2 cột parts_total, parts_correct của attempt_answers (luồng học tập) + 9 cột của ad_unlocks (luồng quảng cáo Google) + 10 cột của heritage_narrations (thuyết minh tạo sẵn) + 4 cột của lesson_completions và attempt_answers.try_count (bài chơi dạng luyện tập) + 7 cột của speech_clips (giọng đọc tự host)
             $"SELECT COUNT(*) AS [Value] FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id WHERE t.name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(69, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());
+        Assert.Equal(71, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());   // + lessons.sample_reviewed_by, lessons.source_lesson_id
         Assert.Equal(["fk_event_translations_event_id", "fk_media_translations_media_id", "fk_password_reset_tokens_user_id", "fk_timeline_translations_timeline_id"],
             await SqlAsync<string>($"SELECT name AS [Value] FROM sys.foreign_keys WHERE delete_referential_action_desc = 'CASCADE' ORDER BY name"));
-        Assert.Equal(54, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());
+        Assert.Equal(55, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());   // + CK_lessons_sample_status
 
         var filtered = await SqlAsync<string>(
             $"SELECT i.name + ' ' + i.filter_definition AS [Value] FROM sys.indexes i WHERE i.is_unique = 1 AND i.has_filter = 1 ORDER BY i.name");

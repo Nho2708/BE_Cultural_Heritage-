@@ -48,6 +48,7 @@ public static class AuditTargets
     public const string Students = "students";
     public const string Quizzes = "quizzes";
     public const string Questions = "questions";
+    public const string Lessons = "lessons";
     public const string Plans = "plans";
     public const string Subscriptions = "subscriptions";
     public const string Invoices = "invoices";
