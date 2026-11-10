@@ -293,6 +293,19 @@ public static class Messages
         return new AppMessage(MessageCodes.LessonSampleUsed, text);
     }
 
+    // ---- Chủ đề chương trình ----
+
+    /// <summary>409: đã có chủ đề cùng khối, môn, chủ đề lớn và nội dung.</summary>
+    public static AppMessage CurriculumTopicTaken(string title) => Duplicate("Nội dung chủ đề",
+        $"đã có chủ đề \"{title}\" cùng khối, môn và chủ đề lớn");
+
+    /// <summary>404: không có chủ đề chương trình (hoặc chủ đề đã ngừng dùng khi giáo viên xem).</summary>
+    public static AppMessage CurriculumTopicNotFound(string action) => NotFound(action, "chủ đề chương trình");
+
+    /// <summary>400: danh sách di sản của chủ đề có di sản không tồn tại hoặc đã xóa.</summary>
+    public static AppMessage CurriculumHeritagesMissing(int count) =>
+        Invalid("Danh sách di sản", $"có {count} di sản không tồn tại hoặc đã bị xóa");
+
     /// <summary>Lớp đích khác cấp với lớp nguồn khi nhân bản bài học: nội dung vẫn được chép nguyên, cảnh báo giáo viên xem lại.</summary>
     public static string LessonLevelDiffers(string className, int targetLevel, int sourceLevel) =>
         $"Lớp {className} thuộc cấp {targetLevel}, khác cấp {sourceLevel} của bài gốc. Nội dung đang theo khung của cấp {sourceLevel}; " +

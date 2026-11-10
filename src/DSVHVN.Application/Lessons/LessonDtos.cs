@@ -1,4 +1,5 @@
 using DSVHVN.Application.Billing;
+using DSVHVN.Application.Curriculum;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Rules;
 
@@ -154,7 +155,8 @@ public sealed record LessonDetailDto(
     AiQuotaDto AiQuota,
     DateTime? CreatedAt,
     DateTime? UpdatedAt,
-    LessonSampleDto? Sample = null);
+    LessonSampleDto? Sample = null,
+    IReadOnlyList<CurriculumTopicBriefDto>? CurriculumTopics = null);
 
 /// <summary>Kết quả xuất bản: bài sau khi xuất bản, mã vừa sinh lần đầu (hoặc mã cũ khi xuất bản lại) và câu thông báo.</summary>
 public sealed record PublishLessonResultDto(LessonDetailDto Lesson, bool CodeCreated, string AccessCode, string Message);

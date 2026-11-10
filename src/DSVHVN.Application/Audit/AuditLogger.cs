@@ -88,6 +88,11 @@ public static class AuditLabels
         AuditAction.LESSON_SAMPLE_APPROVED => "Duyệt bài mẫu vào thư viện",
         AuditAction.LESSON_SAMPLE_REJECTED => "Từ chối hoặc gỡ bài mẫu khỏi thư viện",
         AuditAction.LESSON_SAMPLE_USED => "Dùng bài mẫu cho lớp của mình",
+        AuditAction.CURRICULUM_TOPIC_CREATED => "Thêm chủ đề chương trình",
+        AuditAction.CURRICULUM_TOPIC_UPDATED => "Sửa chủ đề chương trình",
+        AuditAction.CURRICULUM_TOPIC_DEACTIVATED => "Ngừng dùng chủ đề chương trình",
+        AuditAction.CURRICULUM_TOPIC_ACTIVATED => "Dùng lại chủ đề chương trình",
+        AuditAction.CURRICULUM_TOPIC_HERITAGES_CHANGED => "Đổi danh sách di sản của chủ đề chương trình",
         _ => action.ToString(),
     };
 

@@ -1,5 +1,6 @@
 using DSVHVN.Application.Audit;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Curriculum;
 using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Audit;
 using DSVHVN.Domain.Enums;
@@ -334,6 +335,15 @@ public sealed class HeritageService(IAppDbContext db, RequestValidator validator
             .Where(m => m.HeritageId == id || (m.EventId != null && eventIds.Contains(m.EventId.Value))).ToListAsync(ct);
         var references = await db.HeritageReferences.AsNoTracking().Where(r => r.HeritageId == id).OrderBy(r => r.Id).ToListAsync(ct);
 
+        // Chủ đề chương trình đang dùng mà di sản thuộc về (chỉ đọc), theo khối rồi thứ tự trong chương trình.
+        var topics = (await db.HeritageCurriculumTopics.AsNoTracking()
+                .Where(l => l.HeritageId == id && l.Topic!.IsActive)
+                .Select(l => new { l.Topic!.Id, l.Topic.Subject, l.Topic.Grade, l.Topic.GroupTitle, l.Topic.Title, l.Topic.SortOrder })
+                .ToListAsync(ct))
+            .OrderBy(t => t.Grade).ThenBy(t => t.SortOrder).ThenBy(t => t.Id)
+            .Select(t => new CurriculumTopicBriefDto(t.Id, t.Subject, t.Grade, t.GroupTitle, t.Title))
+            .ToList();
+
         var heritageMedia = media.Where(m => m.HeritageId == id).ToList();
         var mediaByEvent = media.Where(m => m.EventId != null).ToLookup(m => m.EventId!.Value);
         var eventsByTimeline = events.ToLookup(e => e.TimelineId);
@@ -348,6 +358,7 @@ public sealed class HeritageService(IAppDbContext db, RequestValidator validator
             HeritageMapper.OrderTimelines(timelines).Select(t => HeritageMapper.ToDto(t, eventsByTimeline[t.Id], mediaByEvent)).ToList(),
             HeritageMapper.OrderMedia(heritageMedia).Select(m => HeritageMapper.ToDto(m, heritage.ThumbnailUrl)).ToList(),
             references.Select(HeritageMapper.ToDto).ToList(),
-            await TranslationOutdated.StateOfAsync(db, id, ct));
+            await TranslationOutdated.StateOfAsync(db, id, ct),
+            topics);
     }
 }

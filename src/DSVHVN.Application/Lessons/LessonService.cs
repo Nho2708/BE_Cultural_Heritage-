@@ -1,6 +1,7 @@
 using DSVHVN.Application.Billing;
 using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Curriculum;
 using DSVHVN.Application.Quizzes;
 using DSVHVN.Application.Speech;
 using DSVHVN.Domain.Classes;
@@ -73,12 +74,13 @@ public sealed class LessonDetailBuilder(IAppDbContext db, PlanGuard plans, Lesso
         var sample = lesson.SampleStatus is null
             ? null
             : LessonSampleMapper.ToDto(lesson, (await LessonSampleMapper.UseCountsAsync(db, [lesson.Id], ct)).GetValueOrDefault(lesson.Id));
+        var topics = (await CurriculumTopicLookup.ForLessonsAsync(db, [(lesson.Id, schoolClass.Grade)], ct)).GetValueOrDefault(lesson.Id) ?? [];
 
         return new LessonDetailDto(
             lesson.Id, lesson.Title, schoolClass.Id, schoolClass.Name, schoolClass.Grade, level, SchoolLevels.NameOf(level),
             lesson.Status, lesson.AccessCode, lesson.AccessCode is null ? null : $"/bai-hoc/{lesson.AccessCode}",
             lesson.Summary, keyPoints, sections.Select(s => LessonMapper.ToDto(s, materials)).ToList(), heritages,
-            LessonFrameDto.From(frame), words, LessonMapper.ToDto(check), quizCount, quota, lesson.CreatedAt, lesson.UpdatedAt, sample);
+            LessonFrameDto.From(frame), words, LessonMapper.ToDto(check), quizCount, quota, lesson.CreatedAt, lesson.UpdatedAt, sample, topics);
     }
 
     /// <summary>Di sản của bài chưa xóa mềm (kể cả đã ẩn: giáo viên cần thấy để thay).</summary>

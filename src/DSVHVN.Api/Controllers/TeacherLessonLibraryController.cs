@@ -18,7 +18,7 @@ namespace DSVHVN.Api.Controllers;
 public sealed class TeacherLessonLibraryController(LessonSampleService samples) : ApiControllerBase
 {
     /// <summary>
-    /// Thư viện bài mẫu: lọc theo cấp (<c>level</c> 1-3), khối (<c>grade</c> 1-12), di sản, từ khóa trong tiêu đề; <c>sort</c> = NEWEST (mặc định, bài mới duyệt trước)
+    /// Thư viện bài mẫu: lọc theo cấp (<c>level</c> 1-3), khối (<c>grade</c> 1-12), di sản, chủ đề chương trình (<c>topicId</c>), từ khóa trong tiêu đề; <c>sort</c> = NEWEST (mặc định, bài mới duyệt trước)
     /// hoặc POPULAR (dùng nhiều trước). Mỗi dòng có trích tóm tắt, số phần, số bài kiểm tra, người soạn, trường, số lượt dùng và nhãn "bài của tôi".
     /// </summary>
     [HttpGet]
@@ -26,8 +26,8 @@ public sealed class TeacherLessonLibraryController(LessonSampleService samples) 
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ApiResponse<PagedResult<LessonLibraryItemDto>>>> List(
         [FromQuery] int? level, [FromQuery] int? grade, [FromQuery] long? heritageId, [FromQuery] string? keyword, [FromQuery] LessonLibrarySort? sort,
-        [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct)
-        => OkEnvelope(await samples.ListLibraryAsync(CurrentActor, new LessonLibraryQuery(level, grade, heritageId, keyword, sort, page, pageSize), ct));
+        [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] int? topicId, CancellationToken ct)
+        => OkEnvelope(await samples.ListLibraryAsync(CurrentActor, new LessonLibraryQuery(level, grade, heritageId, keyword, sort, page, pageSize, topicId), ct));
 
     /// <summary>
     /// Xem trước một bài mẫu: thẻ bài, bài như học sinh thấy (không mã bài học, không tên lớp) và các bài kiểm tra sẽ chép nếu chọn chép kèm. 404 khi bài không ở thư viện.

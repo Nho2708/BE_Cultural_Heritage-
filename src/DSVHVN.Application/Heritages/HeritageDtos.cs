@@ -1,3 +1,4 @@
+using DSVHVN.Application.Curriculum;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Application.Translations;
 
@@ -95,7 +96,8 @@ public sealed record HeritageDetailDto(
     IReadOnlyList<TimelineDto> Timelines,
     IReadOnlyList<MediaDto> Media,
     IReadOnlyList<ReferenceDto> References,
-    TranslationState TranslationState = TranslationState.NONE);
+    TranslationState TranslationState = TranslationState.NONE,
+    IReadOnlyList<CurriculumTopicBriefDto>? CurriculumTopics = null);
 
 /// <summary>Giai đoạn của di sản kèm sự kiện đã xếp theo năm-tháng-ngày rồi thứ tự. Năm âm là trước Công nguyên.</summary>
 public sealed record TimelineDto(

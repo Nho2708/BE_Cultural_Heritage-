@@ -1,3 +1,4 @@
+using DSVHVN.Application.Curriculum;
 using DSVHVN.Domain.Enums;
 
 namespace DSVHVN.Application.Lessons;
@@ -11,7 +12,7 @@ public enum LessonLibrarySort
     POPULAR,
 }
 
-/// <summary>Bộ lọc của thư viện (giáo viên): cấp 1-3, khối 1-12, di sản, từ khóa trong tiêu đề, cách xếp, trang.</summary>
+/// <summary>Bộ lọc của thư viện (giáo viên): cấp 1-3, khối 1-12, di sản, từ khóa trong tiêu đề, cách xếp, trang, chủ đề chương trình.</summary>
 public sealed record LessonLibraryQuery(
     int? Level,
     int? Grade,
@@ -19,7 +20,8 @@ public sealed record LessonLibraryQuery(
     string? Keyword,
     LessonLibrarySort? Sort,
     int? Page,
-    int? PageSize);
+    int? PageSize,
+    int? TopicId = null);
 
 /// <summary>Di sản hiện trên thẻ bài của thư viện.</summary>
 public sealed record LibraryHeritageDto(long Id, string? Slug, string? Name, string? ThumbnailUrl);
@@ -41,7 +43,8 @@ public sealed record LessonLibraryItemDto(
     string? SchoolName,
     int UseCount,
     DateTime? ApprovedAt,
-    bool IsMine);
+    bool IsMine,
+    IReadOnlyList<CurriculumTopicBriefDto>? CurriculumTopics = null);
 
 /// <summary>Bài kiểm tra của bài mẫu (sẽ được chép nếu giáo viên chọn chép kèm): tên và số câu.</summary>
 public sealed record LibraryQuizDto(string? Title, int QuestionCount);

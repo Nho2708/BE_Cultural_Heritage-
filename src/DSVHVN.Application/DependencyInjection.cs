@@ -6,6 +6,7 @@ using DSVHVN.Application.Auth;
 using DSVHVN.Application.Billing;
 using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Curriculum;
 using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Files;
 using DSVHVN.Application.Guests;
@@ -93,6 +94,7 @@ public static class DependencyInjection
         services.AddScoped<LessonDetailBuilder>();
         services.AddScoped<LessonService>();
         services.AddScoped<LessonSampleService>();
+        services.AddScoped<CurriculumTopicService>();
         services.AddScoped<AiHeritageInputBuilder>();
         services.AddScoped<LessonAiService>();
         services.AddScoped<QuestionPresenter>();
