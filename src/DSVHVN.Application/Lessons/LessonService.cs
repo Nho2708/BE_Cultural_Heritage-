@@ -70,12 +70,15 @@ public sealed class LessonDetailBuilder(IAppDbContext db, PlanGuard plans, Lesso
 
         var quizCount = await db.Quizzes.CountAsync(q => q.LessonId == lesson.Id && q.DeletedAt == null, ct);
         var quota = await plans.GetAiQuotaAsync(schoolClass.OrganizationId, ct);
+        var sample = lesson.SampleStatus is null
+            ? null
+            : LessonSampleMapper.ToDto(lesson, (await LessonSampleMapper.UseCountsAsync(db, [lesson.Id], ct)).GetValueOrDefault(lesson.Id));
 
         return new LessonDetailDto(
             lesson.Id, lesson.Title, schoolClass.Id, schoolClass.Name, schoolClass.Grade, level, SchoolLevels.NameOf(level),
             lesson.Status, lesson.AccessCode, lesson.AccessCode is null ? null : $"/bai-hoc/{lesson.AccessCode}",
             lesson.Summary, keyPoints, sections.Select(s => LessonMapper.ToDto(s, materials)).ToList(), heritages,
-            LessonFrameDto.From(frame), words, LessonMapper.ToDto(check), quizCount, quota, lesson.CreatedAt, lesson.UpdatedAt);
+            LessonFrameDto.From(frame), words, LessonMapper.ToDto(check), quizCount, quota, lesson.CreatedAt, lesson.UpdatedAt, sample);
     }
 
     /// <summary>Di sản của bài chưa xóa mềm (kể cả đã ẩn: giáo viên cần thấy để thay).</summary>
@@ -144,6 +147,8 @@ public sealed class LessonService(
             .ToListAsync(ct);
         var byLesson = heritageRows.ToLookup(h => h.LessonId, h => h.Dto);
         var difficulties = await LessonDifficultyReader.ReadAsync(db, ids, ct);
+        var inLibrary = page.Items.Where(r => r.Lesson.SampleStatus is not null).Select(r => r.Lesson.Id).ToList();
+        var useCounts = await LessonSampleMapper.UseCountsAsync(db, inLibrary, ct);
 
         var items = page.Items.Select(r =>
         {
@@ -151,7 +156,8 @@ public sealed class LessonService(
             return new LessonRowDto(
                 r.Lesson.Id, r.Lesson.Title, r.Lesson.ClassId, r.ClassName, r.Grade, SchoolClass.SchoolLevelOf((byte)r.Grade),
                 r.Lesson.Status, r.Lesson.AccessCode, byLesson[r.Lesson.Id].ToList(), r.Quizzes, r.Lesson.CreatedAt, r.Lesson.UpdatedAt,
-                level, LessonDifficulty.LabelOf(level));
+                level, LessonDifficulty.LabelOf(level),
+                r.Lesson.SampleStatus is null ? null : LessonSampleMapper.ToDto(r.Lesson, useCounts.GetValueOrDefault(r.Lesson.Id)));
         }).ToList();
         return new LessonPageDto(items, page.Page, page.PageSize, page.TotalItems, page.TotalPages);
     }
@@ -209,7 +215,14 @@ public sealed class LessonService(
     /// cấp chỉ cảnh báo. Bài đã xuất bản sửa được, thay đổi hiện ngay cho học sinh và vẫn phải giữ đủ điều kiện xuất bản; không đủ thì không lưu gì.
     /// Di sản của bài chỉ đổi được khi bài còn Nháp, và không bỏ được di sản mà bài kiểm tra của bài còn câu hỏi về nó (422).
     /// </summary>
-    public async Task<LessonDetailDto> UpdateAsync(Actor actor, long lessonId, UpdateLessonRequest request, CancellationToken ct)
+    public async Task<LessonDetailDto> UpdateAsync(Actor actor, long lessonId, UpdateLessonRequest request, CancellationToken ct) =>
+        (await SaveAsync(actor, lessonId, request, ct)).Lesson;
+
+    /// <summary>
+    /// Như <see cref="UpdateAsync"/> nhưng trả thêm cờ cho biết lần lưu này đổi nội dung của bài đang ở thư viện bài mẫu (đã được duyệt) nên bài tự về chờ duyệt lại
+    /// (<c>sample_requested_at</c> = bây giờ, xóa người và lúc duyệt). Lưu mà không đổi gì (hoặc chỉ gửi lại đúng nội dung cũ) thì bài giữ trạng thái đã duyệt.
+    /// </summary>
+    public async Task<LessonSaveResult> SaveAsync(Actor actor, long lessonId, UpdateLessonRequest request, CancellationToken ct)
     {
         await validator.EnsureValidAsync(request, ct);
         var lesson = await db.FindLessonAsync(actor, lessonId, "lưu bài học", tracking: true, ct);
@@ -232,6 +245,9 @@ public sealed class LessonService(
             foreach (var id in newIds.Except(currentIds)) db.LessonHeritages.Add(new LessonHeritage { LessonId = lesson.Id, HeritageId = id });
         }
 
+        var fingerprintBefore = lesson.SampleStatus == LessonSampleStatus.APPROVED ? ContentFingerprint(lesson, lesson.Sections, currentIds) : null;
+        List<LessonSection>? rebuilt = null;
+
         var publishedIds = await PublishedHeritageIdsAsync(newIds, ct);
         if (request.Title is not null) lesson.Title = request.Title.Trim();
         if (request.Summary is not null) lesson.Summary = string.IsNullOrWhiteSpace(request.Summary) ? null : request.Summary.Trim();
@@ -241,6 +257,7 @@ public sealed class LessonService(
         {
             var materials = await materialService.LoadAsync(publishedIds, ct);
             var sections = BuildSections(request.Sections, frame, level, materials, now: Now);
+            rebuilt = sections;
             db.LessonSections.RemoveRange(lesson.Sections);
             lesson.Sections = [];
             foreach (var section in sections)
@@ -268,8 +285,34 @@ public sealed class LessonService(
             if (!check.IsReady) throw new AppException(422, Messages.NotReady("lưu bài học đã xuất bản", check.Missing));
         }
 
+        var sampleReset = fingerprintBefore is not null && fingerprintBefore != ContentFingerprint(lesson, rebuilt ?? lesson.Sections, newIds);
+        if (sampleReset)
+        {
+            lesson.SampleStatus = LessonSampleStatus.PENDING;
+            lesson.SampleRequestedAt = Now;
+            lesson.SampleReviewedAt = null;
+            lesson.SampleReviewedBy = null;
+            lesson.SampleNote = null;
+        }
+
         await db.SaveChangesAsync(ct);
-        return await GetAsync(actor, lessonId, ct);
+        return new LessonSaveResult(await GetAsync(actor, lessonId, ct), sampleReset);
+    }
+
+    /// <summary>
+    /// Dấu vân tay của phần mà quản trị đã duyệt: tiêu đề, tóm tắt, ý chính, các phần (loại, tiêu đề, chữ, hình, năm, sự kiện, nguồn theo thứ tự) và tập di sản.
+    /// Hai lần lưu cho cùng dấu vân tay thì nội dung bài không đổi.
+    /// </summary>
+    private static string ContentFingerprint(Lesson lesson, IEnumerable<LessonSection> sections, IEnumerable<long> heritageIds)
+    {
+        var parts = new List<string>
+        {
+            lesson.Title ?? string.Empty, lesson.Summary ?? string.Empty, lesson.KeyPoints ?? string.Empty,
+            string.Join(',', heritageIds.Distinct().Order()),
+        };
+        parts.AddRange(sections.OrderBy(s => s.SortOrder).ThenBy(s => s.Id).Select(s =>
+            string.Join('\u001f', s.SectionType, s.Title, s.Body, s.ImageUrl, s.MilestoneYear, s.EventId, s.SourceCitation)));
+        return string.Join('\u001e', parts);
     }
 
     // ---- Xuất bản, lưu trữ, xóa ----
@@ -342,6 +385,7 @@ public sealed class LessonService(
 
         lesson.Status = ContentStatus.ARCHIVED;
         lesson.UpdatedAt = Now;
+        ClearSample(lesson);
         await db.SaveChangesAsync(ct);
         return await detailBuilder.BuildAsync(lesson, ct);
     }
@@ -353,7 +397,18 @@ public sealed class LessonService(
         if (await db.Quizzes.AnyAsync(q => q.LessonId == lessonId && q.DeletedAt == null, ct))
             throw AppException.BusinessRule(Messages.Blocked("xóa bài học", "Bài học đã có bài kiểm tra. Hãy lưu trữ bài học thay vì xóa."));
         lesson.DeletedAt = Now;
+        ClearSample(lesson);
         await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Lưu trữ, xóa hoặc rút bài: trạng thái thư viện về NULL, xóa cả lúc đề xuất, lúc và người duyệt, lý do.</summary>
+    internal static void ClearSample(Lesson lesson)
+    {
+        lesson.SampleStatus = null;
+        lesson.SampleRequestedAt = null;
+        lesson.SampleReviewedAt = null;
+        lesson.SampleReviewedBy = null;
+        lesson.SampleNote = null;
     }
 
     // ---- Nhân bản ----
@@ -378,7 +433,22 @@ public sealed class LessonService(
             throw AppException.Validation("targetClassId", Messages.Invalid("Lớp đích", "phải là một lớp khác lớp của bài gốc"));
         await EnsureEffectivePlanAsync(orgId, "nhân bản bài học", ct);
 
-        var sourceHeritageIds = await db.LessonHeritages.AsNoTracking().Where(lh => lh.LessonId == lessonId)
+        var result = await CopyLessonAsync(actor, source, target, request.IncludeQuizzes, sampleSourceId: null, ct);
+        return result with { Message = Messages.LessonDuplicated(target.Name ?? string.Empty, result.SkippedHeritages, result.CopiedQuizzes, result.SkippedQuestions).Text };
+    }
+
+    /// <summary>
+    /// Phần lõi của nhân bản, dùng chung cho "Nhân bản bài học sang lớp khác" và "Dùng bài mẫu" của thư viện: chép <paramref name="source"/> (đã nạp lớp và các phần)
+    /// thành bài Nháp mới của giáo viên ở <paramref name="target"/> (lớp của chính giáo viên; người gọi đã kiểm lớp, gói hiệu lực và quyền xem bài nguồn).
+    /// Chép tiêu đề, tóm tắt, ý chính, các phần và di sản đang xuất bản; hình và mốc lấy từ di sản bị bỏ cũng bị gỡ. Chép kèm bài kiểm tra theo <see cref="QuizCopier"/>:
+    /// câu đã ẩn hoặc xóa, câu về di sản không còn trong bài mới và câu không hợp cấp lớp đích bị bỏ; câu của giáo viên khác vẫn chép được vì ngân hàng câu hỏi dùng chung
+    /// cho phép mọi giáo viên dùng câu đã duyệt trong bài kiểm tra của mình (xem <see cref="QuizQuestionRules"/>). <paramref name="sampleSourceId"/> ghi vào <c>source_lesson_id</c>
+    /// để đếm lượt dùng của bài mẫu. Thông điệp trả về là câu của nhân bản; người gọi đổi sang câu của mình nếu cần.
+    /// </summary>
+    internal async Task<DuplicateLessonResultDto> CopyLessonAsync(Actor actor, Lesson source, SchoolClass target, bool includeQuizzes,
+        long? sampleSourceId, CancellationToken ct)
+    {
+        var sourceHeritageIds = await db.LessonHeritages.AsNoTracking().Where(lh => lh.LessonId == source.Id)
             .Select(lh => lh.HeritageId).ToListAsync(ct);
         var keptIds = await PublishedHeritageIdsAsync(sourceHeritageIds, ct);
         var skipped = sourceHeritageIds.Count - keptIds.Count;
@@ -392,6 +462,7 @@ public sealed class LessonService(
             Summary = source.Summary,
             KeyPoints = source.KeyPoints,
             Status = ContentStatus.DRAFT,
+            SourceLessonId = sampleSourceId,
             Heritages = keptIds.Select(id => new LessonHeritage { HeritageId = id }).ToList(),
         };
         var order = 0;
@@ -414,11 +485,11 @@ public sealed class LessonService(
         var targetLevel = SchoolClass.SchoolLevelOf(target.Grade);
         var copiedQuizzes = 0;
         var skippedQuestions = 0;
-        if (request.IncludeQuizzes)
+        if (includeQuizzes)
         {
             var sourceQuizzes = await db.Quizzes.AsNoTracking()
                 .Include(q => q.Questions).ThenInclude(x => x.Question)
-                .Where(q => q.LessonId == lessonId && q.DeletedAt == null)
+                .Where(q => q.LessonId == source.Id && q.DeletedAt == null)
                 .OrderBy(q => q.Id).ToListAsync(ct);
             foreach (var quiz in sourceQuizzes)
             {
@@ -438,8 +509,7 @@ public sealed class LessonService(
             : Messages.LessonLevelDiffers(target.Name ?? string.Empty, targetLevel, sourceLevel);
 
         var detail = await GetAsync(actor, copy.Id, ct);
-        return new DuplicateLessonResultDto(detail, skipped, levelNotice,
-            Messages.LessonDuplicated(target.Name ?? string.Empty, skipped, copiedQuizzes, skippedQuestions).Text, copiedQuizzes, skippedQuestions);
+        return new DuplicateLessonResultDto(detail, skipped, levelNotice, string.Empty, copiedQuizzes, skippedQuestions);
     }
 
     // ---- Nội bộ ----
@@ -483,7 +553,7 @@ public sealed class LessonService(
             .Where(lh => lh.LessonId == lessonId && lh.Heritage!.DeletedAt == null && lh.Heritage.Status == ContentStatus.PUBLISHED)
             .Select(lh => lh.HeritageId).ToListAsync(ct);
 
-    private static LessonCheck Evaluate(Lesson lesson, int level, int publishedHeritageCount) =>
+    internal static LessonCheck Evaluate(Lesson lesson, int level, int publishedHeritageCount) =>
         LessonChecks.Evaluate(level, new LessonContent(lesson.Title, publishedHeritageCount, lesson.Summary,
             LessonJson.ParseKeyPoints(lesson.KeyPoints), lesson.Sections.OrderBy(s => s.SortOrder).Select(LessonMapper.ToView).ToList()));
 

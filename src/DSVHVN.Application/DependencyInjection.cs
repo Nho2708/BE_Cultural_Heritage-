@@ -92,6 +92,7 @@ public static class DependencyInjection
         services.AddScoped<LessonMaterialService>();
         services.AddScoped<LessonDetailBuilder>();
         services.AddScoped<LessonService>();
+        services.AddScoped<LessonSampleService>();
         services.AddScoped<AiHeritageInputBuilder>();
         services.AddScoped<LessonAiService>();
         services.AddScoped<QuestionPresenter>();

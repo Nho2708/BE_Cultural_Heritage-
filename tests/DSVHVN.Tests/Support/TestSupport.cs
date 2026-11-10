@@ -293,12 +293,33 @@ public sealed class ScriptedAiClient : ILessonAiClient
 
     public string? LastCorrelationId { get; private set; }
 
+    /// <summary>Như <see cref="Behavior"/> nhưng cho viết lại một phần: số thứ tự lần gọi (từ 1) và yêu cầu; trả kết quả hoặc ném ngoại lệ.</summary>
+    public Func<int, AiRewriteSectionRequest, CancellationToken, Task<AiRewriteSectionResult>>? RewriteBehavior { get; set; }
+
+    private int _rewriteCalls;
+
+    public int RewriteCalls => _rewriteCalls;
+
+    public AiRewriteSectionRequest? LastRewriteRequest { get; private set; }
+
     public void Reset()
     {
         Behavior = null;
         _calls = 0;
         LastRequest = null;
         LastCorrelationId = null;
+        RewriteBehavior = null;
+        _rewriteCalls = 0;
+        LastRewriteRequest = null;
+    }
+
+    public async Task<AiRewriteSectionResult> RewriteSectionAsync(AiRewriteSectionRequest request, string correlationId, CancellationToken ct)
+    {
+        var call = Interlocked.Increment(ref _rewriteCalls);
+        LastRewriteRequest = request;
+        LastCorrelationId = correlationId;
+        if (RewriteBehavior is { } behavior) return await behavior(call, request, ct);
+        return await _inner.RewriteSectionAsync(request, correlationId, ct);
     }
 
     public async Task<AiComposeResult> ComposeLessonAsync(AiComposeRequest request, string correlationId, CancellationToken ct)

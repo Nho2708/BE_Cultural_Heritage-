@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace DSVHVN.Application.Speech;
 
 /// <summary>
-/// Chọn các đoạn chữ sẽ đọc to ở cấp 1 để sinh giọng trước khi thầy cô xuất bản. Là quy tắc thuần, không chạm CSDL.
+/// Chọn các đoạn chữ sẽ đọc to ở cấp 1, 2 và 3 để sinh giọng trước khi thầy cô xuất bản. Là quy tắc thuần, không chạm CSDL.
 /// Chữ đi qua <see cref="PlainText.FromMarkdown"/> trước khi tách câu, giống cách giao diện chuẩn bị chữ để đọc, rồi chuẩn hóa bằng <see cref="SpeechRules.Normalize"/>;
 /// đoạn rỗng hoặc dài quá giới hạn bị bỏ, đoạn trùng chỉ giữ một.
 /// </summary>
@@ -40,6 +40,19 @@ public static class SpeechWarmUpTexts
         }
         foreach (var point in keyPoints) texts.AddRange(Sentences(point));
         texts.Add(takeHomeQuestion ?? string.Empty);
+        return Clean(texts);
+    }
+
+    /// <summary>
+    /// Bài học cấp 2 và 3: nút "Nghe bài đọc" của khu học sinh đọc từng câu của nội dung chính (tóm tắt của bài) và của mỗi phần Bài đọc theo thứ tự xuất hiện;
+    /// các chữ khác (ý chính, mốc thời gian, đoạn trích tư liệu gốc, câu hỏi gợi suy nghĩ, chú thích hình) không đọc nên không tạo trước. Cách tách câu giống hệt cấp 1
+    /// và khớp từng ký tự với cách giao diện tách để đọc (bỏ Markdown, chuẩn hóa khoảng trắng, tách ở dấu kết câu).
+    /// </summary>
+    public static IReadOnlyList<string> ForReadingLesson(string? summary, IEnumerable<LessonSection> sections)
+    {
+        var texts = new List<string>(Sentences(summary));
+        foreach (var section in sections.Where(s => s.SectionType == LessonSectionType.READING).OrderBy(s => s.SortOrder).ThenBy(s => s.Id))
+            texts.AddRange(Sentences(section.Body));
         return Clean(texts);
     }
 
@@ -91,7 +104,8 @@ public static class SpeechWarmUpTexts
 }
 
 /// <summary>
-/// Tạo trước giọng đọc lúc thầy cô xuất bản bài của lớp cấp 1 (các câu của phần Kể chuyện, tiêu đề, chú thích hình, ý chính, câu mang về nhà) và lúc phát hành bài chơi
+/// Tạo trước giọng đọc lúc thầy cô xuất bản bài của lớp cấp 1 (các câu của phần Kể chuyện, tiêu đề, chú thích hình, ý chính, câu mang về nhà), của lớp cấp 2 và 3
+/// (từng câu của nội dung chính và của mỗi phần Bài đọc, cho nút "Nghe bài đọc") và lúc phát hành bài chơi
 /// của bài cấp 1 (nội dung câu hỏi, giải thích, chữ trên thẻ hình, lời đọc cả câu và lời phản hồi). Chỉ chạy khi giọng tự host đang bật. Việc này chạy sau khi lần xuất bản đã lưu xong: chỉ xếp chữ vào hàng đợi nền,
 /// không chờ sinh âm thanh, và mọi lỗi chỉ ghi log để không bao giờ làm hỏng lần xuất bản.
 /// </summary>
@@ -104,10 +118,18 @@ public sealed class SpeechWarmUp(IAppDbContext db, ISpeechPrefetcher prefetcher,
         {
             var lesson = await db.Lessons.AsNoTracking().Include(l => l.Sections).Include(l => l.Class)
                 .SingleOrDefaultAsync(l => l.Id == lessonId && l.DeletedAt == null, ct);
-            if (lesson?.Class is null || SchoolClass.SchoolLevelOf(lesson.Class.Grade) != 1) return;
+            if (lesson?.Class is null) return;
 
-            var takeHome = await album.TakeHomeAsync(lessonId, ct);
-            var texts = SpeechWarmUpTexts.ForLesson(lesson.Sections, LessonJson.ParseKeyPoints(lesson.KeyPoints), takeHome);
+            IReadOnlyList<string> texts;
+            if (SchoolClass.SchoolLevelOf(lesson.Class.Grade) == 1)
+            {
+                var takeHome = await album.TakeHomeAsync(lessonId, ct);
+                texts = SpeechWarmUpTexts.ForLesson(lesson.Sections, LessonJson.ParseKeyPoints(lesson.KeyPoints), takeHome);
+            }
+            else
+            {
+                texts = SpeechWarmUpTexts.ForReadingLesson(lesson.Summary, lesson.Sections);
+            }
             var queued = prefetcher.Enqueue(texts);
             logger.LogInformation("Đã xếp {Queued} đoạn chữ của bài học {LessonId} vào hàng đợi tạo giọng đọc.", queued, lessonId);
         }

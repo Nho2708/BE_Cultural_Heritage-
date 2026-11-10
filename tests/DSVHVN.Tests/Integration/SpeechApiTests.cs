@@ -129,7 +129,7 @@ public sealed class NoSpeechFactory : ApiFactory
 
 /// <summary>
 /// Giọng tự host qua HTTP: nghe ngay (sai rồi trúng, tệp phục vụ ở /files, 503 trả liên kết null), đồng thời một lần sinh, tạo trước (202, kiểm lỗi, tới khi đã có đệm),
-/// và tạo trước lúc xuất bản bài học và bài chơi của lớp cấp 1 (lớp cấp 2 thì không).
+/// và tạo trước lúc xuất bản bài học (cấp 1, 2, 3) và bài chơi của lớp cấp 1 (bài chơi của lớp cấp 2 thì không).
 /// </summary>
 public sealed class SpeechSelfHostedApiTests(SelfHostedSpeechFactory factory) : IClassFixture<SelfHostedSpeechFactory>
 {
@@ -355,20 +355,35 @@ public sealed class SpeechSelfHostedApiTests(SelfHostedSpeechFactory factory) : 
         await DrainAsync();
     }
 
-    [Fact]
-    public async Task Publishing_a_lesson_of_a_grade_8_class_queues_nothing()
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task Publishing_a_lesson_of_a_grade_8_or_grade_11_class_queues_the_main_content_sentences_and_each_reading_section_but_no_other_text(int level)
     {
         var kit = new LessonTestKit(factory);
-        var (school, grade8) = await kit.SchoolWithClassAsync(2);
+        var (school, schoolClass) = await kit.SchoolWithClassAsync(level);
         var heritage = await kit.HeritageAsync("Phố cổ Hội An", events: 3);
         var before = factory.Prefetch.Batches.Count;
-        var callsBefore = Ai.Calls.Count;
 
-        await kit.PublishedLessonAsync(school.TeacherToken, grade8.Id, [heritage.Id]);
+        // Thêm một phần Bài đọc riêng để kiểm cả hai nguồn chữ; mốc, đoạn trích và câu hỏi gợi suy nghĩ do bản nháp AI soạn không được đọc.
+        var lesson = await kit.CreateLessonAsync(school.TeacherToken, schoolClass.Id, [heritage.Id]);
+        var draft = await kit.ComposeAsync(school.TeacherToken, lesson.Id);
+        var reading = "Phần bài đọc thêm số " + Unique() + ". Câu thứ hai của phần bài đọc!";
+        var sections = draft.Sections.Select(s => (object)LessonTestKit.ToSection(s))
+            .Append(new { type = LessonSectionType.READING, body = reading }).ToList();
+        await DiscoveryTestKit.Expect(Http.PutAsync<LessonDetailDto>($"{LessonTestKit.Teacher}/{lesson.Id}",
+            new { summary = draft.Summary, keyPoints = draft.KeyPoints, sections }, school.TeacherToken));
+        var published = (await kit.PublishAsync(school.TeacherToken, lesson.Id)).Lesson;
 
-        Assert.Equal(before, factory.Prefetch.Batches.Count);
-        await Task.Delay(200);
-        Assert.Equal(callsBefore, Ai.Calls.Count);
+        var queued = factory.Prefetch.Batches.Skip(before).SelectMany(b => b).ToList();
+        foreach (var sentence in SpeechRules.SplitSentences(PlainText.FromMarkdown(published.Summary))) AssertQueued(queued, sentence);
+        foreach (var sentence in SpeechRules.SplitSentences(reading)) AssertQueued(queued, sentence);
+        var expected = SpeechWarmUpTexts.ForReadingLesson(published.Summary,
+            published.Sections.Select(s => new DSVHVN.Domain.Lessons.LessonSection { SectionType = s.Type, Body = s.Body, SortOrder = s.SortOrder }));
+        Assert.Equal(expected, queued);
+        // Mốc thời gian, đoạn trích, câu hỏi gợi suy nghĩ, hình và ý chính không có trong bộ chữ (Equal ở trên là kiểm chặt: không thừa câu nào).
+        Assert.DoesNotContain(published.Sections.Where(s => s.Type == LessonSectionType.MILESTONE), s => queued.Contains(SpeechRules.Normalize(s.Body)!));
+        await DrainAsync();
     }
 
     [Fact]
@@ -406,7 +421,8 @@ public sealed class SpeechSelfHostedApiTests(SelfHostedSpeechFactory factory) : 
         var middle = factory.Prefetch.Batches.Count;
         await quizzes.OpenQuizAsync(2);
         await DrainAsync();
-        Assert.Equal(middle, factory.Prefetch.Batches.Count);
+        // Chỉ bài học của lớp cấp 2 được xếp (một lô khi xuất bản); phát hành bài kiểm tra của lớp cấp 2 không xếp thêm gì.
+        Assert.Equal(middle + 1, factory.Prefetch.Batches.Count);
     }
 
     [Fact]
@@ -440,7 +456,7 @@ public sealed class SpeechSelfHostedApiTests(SelfHostedSpeechFactory factory) : 
         var other = await quizzes.OpenQuizAsync(3);
         await DrainAsync();
         var otherStart = factory.Prefetch.Batches.Count;
-        Assert.Equal(resumed, otherStart);
+        Assert.Equal(resumed + 1, otherStart);   // một lô của bài học cấp 3 lúc xuất bản; bài kiểm tra cấp 3 không xếp gì
         await quizzes.StartAsync(other.StudentToken, other.Id);
         Assert.Equal(otherStart, factory.Prefetch.Batches.Count);
     }

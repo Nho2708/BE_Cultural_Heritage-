@@ -151,8 +151,13 @@ public sealed class StudentLessonService(
         return new LessonPreviewDto(view, lesson.Status, QuizzesViewOnly: true);
     }
 
-    private async Task<StudentLessonDto> BuildAsync(
-        Lesson lesson, byte grade, string? className, string? teacherName, long? studentId, CancellationToken ct, long? focusQuizId = null)
+    /// <summary>
+    /// Dựng bài như học sinh của lớp cấp <paramref name="grade"/> thấy. <paramref name="includeQuizzes"/> false thì không đọc danh sách bài kiểm tra
+    /// (xem trước bài mẫu của thư viện không cần trạng thái bài kiểm tra của lớp gốc).
+    /// </summary>
+    internal async Task<StudentLessonDto> BuildAsync(
+        Lesson lesson, byte grade, string? className, string? teacherName, long? studentId, CancellationToken ct, long? focusQuizId = null,
+        bool includeQuizzes = true)
     {
         var level = SchoolClass.SchoolLevelOf(grade);
         var frame = LessonFrames.For(level);
@@ -178,7 +183,7 @@ public sealed class StudentLessonService(
             lesson.Id, lesson.AccessCode ?? string.Empty, lesson.Title, className, teacherName, level, SchoolLevels.NameOf(level),
             new StudentLayoutDto(frame.Layout, frame.SequentialFlow, frame.Flow),
             lesson.Summary, LessonJson.ParseKeyPoints(lesson.KeyPoints), sections, heritages,
-            await LoadQuizzesAsync(lesson.Id, studentId, ct), focusQuizId);
+            includeQuizzes ? await LoadQuizzesAsync(lesson.Id, studentId, ct) : [], focusQuizId);
     }
 
     /// <summary>Bài kiểm tra đã phát hành hoặc đã đóng của bài; DRAFT không hiện. Trạng thái tính riêng cho em từ lượt làm bài của em.</summary>

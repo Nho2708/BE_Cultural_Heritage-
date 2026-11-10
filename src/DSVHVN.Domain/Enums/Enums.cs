@@ -21,6 +21,17 @@ public enum ContentStatus
     ARCHIVED,
 }
 
+/// <summary>
+/// <c>lessons.sample_status</c>: trạng thái của bài trong thư viện bài mẫu dùng chung (cột được NULL: không ở thư viện).
+/// PENDING chờ quản trị hệ thống duyệt, APPROVED trong thư viện, REJECTED bị từ chối hoặc bị gỡ.
+/// </summary>
+public enum LessonSampleStatus
+{
+    PENDING,
+    APPROVED,
+    REJECTED,
+}
+
 /// <summary><c>heritage_models.file_format</c>: chỉ nhận <c>.glb</c> (glTF 2.0 nhị phân một tệp), không nhận <c>.gltf</c> nhiều tệp.</summary>
 public enum ModelFormat
 {
@@ -57,6 +68,7 @@ public enum AiTaskType
     QUIZ_GENERATION,
     HERITAGE_TRANSLATION,
     HERITAGE_SUMMARY,
+    LESSON_SECTION_REWRITE,
 }
 
 /// <summary>
@@ -251,6 +263,11 @@ public enum AuditAction
     HERITAGE_MODEL_CHANGED,
     AD_REWARD_REJECTED,
     HERITAGE_NARRATION_CHANGED,
+    LESSON_SAMPLE_REQUESTED,
+    LESSON_SAMPLE_WITHDRAWN,
+    LESSON_SAMPLE_APPROVED,
+    LESSON_SAMPLE_REJECTED,
+    LESSON_SAMPLE_USED,
 }
 
 /// <summary>Cách gom nhóm của biểu đồ tổng quan theo thời gian: theo ngày hoặc theo tháng (giờ Việt Nam).</summary>

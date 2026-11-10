@@ -39,8 +39,23 @@ public sealed record LessonSectionRequest(
 /// </summary>
 public sealed record DuplicateLessonRequest(long? TargetClassId, bool IncludeQuizzes = false);
 
-/// <summary>Soạn nội dung bằng AI: độ dài Ngắn / Vừa / Chi tiết, nằm trong khoảng số từ của cấp; để trống thì lấy Vừa.</summary>
-public sealed record ComposeLessonRequest(LessonLength? Length);
+/// <summary>
+/// Soạn nội dung bằng AI: độ dài Ngắn / Vừa / Chi tiết, nằm trong khoảng số từ của cấp; để trống thì lấy Vừa.
+/// <c>Instructions</c> là yêu cầu thêm của giáo viên (cắt khoảng trắng hai đầu, 0-500 ký tự), gửi sang Dịch vụ AI thành <c>teacherNote</c>.
+/// </summary>
+public sealed record ComposeLessonRequest(LessonLength? Length, string? Instructions = null);
+
+/// <summary>
+/// Viết lại MỘT phần bằng AI (nội dung đang sửa trong biểu mẫu, chưa cần lưu): <c>SectionType</c> thuộc khung của cấp lớp và không phải đoạn trích tư liệu gốc,
+/// <c>Text</c> 1-4000 ký tự, <c>Title</c> tối đa 255, <c>Year</c> chỉ với mốc thời gian, <c>Instructions</c> 0-500 ký tự.
+/// </summary>
+public sealed record RewriteSectionRequest(LessonSectionType? SectionType, string? Text, string? Title, int? Year, string? Instructions);
+
+/// <summary>Đề xuất, rút bài khỏi thư viện bài mẫu: bài sau khi đổi trạng thái thư viện và câu thông báo.</summary>
+public sealed record LessonSampleResultDto(LessonDetailDto Lesson, string Message);
+
+/// <summary>Lưu bài kèm cờ cho biết lần lưu này đưa bài đang ở thư viện về chờ duyệt lại (để trả câu báo).</summary>
+public sealed record LessonSaveResult(LessonDetailDto Lesson, bool SampleReset);
 
 public sealed record LessonListQuery(
     long? ClassId,
@@ -70,7 +85,11 @@ public sealed record LessonRowDto(
     DateTime? CreatedAt,
     DateTime? UpdatedAt,
     DifficultyLevel? Difficulty = null,
-    string DifficultyLabel = LessonDifficulty.NoQuizLabel);
+    string DifficultyLabel = LessonDifficulty.NoQuizLabel,
+    LessonSampleDto? Sample = null);
+
+/// <summary>Trạng thái của bài ở thư viện bài mẫu (null khi bài không ở thư viện): trạng thái, lúc đề xuất, lúc duyệt hoặc từ chối, lý do, số lượt dùng.</summary>
+public sealed record LessonSampleDto(LessonSampleStatus Status, DateTime? RequestedAt, DateTime? ReviewedAt, string? Note, int UseCount);
 
 public sealed record LessonPageDto(IReadOnlyList<LessonRowDto> Items, int Page, int PageSize, int TotalItems, int TotalPages);
 
@@ -134,7 +153,8 @@ public sealed record LessonDetailDto(
     int QuizCount,
     AiQuotaDto AiQuota,
     DateTime? CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    LessonSampleDto? Sample = null);
 
 /// <summary>Kết quả xuất bản: bài sau khi xuất bản, mã vừa sinh lần đầu (hoặc mã cũ khi xuất bản lại) và câu thông báo.</summary>
 public sealed record PublishLessonResultDto(LessonDetailDto Lesson, bool CodeCreated, string AccessCode, string Message);
@@ -164,6 +184,20 @@ public sealed record LessonDraftDto(
     IReadOnlyList<string> KeyPoints,
     IReadOnlyList<LessonSectionDto> Sections,
     int WordCount,
+    IReadOnlyList<string> Warnings,
+    string Model,
+    AiQuotaDto AiQuota,
+    string Message);
+
+/// <summary>
+/// Chữ AI viết lại cho một phần, chưa lưu vào bài: giáo viên xem cạnh bản cũ rồi chọn dùng hay giữ. <c>Title</c> null nghĩa là giữ tiêu đề cũ;
+/// <c>Warnings</c> nêu chỗ vượt giới hạn của loại phần (không chặn).
+/// </summary>
+public sealed record LessonSectionRewriteDto(
+    long GenerationId,
+    LessonSectionType SectionType,
+    string Text,
+    string? Title,
     IReadOnlyList<string> Warnings,
     string Model,
     AiQuotaDto AiQuota,

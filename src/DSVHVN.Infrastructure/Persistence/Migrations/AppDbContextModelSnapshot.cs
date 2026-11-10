@@ -1817,9 +1817,9 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .HasColumnName("status");
 
                     b.Property<string>("TaskType")
-                        .HasMaxLength(20)
+                        .HasMaxLength(30)
                         .IsUnicode(true)
-                        .HasColumnType("nvarchar(20)")
+                        .HasColumnType("nvarchar(30)")
                         .HasColumnName("task_type");
 
                     b.HasKey("Id")
@@ -1835,9 +1835,9 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_ai_generations_status", "[status] IN ('PROCESSING', 'SUCCEEDED', 'FAILED')");
 
-                            t.HasCheckConstraint("CK_ai_generations_subject", "([lesson_id] IS NOT NULL AND [heritage_id] IS NULL AND [task_type] IN ('LESSON_SUMMARY', 'QUIZ_GENERATION')) OR ([lesson_id] IS NULL AND [heritage_id] IS NOT NULL AND [task_type] IN ('HERITAGE_TRANSLATION', 'HERITAGE_SUMMARY'))");
+                            t.HasCheckConstraint("CK_ai_generations_subject", "([lesson_id] IS NOT NULL AND [heritage_id] IS NULL AND [task_type] IN ('LESSON_SUMMARY', 'QUIZ_GENERATION', 'LESSON_SECTION_REWRITE')) OR ([lesson_id] IS NULL AND [heritage_id] IS NOT NULL AND [task_type] IN ('HERITAGE_TRANSLATION', 'HERITAGE_SUMMARY'))");
 
-                            t.HasCheckConstraint("CK_ai_generations_task_type", "[task_type] IN ('LESSON_SUMMARY', 'QUIZ_GENERATION', 'HERITAGE_TRANSLATION', 'HERITAGE_SUMMARY')");
+                            t.HasCheckConstraint("CK_ai_generations_task_type", "[task_type] IN ('LESSON_SUMMARY', 'QUIZ_GENERATION', 'HERITAGE_TRANSLATION', 'HERITAGE_SUMMARY', 'LESSON_SECTION_REWRITE')");
                         });
                 });
 
@@ -1873,6 +1873,35 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("key_points");
 
+                    b.Property<string>("SampleNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("sample_note");
+
+                    b.Property<DateTime?>("SampleRequestedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("sample_requested_at");
+
+                    b.Property<DateTime?>("SampleReviewedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("sample_reviewed_at");
+
+                    b.Property<long?>("SampleReviewedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sample_reviewed_by");
+
+                    b.Property<string>("SampleStatus")
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("sample_status");
+
+                    b.Property<long?>("SourceLessonId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("source_lesson_id");
+
                     b.Property<string>("Status")
                         .HasMaxLength(20)
                         .IsUnicode(true)
@@ -1907,10 +1936,22 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ClassId");
 
+                    b.HasIndex("SampleReviewedBy");
+
+                    b.HasIndex("SampleStatus")
+                        .HasDatabaseName("IX_lessons_sample_status")
+                        .HasFilter("[sample_status] IS NOT NULL");
+
+                    b.HasIndex("SourceLessonId")
+                        .HasDatabaseName("IX_lessons_source_lesson_id")
+                        .HasFilter("[source_lesson_id] IS NOT NULL");
+
                     b.HasIndex("TeacherId");
 
                     b.ToTable("lessons", null, t =>
                         {
+                            t.HasCheckConstraint("CK_lessons_sample_status", "[sample_status] IN ('PENDING', 'APPROVED', 'REJECTED')");
+
                             t.HasCheckConstraint("CK_lessons_status", "[status] IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')");
                         });
                 });
@@ -3201,6 +3242,18 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_lessons_class_id");
 
+                    b.HasOne("DSVHVN.Domain.Identity.User", "SampleReviewer")
+                        .WithMany()
+                        .HasForeignKey("SampleReviewedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_lessons_sample_reviewed_by");
+
+                    b.HasOne("DSVHVN.Domain.Lessons.Lesson", "SourceLesson")
+                        .WithMany()
+                        .HasForeignKey("SourceLessonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_lessons_source_lesson_id");
+
                     b.HasOne("DSVHVN.Domain.Identity.User", "Teacher")
                         .WithMany()
                         .HasForeignKey("TeacherId")
@@ -3209,6 +3262,10 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_lessons_teacher_id");
 
                     b.Navigation("Class");
+
+                    b.Navigation("SampleReviewer");
+
+                    b.Navigation("SourceLesson");
 
                     b.Navigation("Teacher");
                 });

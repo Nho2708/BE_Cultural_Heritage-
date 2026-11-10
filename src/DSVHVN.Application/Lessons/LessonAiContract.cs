@@ -29,7 +29,8 @@ public sealed record AiHeritageInput(
 
 /// <summary>
 /// Yêu cầu soạn nội dung bài. <see cref="GradeLevel"/> là cấp học suy từ khối lớp (1, 2, 3); <see cref="Length"/> nhắm tới số từ trong
-/// khoảng của cấp; <see cref="CurrentContent"/> là nội dung hiện có của bài (có thể rỗng).
+/// khoảng của cấp; <see cref="CurrentContent"/> là nội dung hiện có của bài (có thể rỗng); <see cref="TeacherNote"/> là yêu cầu thêm của giáo viên
+/// (tối đa 500 ký tự, rỗng khi không có): AI làm theo về trọng tâm, cách kể, mức độ từ ngữ, ví dụ, miễn không trái khung của cấp và không thêm dữ kiện ngoài tư liệu.
 /// </summary>
 public sealed record AiComposeRequest(
     long GenerationId,
@@ -37,7 +38,8 @@ public sealed record AiComposeRequest(
     int GradeLevel,
     LessonLength Length,
     IReadOnlyList<AiHeritageInput> Heritages,
-    string CurrentContent);
+    string CurrentContent,
+    string TeacherNote = "");
 
 /// <summary>
 /// Một phần có cấu trúc AI soạn. <see cref="Kind"/> là STORY (bước câu chuyện cấp 1, kèm <see cref="MediaId"/>), IMAGE (hình kèm câu
@@ -66,6 +68,26 @@ public sealed record AiComposeResult(
     AiUsage Usage);
 
 /// <summary>
+/// Yêu cầu viết lại MỘT phần (POST /v1/rewrite-section): <see cref="Kind"/> là loại phần (STORY, IMAGE, READING, MILESTONE hoặc REFLECTION; không bao giờ là đoạn trích
+/// tư liệu gốc), <see cref="CurrentText"/> là chữ hiện tại của phần, <see cref="Title"/> và <see cref="Year"/> (chỉ với mốc thời gian; AI không được đổi năm),
+/// <see cref="TeacherNote"/> là yêu cầu ngắn của giáo viên (rỗng khi không có), <see cref="LessonContent"/> là nội dung chính hiện tại của bài để giữ mạch (tối đa 6000 ký tự).
+/// </summary>
+public sealed record AiRewriteSectionRequest(
+    long GenerationId,
+    long LessonId,
+    int GradeLevel,
+    LessonSectionType Kind,
+    string CurrentText,
+    string? Title,
+    int? Year,
+    string TeacherNote,
+    string LessonContent,
+    IReadOnlyList<AiHeritageInput> Heritages);
+
+/// <summary>Kết quả viết lại một phần: chữ mới (văn bản thuần), tiêu đề mới hoặc null khi giữ tiêu đề cũ.</summary>
+public sealed record AiRewriteSectionResult(string Text, string? Title, string Model, AiUsage Usage);
+
+/// <summary>
 /// Lỗi khi gọi Dịch vụ AI. <see cref="Retryable"/> true với lỗi mạng, quá thời gian, 5xx hoặc kết quả sai lược đồ (backend thử lại
 /// tối đa 2 lần trong cùng một dòng nhật ký AI); false với 4xx (sai khóa nội bộ, đầu vào sai lược đồ), không thử lại.
 /// </summary>
@@ -81,6 +103,9 @@ public interface ILessonAiClient
     string ModelName { get; }
 
     Task<AiComposeResult> ComposeLessonAsync(AiComposeRequest request, string correlationId, CancellationToken ct);
+
+    /// <summary>Viết lại một phần của bài (POST /v1/rewrite-section); cùng quy ước lỗi và thời gian chờ với soạn bài.</summary>
+    Task<AiRewriteSectionResult> RewriteSectionAsync(AiRewriteSectionRequest request, string correlationId, CancellationToken ct);
 }
 
 /// <summary>

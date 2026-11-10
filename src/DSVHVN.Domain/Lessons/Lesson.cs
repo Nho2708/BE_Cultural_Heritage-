@@ -34,6 +34,29 @@ public class Lesson : IHasCreatedAt, IHasUpdatedAt, ISoftDeletable
     /// <summary>Mã bài học, không trùng khi có giá trị; bài chưa xuất bản chưa có mã.</summary>
     public string? AccessCode { get; set; }
 
+    /// <summary>
+    /// Trạng thái ở thư viện bài mẫu dùng chung: NULL là không ở thư viện, PENDING chờ quản trị hệ thống duyệt, APPROVED trong thư viện,
+    /// REJECTED bị từ chối hoặc bị gỡ.
+    /// </summary>
+    public LessonSampleStatus? SampleStatus { get; set; }
+
+    /// <summary>Lúc giáo viên đề xuất, hoặc lúc bài đang ở thư viện tự về chờ duyệt sau khi sửa.</summary>
+    public DateTime? SampleRequestedAt { get; set; }
+
+    /// <summary>Lúc quản trị hệ thống duyệt hoặc từ chối.</summary>
+    public DateTime? SampleReviewedAt { get; set; }
+
+    /// <summary>Quản trị hệ thống đã xử lý đề xuất.</summary>
+    public long? SampleReviewedBy { get; set; }
+    public User? SampleReviewer { get; set; }
+
+    /// <summary>Lý do từ chối hoặc gỡ khỏi thư viện (bắt buộc khi từ chối).</summary>
+    public string? SampleNote { get; set; }
+
+    /// <summary>Bài mẫu mà bài này được tạo từ đó (dùng bài mẫu); đếm số lượt dùng của bài mẫu.</summary>
+    public long? SourceLessonId { get; set; }
+    public Lesson? SourceLesson { get; set; }
+
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }

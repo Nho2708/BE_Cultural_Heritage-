@@ -77,6 +77,37 @@ public sealed class SpeechContentRuleApiTests(ContentOnlySpeechFactory factory) 
         Assert.NotNull(await SpeakAsync(content, adminToken));
     }
 
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task A_level_two_or_three_student_gets_voice_for_the_main_content_of_the_class_lessons_but_not_for_foreign_text(int level)
+    {
+        var kit = new LessonTestKit(factory);
+        var (school, schoolClass) = await kit.SchoolWithClassAsync(level);
+        var heritage = await kit.HeritageAsync("Phố cổ Hội An", events: 3);
+        var lesson = await kit.PublishedLessonAsync(school.TeacherToken, schoolClass.Id, [heritage.Id]);
+        var student = await kit.StudentTokenAsync(school.TeacherToken, schoolClass.Id);
+        await DrainAsync();
+        var adminToken = await _api.AdminTokenAsync();
+
+        // Một đoạn nằm trong nội dung chính (web và app tách câu hơi khác máy chủ) chưa được tạo trước, nên được tạo khi em bấm nghe.
+        var sentence = SpeechRules.SplitSentences(PlainText.FromMarkdown(lesson.Summary))[0];
+        var fragment = string.Join(' ', sentence.Split(' ').Take(6)) + " " + Unique();
+        Assert.Null(await SpeakAsync(fragment, student));   // có thêm đuôi lạ: không nằm trong nội dung bài
+        var inside = string.Join(' ', sentence.Split(' ').Take(6));
+        Assert.False(await IsCachedAsync(inside));
+        Assert.NotNull(await SpeakAsync(inside, student));
+        Assert.True(await IsCachedAsync(inside));
+
+        // Chữ lạ và học sinh lớp khác cấp: không. Quản trị hệ thống và giáo viên không có bộ chữ nào.
+        var foreign = "Một câu không thuộc bài nào " + Unique() + ".";
+        Assert.Null(await SpeakAsync(foreign, student));
+        Assert.Equal(0, Ai.CallsFor(foreign));
+        var other = string.Join(' ', sentence.Split(' ').Skip(1).Take(5));
+        Assert.Null(await SpeakAsync(other + " " + Unique(), adminToken));
+        Assert.Null(await SpeakAsync(other + " " + Unique(), school.TeacherToken));
+    }
+
     [Fact]
     public async Task The_read_aloud_line_of_a_matching_question_follows_the_order_of_the_student_attempt()
     {
