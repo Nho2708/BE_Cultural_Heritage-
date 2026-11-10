@@ -2,6 +2,7 @@ using DSVHVN.Application.Audit;
 using DSVHVN.Application.Billing;
 using DSVHVN.Application.Classes;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Curriculum;
 using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Audit;
 using DSVHVN.Domain.Classes;
@@ -107,11 +108,21 @@ public sealed class LessonSampleService(
             throw AppException.Validation("level", Messages.Invalid("Cấp", "từ 1 đến 3"));
         if (query.Grade is { } grade && grade is < SchoolClass.MinGrade or > SchoolClass.MaxGrade)
             throw AppException.Validation("grade", Messages.Invalid("Khối", $"từ {SchoolClass.MinGrade} đến {SchoolClass.MaxGrade}"));
+        if (query.TopicId is < 1)
+            throw AppException.Validation("topicId", Messages.Invalid("Chủ đề chương trình", "phải là mã chủ đề hợp lệ"));
 
         var lessonsQuery = LibraryLessons();
         if (query.Level is { } l) lessonsQuery = WhereLevel(lessonsQuery, l);
         if (query.Grade is { } g) lessonsQuery = lessonsQuery.Where(x => x.Class!.Grade == g);
         if (query.HeritageId is { } heritageId) lessonsQuery = lessonsQuery.Where(x => x.Heritages.Any(h => h.HeritageId == heritageId));
+        if (query.TopicId is { } topicId)
+        {
+            // Chủ đề của bài: chủ đề đang dùng, cùng khối với lớp của bài và gắn với ít nhất một di sản của bài.
+            lessonsQuery = lessonsQuery.Where(x =>
+                db.CurriculumTopics.Any(t => t.Id == topicId && t.IsActive && t.Grade == x.Class!.Grade)
+                && x.Heritages.Any(h => h.Heritage!.DeletedAt == null
+                                        && db.HeritageCurriculumTopics.Any(l => l.TopicId == topicId && l.HeritageId == h.HeritageId)));
+        }
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
             var keyword = query.Keyword.Trim();
@@ -329,6 +340,7 @@ public sealed class LessonSampleService(
         var sectionTypes = (await db.LessonSections.AsNoTracking().Where(s => ids.Contains(s.LessonId))
                 .Select(s => new { s.LessonId, s.SectionType }).ToListAsync(ct))
             .ToLookup(s => s.LessonId, s => s.SectionType);
+        var topics = await CurriculumTopicLookup.ForLessonsAsync(db, rows.Select(r => (r.Id, (int)r.Grade)).ToList(), ct);
 
         return rows.Select(r =>
         {
@@ -337,7 +349,8 @@ public sealed class LessonSampleService(
             return new LessonLibraryItemDto(
                 r.Id, r.Title, level, r.Grade, heritages.GetValueOrDefault(r.Id) ?? [],
                 LessonSampleRules.SummaryExcerpt(PlainText.FromMarkdown(r.Summary)),
-                sectionTypes[r.Id].Count(frame.Allows), r.Quizzes, r.Author, r.School, r.Uses, r.ApprovedAt, r.TeacherId == viewerId);
+                sectionTypes[r.Id].Count(frame.Allows), r.Quizzes, r.Author, r.School, r.Uses, r.ApprovedAt, r.TeacherId == viewerId,
+                topics.GetValueOrDefault(r.Id) ?? []);
         }).ToList();
     }
 

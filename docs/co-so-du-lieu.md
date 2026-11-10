@@ -304,3 +304,19 @@ Script idempotent chạy thử từ migration ngay trước, như CI.
 - Mã thao tác mới của `audit_logs.action` (cột không có CHECK nên không đụng CSDL): `LESSON_SAMPLE_REQUESTED`, `LESSON_SAMPLE_WITHDRAWN`, `LESSON_SAMPLE_APPROVED`, `LESSON_SAMPLE_REJECTED`, `LESSON_SAMPLE_USED`, đối tượng `target_type` = `lessons`.
 
 Số liệu sau migration: 43 bảng, 398 cột trong database (thêm 6), 71 khóa ngoại (thêm 2), 55 CHECK (thêm 1), 10 UNIQUE có lọc, 21 UNIQUE thường. Chi tiết luồng: [bai-hoc-theo-cap.md](bai-hoc-theo-cap.md) mục 10 và 11.
+
+## 18. Phần CSDL của luồng "Chủ đề chương trình"
+
+Migration `ThemChuDeChuongTrinh` (10/11/2026): thêm hai bảng và **nạp sẵn dữ liệu**. Hai bảng vừa tạo trong cùng migration nên mỗi câu lệnh dữ liệu bọc `EXEC(N'...')` (chạy ở lô riêng; script idempotent chạy thử từ migration ngay trước, như CI).
+
+| Bảng mới | Cột | Ràng buộc |
+|---|---|---|
+| `curriculum_topics` | `id` (int, identity), `subject` (nvarchar(100) NOT NULL: tên môn đúng văn bản), `grade` (tinyint NOT NULL), `group_title` (nvarchar(255) NOT NULL: chủ đề lớn), `title` (nvarchar(255) NOT NULL: nội dung), `description` (nvarchar(1000) NULL), `local_province` (bit NOT NULL, mặc định 0), `sort_order` (int NOT NULL), `source_url` (nvarchar(500) NULL), `is_active` (bit NOT NULL, mặc định 1), `created_at`, `updated_at` (`datetime2(3)` NULL) | CHECK `CK_curriculum_topics_grade` (1-12); UNIQUE thường `UX_curriculum_topics_grade_subject_group_title` (`grade`, `subject`, `group_title`, `title`) |
+| `heritage_curriculum_topics` | `heritage_id` (bigint NOT NULL), `topic_id` (int NOT NULL) | khóa chính (`heritage_id`, `topic_id`); `fk_heritage_curriculum_topics_heritage_id` tới `heritages` (NO ACTION), `fk_heritage_curriculum_topics_topic_id` tới `curriculum_topics` (CASCADE); chỉ mục `IX_heritage_curriculum_topics_topic_id` |
+
+- **Dữ liệu nạp sẵn:** 40 chủ đề từ `seed-data/chu-de-chuong-trinh.json` (khối 4, 5: Lịch sử và Địa lí; khối 10: Lịch sử), mỗi chủ đề một câu `EXEC` chèn chủ đề rồi chèn liên kết bằng `INSERT ... SELECT` từ `heritages` theo `h.slug IN (...)` (slug chưa có thì bỏ qua, nên CSDL trống của CI chỉ có chủ đề, không có liên kết).
+  Khối câu lệnh do `scripts/chu-de-chuong-trinh/sinh_sql_chu_de.py` sinh từ tệp JSON (`--chen-vao` thay phần giữa hai dòng đánh dấu của migration; `--sql` in SQL thuần để chạy thử bằng sqlcmd). Hai chủ đề "Địa phương em" có `local_province` = 1 và không có liên kết.
+- Down xóa hai bảng (kèm dữ liệu). Không xóa cứng chủ đề trong ứng dụng: ngừng dùng bằng `is_active` = 0, liên kết giữ nguyên.
+- Mã thao tác mới của `audit_logs.action` (không có CHECK nên không đụng CSDL): `CURRICULUM_TOPIC_CREATED`, `CURRICULUM_TOPIC_UPDATED`, `CURRICULUM_TOPIC_DEACTIVATED`, `CURRICULUM_TOPIC_ACTIVATED`, `CURRICULUM_TOPIC_HERITAGES_CHANGED`, đối tượng `target_type` = `curriculum_topics`.
+
+Số liệu sau migration: 45 bảng, 412 cột trong database (thêm 14), 73 khóa ngoại (thêm 2), 56 CHECK (thêm 1), 11 UNIQUE có lọc, 22 UNIQUE thường (thêm 1). Chi tiết luồng: [bai-hoc-theo-cap.md](bai-hoc-theo-cap.md) mục 12.

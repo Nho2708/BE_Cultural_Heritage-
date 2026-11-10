@@ -1,6 +1,7 @@
 using DSVHVN.Domain.Audit;
 using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Classes;
+using DSVHVN.Domain.Curriculum;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Guests;
 using DSVHVN.Domain.Heritages;
@@ -32,6 +33,8 @@ public interface IAppDbContext
 
     DbSet<Province> Provinces { get; }
     DbSet<Heritage> Heritages { get; }
+    DbSet<CurriculumTopic> CurriculumTopics { get; }
+    DbSet<HeritageCurriculumTopic> HeritageCurriculumTopics { get; }
     DbSet<Timeline> Timelines { get; }
     DbSet<TimelineEvent> Events { get; }
     DbSet<Media> Media { get; }

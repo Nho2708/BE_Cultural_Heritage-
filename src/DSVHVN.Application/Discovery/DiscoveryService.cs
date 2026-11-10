@@ -31,14 +31,14 @@ public sealed class DiscoveryService(IAppDbContext db, HeritageLocalizer localiz
     public const int MaxMapPins = 500;
 
     // Hạng để xếp kết quả: UNESCO trước, rồi quốc gia đặc biệt, quốc gia, cấp tỉnh, chưa xếp hạng.
-    private static readonly Expression<Func<Heritage, int>> LevelRank = h =>
+    internal static readonly Expression<Func<Heritage, int>> LevelRank = h =>
         h.RecognitionLevel == RecognitionLevel.UNESCO ? 0
         : h.RecognitionLevel == RecognitionLevel.NATIONAL_SPECIAL ? 1
         : h.RecognitionLevel == RecognitionLevel.NATIONAL ? 2
         : h.RecognitionLevel == RecognitionLevel.PROVINCIAL ? 3
         : 4;
 
-    private static readonly Expression<Func<Heritage, HeritageCardDto>> ToCard = h => new HeritageCardDto(
+    internal static readonly Expression<Func<Heritage, HeritageCardDto>> ToCard = h => new HeritageCardDto(
         h.Id, h.Slug!, h.Name!, h.ShortDescription, h.ThumbnailUrl,
         h.ProvinceId,
         h.Province == null ? null : h.Province.Name,
