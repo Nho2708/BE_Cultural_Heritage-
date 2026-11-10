@@ -4,6 +4,7 @@ using DSVHVN.Domain.Audit;
 using DSVHVN.Domain.Billing;
 using DSVHVN.Domain.Classes;
 using DSVHVN.Domain.Common;
+using DSVHVN.Domain.Curriculum;
 using DSVHVN.Domain.Guests;
 using DSVHVN.Domain.Heritages;
 using DSVHVN.Domain.Identity;
@@ -42,6 +43,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimePro
     // 3. Di sản
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Heritage> Heritages => Set<Heritage>();
+    public DbSet<CurriculumTopic> CurriculumTopics => Set<CurriculumTopic>();
+    public DbSet<HeritageCurriculumTopic> HeritageCurriculumTopics => Set<HeritageCurriculumTopic>();
     public DbSet<Timeline> Timelines => Set<Timeline>();
     public DbSet<TimelineEvent> Events => Set<TimelineEvent>();
     public DbSet<Media> Media => Set<Media>();

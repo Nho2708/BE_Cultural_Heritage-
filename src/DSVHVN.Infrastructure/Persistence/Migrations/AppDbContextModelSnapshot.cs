@@ -484,6 +484,102 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.ToTable("students", (string)null);
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Curriculum.CurriculumTopic", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<byte>("Grade")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("grade");
+
+                    b.Property<string>("GroupTitle")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("group_title");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_active")
+                        .HasDefaultValueSql("1");
+
+                    b.Property<bool>("LocalProvince")
+                        .HasColumnType("bit")
+                        .HasColumnName("local_province")
+                        .HasDefaultValueSql("0");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("SourceUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("source_url");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("subject");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("PK_curriculum_topics");
+
+                    b.HasIndex("Grade", "Subject", "GroupTitle", "Title")
+                        .IsUnique()
+                        .HasDatabaseName("UX_curriculum_topics_grade_subject_group_title");
+
+                    b.ToTable("curriculum_topics", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_curriculum_topics_grade", "[grade] BETWEEN 1 AND 12");
+                        });
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Curriculum.HeritageCurriculumTopic", b =>
+                {
+                    b.Property<long>("HeritageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("heritage_id");
+
+                    b.Property<int>("TopicId")
+                        .HasColumnType("int")
+                        .HasColumnName("topic_id");
+
+                    b.HasKey("HeritageId", "TopicId")
+                        .HasName("PK_heritage_curriculum_topics");
+
+                    b.HasIndex("TopicId");
+
+                    b.ToTable("heritage_curriculum_topics", (string)null);
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Guests.AdUnlock", b =>
                 {
                     b.Property<long>("Id")
@@ -2950,6 +3046,27 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DSVHVN.Domain.Curriculum.HeritageCurriculumTopic", b =>
+                {
+                    b.HasOne("DSVHVN.Domain.Heritages.Heritage", "Heritage")
+                        .WithMany()
+                        .HasForeignKey("HeritageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_heritage_curriculum_topics_heritage_id");
+
+                    b.HasOne("DSVHVN.Domain.Curriculum.CurriculumTopic", "Topic")
+                        .WithMany("Heritages")
+                        .HasForeignKey("TopicId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_heritage_curriculum_topics_topic_id");
+
+                    b.Navigation("Heritage");
+
+                    b.Navigation("Topic");
+                });
+
             modelBuilder.Entity("DSVHVN.Domain.Guests.AdUnlock", b =>
                 {
                     b.HasOne("DSVHVN.Domain.Guests.GuestDevice", "GuestDevice")
@@ -3558,6 +3675,11 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.Navigation("Question");
 
                     b.Navigation("Quiz");
+                });
+
+            modelBuilder.Entity("DSVHVN.Domain.Curriculum.CurriculumTopic", b =>
+                {
+                    b.Navigation("Heritages");
                 });
 
             modelBuilder.Entity("DSVHVN.Domain.Heritages.Heritage", b =>

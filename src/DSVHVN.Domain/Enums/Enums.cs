@@ -268,6 +268,11 @@ public enum AuditAction
     LESSON_SAMPLE_APPROVED,
     LESSON_SAMPLE_REJECTED,
     LESSON_SAMPLE_USED,
+    CURRICULUM_TOPIC_CREATED,
+    CURRICULUM_TOPIC_UPDATED,
+    CURRICULUM_TOPIC_DEACTIVATED,
+    CURRICULUM_TOPIC_ACTIVATED,
+    CURRICULUM_TOPIC_HERITAGES_CHANGED,
 }
 
 /// <summary>Cách gom nhóm của biểu đồ tổng quan theo thời gian: theo ngày hoặc theo tháng (giờ Việt Nam).</summary>
