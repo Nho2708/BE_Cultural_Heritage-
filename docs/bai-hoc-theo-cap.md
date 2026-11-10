@@ -315,3 +315,32 @@ Quy tắc:
 | Xuất bản, lưu trữ bài học vào nhật ký thao tác | Không ghi (theo danh sách hành động của đặc tả) | Quyết định của nhóm |
 | Lưu trữ bài Nháp | Không cho (trạng thái chỉ đi DRAFT → PUBLISHED ⇄ ARCHIVED); bài Nháp thì xóa | Giữ như đặc tả |
 | Chọn trùng di sản khi tạo | Từ chối (400), không tự gộp | — |
+
+## 12. Chủ đề chương trình (bản gọn)
+
+Giáo viên chọn di sản theo **chủ đề của chương trình môn học** đang dạy (Chương trình giáo dục phổ thông 2018, đã cập nhật theo Thông tư 17/2025/TT-BGDĐT). Dữ liệu nạp sẵn bằng migration `ThemChuDeChuongTrinh`: 40 chủ đề
+(Lịch sử và Địa lí lớp 4, lớp 5; Lịch sử lớp 10) và liên kết với di sản theo `heritages.slug` (slug chưa có trong CSDL thì bỏ qua). Hai chủ đề "Địa phương em" (`localProvince`) không gắn di sản cố định: giao diện nhắc giáo viên chọn tỉnh, thành phố của trường và giữ danh sách di sản thường.
+Hai bảng `curriculum_topics`, `heritage_curriculum_topics`: xem [co-so-du-lieu.md](co-so-du-lieu.md) mục 18. Mã nguồn: `Application/Curriculum`, `Api/Controllers/CurriculumTopicsControllers.cs`.
+
+| Vai trò | Method | Đường dẫn | Kết quả |
+|---|---|---|---|
+| Giáo viên | GET | `/teacher/curriculum-topics?grade=` | 200 `{ items[{ id, subject, grade, groupTitle, title, description, localProvince, heritageCount }] }`: chỉ chủ đề đang dùng, theo khối rồi thứ tự chương trình; `heritageCount` chỉ đếm di sản đang xuất bản; `grade` ngoài 1-12 thì 400 |
+| Giáo viên | GET | `/teacher/curriculum-topics/{id}/heritages` | 200 `{ topic, items[thẻ di sản như danh sách công khai] }` (cấp xếp hạng cao trước, rồi theo tên); 404 khi chủ đề ngừng dùng hoặc không có |
+| Quản trị hệ thống | GET | `/admin/curriculum-topics?grade=&includeInactive=` | 200 `{ items[{ ...như trên, sortOrder, sourceUrl, isActive, heritageCount (mọi di sản chưa xóa) }] }` |
+| Quản trị hệ thống | POST, PUT | `/admin/curriculum-topics`, `/admin/curriculum-topics/{id}` | thân `{ subject, grade, groupTitle, title, description?, localProvince, sortOrder, sourceUrl? }`; 201 / 200; 400 theo trường (độ dài theo cột, `grade` 1-12, `sortOrder` 0-1.000.000); 409 trùng (khối, môn, chủ đề lớn, nội dung); 404 |
+| Quản trị hệ thống | POST | `/admin/curriculum-topics/{id}/deactivate`, `/activate` | 200 chủ đề sau khi đổi; đổi trạng thái đã có thì không ghi nhật ký |
+| Quản trị hệ thống | GET, PUT | `/admin/curriculum-topics/{id}/heritages` | GET: 200 `{ topic, items[{ id, slug, name, provinceName, status }] }` (mọi di sản chưa xóa, kể cả nháp và đã ẩn). PUT `{ heritageIds[] }` thay toàn bộ danh sách: 0-200 mã, không trùng, di sản chưa xóa (400), trả như GET |
+
+Chi tiết bài học của giáo viên, thẻ trong thư viện bài mẫu (danh sách và xem trước) và chi tiết di sản của quản trị có thêm `curriculumTopics[{ id, subject, grade, groupTitle, title }]`; `GET /teacher/lesson-library` có thêm bộ lọc `topicId`.
+Quản trị trường, học sinh nhận 403 ở mọi đường dẫn trên; giáo viên chỉ đọc (403 ở `/admin/curriculum-topics`); quản trị hệ thống dùng `/admin/...` (403 ở `/teacher/curriculum-topics`).
+
+Quy tắc:
+
+- **Chủ đề của một bài học** = các chủ đề **đang dùng**, có **khối bằng khối của lớp** và gắn với ít nhất một di sản (chưa xóa) của bài; tính khi hiển thị, không lưu. Lọc thư viện theo `topicId` dùng đúng định nghĩa này (chủ đề khác khối hoặc ngừng dùng thì không có bài nào).
+  Chi tiết di sản của quản trị chỉ liệt kê chủ đề đang dùng.
+- Chủ đề ngừng dùng ẩn với giáo viên nhưng giữ liên kết; **không xóa cứng**. Chỉ di sản đang xuất bản hiện cho giáo viên; quản trị gắn được mọi di sản chưa xóa. Thay danh sách chỉ thêm và bỏ phần khác biệt (kể cả bỏ liên kết tới di sản đã xóa).
+- Trùng được so không phân biệt hoa thường và dấu, trong các chủ đề cùng khối; ràng buộc UNIQUE của CSDL là lớp chặn cuối.
+- Nhật ký thao tác (`target_type` = `curriculum_topics`): `CURRICULUM_TOPIC_CREATED`, `CURRICULUM_TOPIC_UPDATED`, `CURRICULUM_TOPIC_DEACTIVATED`, `CURRICULUM_TOPIC_ACTIVATED`, `CURRICULUM_TOPIC_HERITAGES_CHANGED` (ghi mã di sản thêm và bỏ).
+- Đổi dữ liệu nạp sẵn về sau: sửa `seed-data/chu-de-chuong-trinh.json`, sinh khối SQL bằng `scripts/chu-de-chuong-trinh/sinh_sql_chu_de.py` cho một migration mới (migration đã áp dụng không sửa).
+- Kiểm thử: `Unit/CurriculumTopicServiceTests`, `Integration/CurriculumTopicApiTests` (thêm, sửa, trùng, ngừng dùng, dùng lại, thay danh sách di sản, chỉ di sản xuất bản cho giáo viên, chủ đề của bài cùng khối, lọc thư viện, quyền, nhật ký),
+  `Integration/CurriculumTopicSqlServerTests` (bảng, CHECK, UNIQUE, khóa ngoại, đúng 40 chủ đề nạp sẵn, liên kết theo slug khi áp migration lên CSDL đã có di sản, truy vấn trên SQL Server).
