@@ -9,7 +9,7 @@ theo luồng của cấp mình.
 |---|---|
 | Chức năng | Soạn và xuất bản bài học cho lớp · Yêu cầu AI soạn nội dung bài học theo cấp · Nhân bản bài học sang lớp khác · Mở bài học bằng mã bài học |
 | Màn hình phục vụ | Web quản trị (giáo viên): Bài học của tôi, Tạo bài học (chọn lớp và di sản), Soạn bài học, Mã bài học, Nhân bản bài học sang lớp khác. Web học tập và app (học sinh): Nhập mã bài học, Trang bài học theo bố cục từng cấp |
-| Bảng | `lessons`, `lesson_heritages`, `ai_generations` (có từ v3), **`lesson_sections` và các cột mới của `ai_generations` (CSDL v4, migration mới)**; đọc `classes`, `students`, `heritages`, `timelines`, `events`, `media`, `heritage_references`, `quizzes`, `attempts`, `subscriptions`, `plans` |
+| Bảng | `lessons` (có thêm 6 cột thư viện bài mẫu từ 10/11/2026), `lesson_heritages`, `ai_generations` (có từ v3), **`lesson_sections` và các cột mới của `ai_generations` (CSDL v4, migration mới)**; đọc `classes`, `students`, `heritages`, `timelines`, `events`, `media`, `heritage_references`, `quizzes`, `attempts`, `subscriptions`, `plans` |
 | Migration mới | `20261005200057_ThemPhanNoiDungBaiHocTheoCap`: bảng `lesson_sections`; `ai_generations` cho `lesson_id` được NULL, thêm `heritage_id`, mở rộng `task_type`, thêm CHECK đối tượng. Chi tiết ở [co-so-du-lieu.md](co-so-du-lieu.md) mục 5 |
 | Lớp mới | `Domain/Rules/LessonRules` (khung theo cấp, điều kiện xuất bản, mã bài học, hằng số); `Application/Lessons` (`LessonService`, `LessonAiService`, `StudentLessonService`, hợp đồng AI, thư viện ảnh và dòng thời gian); `PlanGuard` thêm tính hạn mức lượt AI; `Infrastructure/Ai` (`SimulatedLessonAiClient`, `HttpLessonAiClient`); `Infrastructure/Security/InMemoryLessonCodeThrottle`; `Api/Controllers/TeacherLessonsController`, `StudentLessonsController` |
 | Nguồn | Đặc tả của nhóm (nhóm quy tắc Bài học & AI, hợp đồng Backend và Dịch vụ AI trong kiến trúc, bảng mở rộng theo cấp 1/2/3), `doc/database/dsvhvn-v4.dbml` |
@@ -41,7 +41,10 @@ Khuôn phản hồi chung `{ success, data, message, errorCode, traceId, errors 
 | POST | `/teacher/lessons/{lessonId}/duplicate` | `{ targetClassId, includeQuizzes? }` | 201 `{ lesson, skippedHeritages, levelNotice, message, copiedQuizzes, skippedQuestions }` | 400 (lớp đích trùng lớp nguồn); 404; 422 `PLAN_REQUIRED` |
 | GET | `/teacher/lessons/{lessonId}/preview` | "Xem như học sinh" (mục 4.8) | 200 `{ lesson, status, quizzesViewOnly }`; `lesson` cùng cấu trúc `StudentLessonDto` của API học sinh, `accessCode` rỗng khi bài Nháp | 401; 403 (không phải giáo viên); 404 (bài của người khác) |
 | GET | `/teacher/lessons/{lessonId}/materials` | — | 200 `{ images[], events[] }`: ảnh (kèm ghi công tách tác giả, giấy phép, nguồn) và sự kiện trên dòng thời gian của các di sản đang xuất bản của bài, để chọn hình và mốc thời gian | 404 |
-| POST | `/teacher/lessons/{lessonId}/ai/compose` | `{ length? }` = `SHORT` / `MEDIUM` (mặc định) / `DETAILED` | 200 **bản nháp** `{ generationId, level, length, summary, keyPoints[], sections[], wordCount, warnings[], model, aiQuota, message }` | 400; 404; 422 `PLAN_REQUIRED`, `AI_QUOTA_REACHED`, `BLOCKED`; 503 `AI_UNAVAILABLE` |
+| POST | `/teacher/lessons/{lessonId}/ai/compose` | `{ length?, instructions? }`: `length` = `SHORT` / `MEDIUM` (mặc định) / `DETAILED`; `instructions` là yêu cầu thêm cho AI (mục 5.5) | 200 **bản nháp** `{ generationId, level, length, summary, keyPoints[], sections[], wordCount, warnings[], model, aiQuota, message }` | 400; 404; 422 `PLAN_REQUIRED`, `AI_QUOTA_REACHED`, `BLOCKED`; 503 `AI_UNAVAILABLE` |
+| POST | `/teacher/lessons/{lessonId}/ai/rewrite-section` | `{ sectionType, text, title?, year?, instructions? }`: viết lại một phần (mục 5.5) | 200 `{ generationId, sectionType, text, title, warnings[], model, aiQuota, message }` | 400; 404; 422 `PLAN_REQUIRED`, `AI_QUOTA_REACHED`, `BLOCKED`; 503 `AI_UNAVAILABLE` |
+| POST | `/teacher/lessons/{lessonId}/sample-request` | Đề xuất bài vào thư viện bài mẫu (mục 10) | 200 `{ lesson, message }` | 404; 422 `BLOCKED`, `NOT_READY` |
+| DELETE | `/teacher/lessons/{lessonId}/sample-request` | Rút bài khỏi thư viện bài mẫu | 200 `{ lesson, message }` | 404; 422 `BLOCKED` |
 | GET | `/teacher/lessons/ai-quota` | — | 200 `{ hasEffectivePlan, planName, used, max, remaining, periodStart, periodEnd }` | — |
 
 ### 2.2 Học sinh — `/student/lessons`
@@ -209,11 +212,26 @@ Backend **kiểm kết quả** trước khi dùng: nội dung rỗng hoặc khô
 - Lượt không dùng hết không chuyển sang kỳ sau; nâng cấp bắt đầu kỳ mới (lượt đã dùng trong ngày nâng cấp vẫn tính vào kỳ mới).
 - `GET /teacher/lessons/ai-quota` và `aiQuota` trong chi tiết bài cho giao diện hiện "còn N lượt".
 
+### 5.5 Yêu cầu thêm cho AI và viết lại một phần
+
+- **Yêu cầu thêm khi soạn:** `ai/compose` nhận thêm `instructions` (cắt khoảng trắng hai đầu, 0-500 ký tự, quá thì 400 theo trường `instructions`). Backend gửi sang Dịch vụ AI thành `teacherNote` trong yêu cầu soạn bài
+  (rỗng khi không có) và ghi `instructions` vào `params` và `input_snapshot` của dòng nhật ký. Bản giả lập nhận và bỏ qua.
+- **Viết lại một phần** (`POST /teacher/lessons/{lessonId}/ai/rewrite-section`): giáo viên viết lại **một phần** đang sửa trong biểu mẫu (chưa cần lưu), xem bản mới cạnh bản cũ rồi tự quyết dùng hay giữ. Backend **không lưu gì vào bài**.
+  - `sectionType` thuộc khung của cấp lớp và **không phải đoạn trích tư liệu gốc** (đoạn trích phải nguyên văn): cấp 1 bước câu chuyện, hình; cấp 2 đoạn bài đọc, hình, mốc thời gian; cấp 3 đoạn bài đọc, mốc thời gian, câu hỏi gợi suy nghĩ. Sai thì 400 ở `sectionType`.
+  - `text` 1-4000 ký tự, `title` tối đa 255, `year` chỉ với mốc thời gian (trong khoảng năm của mốc), `instructions` 0-500 ký tự.
+  - Điều kiện như soạn bài: bài của giáo viên, Nháp hoặc Đã xuất bản, có ít nhất một di sản đang xuất bản, gói hiệu lực, còn lượt AI. **Mỗi lần là một lượt AI**: dòng `ai_generations` có `task_type` = `LESSON_SECTION_REWRITE` gắn bài học nên tự tính vào hạn mức như soạn bài
+    (mục 5.4); chờ 45 giây, thử lại 2 lần trong cùng dòng, lỗi thì dòng `FAILED`, không tính lượt, 503 `AI_UNAVAILABLE`. Giới hạn tần suất `RateLimitKind.TeacherAi` **dùng chung** với soạn bài và sinh câu hỏi (10 lần mỗi phút mỗi giáo viên).
+  - Hợp đồng gọi Dịch vụ AI `POST {Ai:BaseUrl}/v1/rewrite-section` (cùng header và quy ước lỗi như `compose-lesson`): gửi `generationId`, `lessonId`, `gradeLevel`, `kind`, `currentText`, `title`, `year`, `teacherNote`,
+    `lessonContent` (nội dung chính **đã lưu** của bài, tối đa 6000 ký tự, để giữ mạch) và `heritages[]` như soạn bài; nhận `text`, `title` (null khi giữ tiêu đề cũ), `model`, `usage`.
+  - Backend kiểm lại kết quả: chữ rỗng là lỗi đầu ra (thử lại như lỗi mạng); vượt giới hạn của loại phần chỉ thành **cảnh báo**, không chặn: bước câu chuyện 2-4 câu, tối đa 50 từ, câu trung bình không quá 15 từ; hình 1 câu, cấp 1 tối đa 20 từ, cấp 2 và 3 tối đa 40 từ;
+    đoạn bài đọc 20-400 từ; mốc 1-2 câu, tối đa 60 từ; câu hỏi gợi suy nghĩ 1 câu kết thúc bằng dấu hỏi, tối đa 60 từ; chữ thuần, không dấu Markdown (`Domain/Rules/SectionRewriteRules`).
+  - Bản giả lập trả lại chữ cũ đã chuẩn hóa khoảng trắng; cấp 1 cắt bớt các câu cuối nếu quá 50 từ (giữ ít nhất một câu); tất định, bỏ qua yêu cầu của giáo viên, không đổi tiêu đề.
+
 ## 6. Nhật ký
 
 - **Lượt gọi AI** ghi ở `ai_generations` (truy vết đầu vào, tham số, mô hình, kết quả thô, trạng thái, lỗi), không ghi vào `audit_logs`.
-- Theo đặc tả, `audit_logs` chỉ ghi các hành động đã liệt kê (không có tạo, xuất bản, lưu trữ, nhân bản bài học, cũng không có việc mở bài học). Luồng này **không thêm mã thao tác mới**;
-  nếu nhóm quyết định ghi nhật ký xuất bản hay lưu trữ bài học thì thêm mã vào đặc tả trước rồi mới thêm vào `AuditAction`.
+- Theo đặc tả, `audit_logs` chỉ ghi các hành động đã liệt kê (không có tạo, xuất bản, lưu trữ, nhân bản bài học, cũng không có việc mở bài học). Riêng **thư viện bài mẫu** ghi năm mã (mục 10): `LESSON_SAMPLE_REQUESTED`, `LESSON_SAMPLE_WITHDRAWN`,
+  `LESSON_SAMPLE_APPROVED`, `LESSON_SAMPLE_REJECTED`, `LESSON_SAMPLE_USED`. Nếu nhóm quyết định ghi nhật ký xuất bản hay lưu trữ bài học thì thêm mã vào đặc tả trước rồi mới thêm vào `AuditAction`.
 - Mật khẩu tạm, mã bài học không xuất hiện trong `audit_logs`.
 
 ## 7. Mã lỗi
@@ -228,6 +246,7 @@ Backend **kiểm kết quả** trước khi dùng: nội dung rỗng hoặc khô
 | 422 | `BLOCKED` | Bài Lưu trữ; đổi di sản khi không là Nháp; bỏ di sản còn câu hỏi trong bài kiểm tra của bài; xóa bài đã có bài kiểm tra; lưu trữ bài Nháp hoặc bài còn bài kiểm tra đang mở; gọi AI khi bài Lưu trữ hoặc không còn di sản đang xuất bản |
 | 422 | `PLAN_REQUIRED` | Trường không có gói hiệu lực khi tạo, nhân bản bài hoặc gọi AI |
 | 422 | `AI_QUOTA_REACHED` | Trường đã dùng hết lượt AI của kỳ |
+| 422 | `BLOCKED`, `NOT_READY` | Thư viện bài mẫu: đề xuất bài không hợp lệ, rút bài chưa ở thư viện, duyệt hoặc từ chối sai trạng thái, bài không còn đủ điều kiện xuất bản |
 | 429 | `LESSON_CODE_BLOCKED` | Nhập sai mã quá nhiều lần (theo tài khoản hoặc IP) |
 | 503 | `AI_UNAVAILABLE` | Dịch vụ AI quá thời gian chờ hoặc lỗi sau các lần thử |
 
@@ -251,7 +270,42 @@ phân loại lỗi), giới hạn nhập sai mã (tua giờ), hạn mức lượ
 (phạm vi theo giáo viên, khung theo cấp, xuất bản, lưu trữ, nhân bản, AI thử lại và lỗi, 404 chung, trạng thái bài kiểm tra); trên SQL Server LocalDB: lược đồ do migration tạo, ràng buộc, luồng đầy đủ,
 **nhiều yêu cầu AI cùng lúc không vượt hạn mức**, **xuất bản cùng lúc chỉ một mã**, xóa giai đoạn có mốc nối tới.
 
-## 9. Điểm hiện thực cần đồng bộ với đặc tả
+## 10. Thư viện bài mẫu
+
+Bài hay của một giáo viên, sau khi **quản trị hệ thống duyệt**, vào thư viện dùng chung mọi trường; giáo viên khác xem trước rồi **dùng cho lớp của mình**. Cột mới của `lessons` (`sample_status`, `sample_requested_at`, `sample_reviewed_at`, `sample_reviewed_by`, `sample_note`,
+`source_lesson_id`) ở [co-so-du-lieu.md](co-so-du-lieu.md) mục 17. Lớp: `Application/Lessons/LessonSampleService`, `Domain/Rules/LessonSampleRules`, `Api/Controllers/TeacherLessonLibraryController`, `AdminLessonLibraryController`.
+
+| Vai trò | Method | Đường dẫn | Nội dung | Kết quả |
+|---|---|---|---|---|
+| Giáo viên chủ bài | POST, DELETE | `/teacher/lessons/{lessonId}/sample-request` | đề xuất, rút | 200 `{ lesson, message }`; 404; 422 `BLOCKED` / `NOT_READY` |
+| Giáo viên | GET | `/teacher/lesson-library` | `level` 1-3, `grade` 1-12, `heritageId`, `keyword` (tiêu đề), `sort` = `newest` (mặc định) / `popular`, `page`, `pageSize` | 200 trang `{ id, title, schoolLevel, grade, heritages[{ id, slug, name, thumbnailUrl }], summaryExcerpt (≤ 200 ký tự), sectionCount, quizCount, authorName, schoolName, useCount, approvedAt, isMine }`; 400 |
+| Giáo viên | GET | `/teacher/lesson-library/{lessonId}` | xem trước | 200 `{ item, lesson (như học sinh thấy, không mã bài học, không tên lớp, không danh sách bài kiểm tra theo lớp gốc), quizzes[{ title, questionCount }] }`; 404 khi không ở thư viện |
+| Giáo viên | POST | `/teacher/lesson-library/{lessonId}/use` | `{ targetClassId, includeQuizzes? }` | 201 như nhân bản `{ lesson, skippedHeritages, levelNotice, message, copiedQuizzes, skippedQuestions }`; 400; 404; 422 `PLAN_REQUIRED` |
+| Quản trị hệ thống | GET | `/admin/lesson-library` | `status` = `PENDING` (mặc định, cũ nhất trước) / `APPROVED` / `REJECTED` (mới xử lý trước), `level`, `keyword`, `page`, `pageSize` | 200 trang `{ id, title, schoolLevel, grade, heritages[], authorName, schoolName, status, requestedAt, reviewedAt, note, useCount }` |
+| Quản trị hệ thống | GET | `/admin/lesson-library/{lessonId}` | xem chỉ đọc ở mọi trạng thái | 200 `{ item, lesson, quizzes[] }`; 404 |
+| Quản trị hệ thống | POST | `/admin/lesson-library/{lessonId}/approve`, `/reject` | `reject` kèm `{ note }` 1-500 ký tự | 200 `{ item, message }`; 400; 404; 422 `BLOCKED` / `NOT_READY` |
+
+Chi tiết và danh sách bài của giáo viên (`GET /teacher/lessons`, `GET /teacher/lessons/{id}`) có thêm `sample`: `null` hoặc `{ status, requestedAt, reviewedAt, note, useCount }`. Quản trị trường, học sinh nhận 403 ở mọi đường dẫn thư viện; giáo viên nhận 403 ở `/admin/lesson-library`.
+
+Quy tắc:
+
+- **Đề xuất:** chỉ giáo viên chủ bài; bài phải **Đã xuất bản** và **đủ điều kiện xuất bản**. Từ NULL hoặc `REJECTED` thành `PENDING` (`sample_requested_at` = bây giờ, xóa lý do cũ). Bài Nháp, Lưu trữ, đang `PENDING` hoặc `APPROVED` thì 422 `BLOCKED` kèm lý do; Đã xuất bản nhưng thiếu điều kiện thì 422 `NOT_READY`.
+- **Rút:** giáo viên chủ bài, từ `PENDING`, `APPROVED` hoặc `REJECTED` về NULL (xóa cả ghi chú, người và lúc duyệt); chưa ở thư viện thì 422 `BLOCKED`.
+- **Sửa bài đang `APPROVED`:** lần lưu đổi tiêu đề, tóm tắt, ý chính, các phần hoặc di sản thì bài **tự về `PENDING`** (xóa người và lúc duyệt) và câu trả lời của lần lưu có câu "Bài đang ở thư viện bài mẫu nên sẽ chờ quản trị duyệt lại."; lưu mà không đổi nội dung thì giữ `APPROVED`
+  (so bằng dấu vân tay của nội dung đã lưu, nên gửi lại đúng nội dung cũ không làm bài mất duyệt).
+- **Lưu trữ hoặc xóa bài:** trạng thái thư viện về NULL. Xuất bản lại bài Lưu trữ không tự về thư viện, phải đề xuất lại.
+- **Thư viện chỉ hiện** bài `APPROVED`, Đã xuất bản, chưa xóa, lớp chưa xóa, trường chưa ngừng, còn ít nhất một di sản đang xuất bản (thẻ chỉ liệt kê di sản đang xuất bản). Người soạn hiện họ tên và tên trường, không email, không số điện thoại.
+- **Duyệt:** chỉ từ `PENDING`, bài vẫn phải Đã xuất bản và đủ điều kiện; ghi người và lúc duyệt. **Từ chối hoặc gỡ:** từ `PENDING` hoặc `APPROVED`, bắt buộc lý do 1-500 ký tự, thành `REJECTED`; giáo viên thấy lý do ở `sample.note`.
+- **Dùng bài mẫu:** chọn **một lớp của mình** (chưa xóa), cần gói hiệu lực (422 `PLAN_REQUIRED`), **không tốn lượt AI**. Dùng **lại phần lõi của nhân bản** (`LessonService.CopyLessonAsync`, mục 4.4): tạo bài Nháp mới, chép tiêu đề, tóm tắt, ý chính, các phần và di sản đang xuất bản,
+  bỏ di sản đã ẩn cùng hình và mốc của chúng, lớp đích khác cấp thì kèm lời nhắc (`levelNotice`), ghi `source_lesson_id`. Bài gốc không đổi. Dùng bài mẫu của chính mình thì lớp đích phải khác lớp của bài (như nhân bản). Mọi lần dùng ghi nhật ký `LESSON_SAMPLE_USED`.
+- **Chép kèm bài kiểm tra** (`includeQuizzes`): đúng logic của nhân bản ([bai-kiem-tra.md](bai-kiem-tra.md) mục 3.9): giờ mở, đóng để trống, bỏ câu đã ẩn hoặc xóa, câu về di sản không còn trong bài mới và câu không hợp cấp lớp đích (tính vào `skippedQuestions`).
+  **Câu của giáo viên khác** vẫn được chép: bài kiểm tra chỉ nhận câu đã duyệt và ngân hàng câu hỏi dùng chung cho mọi giáo viên dùng câu đã duyệt trong bài kiểm tra của mình ([ngan-hang-cau-hoi.md](ngan-hang-cau-hoi.md) mục 4.2); câu bị quản trị ẩn không còn đã duyệt nên bị bỏ như mọi nhân bản.
+- **Lượt dùng** của bài mẫu = số bài có `source_lesson_id` trỏ tới nó, kể cả bài đã bị xóa mềm.
+- Nhật ký thao tác: `LESSON_SAMPLE_REQUESTED`, `LESSON_SAMPLE_WITHDRAWN`, `LESSON_SAMPLE_APPROVED`, `LESSON_SAMPLE_REJECTED`, `LESSON_SAMPLE_USED` (`target_type` = `lessons`).
+- Kiểm thử: `Unit/LessonSampleRulesTests`, `Integration/LessonSampleApiTests` (đề xuất, rút, duyệt, từ chối, tự về chờ duyệt khi sửa, lưu trữ và xóa, thư viện chỉ hiện đúng bài, lọc và xếp, xem trước, dùng bài mẫu khác cấp, di sản ẩn, kèm bài kiểm tra, quyền),
+  `Integration/LessonSampleSqlServerTests` (cột, khóa ngoại, chỉ mục lọc, CHECK, loại tác vụ mới, luồng đầy đủ trên SQL Server).
+
+## 11. Điểm hiện thực cần đồng bộ với đặc tả
 
 | Điểm | Hiện thực | Cần làm |
 |---|---|---|

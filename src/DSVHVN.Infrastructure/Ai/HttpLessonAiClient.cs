@@ -13,13 +13,14 @@ namespace DSVHVN.Infrastructure.Ai;
 
 /// <summary>
 /// Gọi Dịch vụ AI nội bộ (FastAPI, tiến trình riêng, không truy cập CSDL) ở <c>Ai:BaseUrl</c> khi <c>Ai:Mode = Remote</c>:
-/// <c>POST /v1/compose-lesson</c>, JSON UTF-8 camelCase, header <c>X-Internal-Key</c> (khóa nội bộ giữa hai dịch vụ của nhóm, đặt bằng biến môi trường
+/// <c>POST /v1/compose-lesson</c> (soạn bài) và <c>POST /v1/rewrite-section</c> (viết lại một phần), JSON UTF-8 camelCase, header <c>X-Internal-Key</c> (khóa nội bộ giữa hai dịch vụ của nhóm, đặt bằng biến môi trường
 /// <c>Ai__InternalKey</c>, không ghi vào appsettings) và <c>X-Correlation-Id</c>. Việc thử lại và thời gian chờ mỗi lần do <c>LessonAiService</c>
 /// quyết định qua <see cref="CancellationToken"/>. Lỗi mạng, 5xx, 408, 429 và kết quả không đọc được là lỗi thử lại được; 400, 401, 403, 422 thì không.
 /// </summary>
 public sealed class HttpLessonAiClient(HttpClient http, IOptions<AiOptions> options) : ILessonAiClient
 {
     public const string Path = "v1/compose-lesson";
+    public const string RewritePath = "v1/rewrite-section";
     public const string KeyHeader = "X-Internal-Key";
     public const string CorrelationHeader = "X-Correlation-Id";
 
@@ -31,10 +32,17 @@ public sealed class HttpLessonAiClient(HttpClient http, IOptions<AiOptions> opti
 
     public string ModelName => "remote-lesson-composer";
 
-    public async Task<AiComposeResult> ComposeLessonAsync(AiComposeRequest request, string correlationId, CancellationToken ct)
+    public Task<AiComposeResult> ComposeLessonAsync(AiComposeRequest request, string correlationId, CancellationToken ct) =>
+        PostAsync<AiComposeRequest, AiComposeResult>(Path, request, correlationId, ct);
+
+    public Task<AiRewriteSectionResult> RewriteSectionAsync(AiRewriteSectionRequest request, string correlationId, CancellationToken ct) =>
+        PostAsync<AiRewriteSectionRequest, AiRewriteSectionResult>(RewritePath, request, correlationId, ct);
+
+    private async Task<TResult> PostAsync<TRequest, TResult>(string path, TRequest request, string correlationId, CancellationToken ct)
+        where TResult : class
     {
         var settings = options.Value;
-        using var message = new HttpRequestMessage(HttpMethod.Post, Combine(settings.BaseUrl, Path))
+        using var message = new HttpRequestMessage(HttpMethod.Post, Combine(settings.BaseUrl, path))
         {
             Content = JsonContent.Create(request, options: Json),
         };
@@ -61,7 +69,7 @@ public sealed class HttpLessonAiClient(HttpClient http, IOptions<AiOptions> opti
 
             try
             {
-                var result = await response.Content.ReadFromJsonAsync<AiComposeResult>(Json, ct);
+                var result = await response.Content.ReadFromJsonAsync<TResult>(Json, ct);
                 return result ?? throw new AiServiceException("Dịch vụ AI trả phản hồi rỗng.", retryable: true);
             }
             catch (JsonException ex)

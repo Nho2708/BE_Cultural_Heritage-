@@ -44,6 +44,41 @@ public sealed class ComposeLessonRequestValidator : AbstractValidator<ComposeLes
     {
         RuleFor(x => x.Length).Must(l => l is null || Enum.IsDefined(l.Value))
             .WithErrorCode(MessageCodes.Invalid).WithMessage(Messages.Invalid("Độ dài", "phải là Ngắn, Vừa hoặc Chi tiết").Text);
+        RuleFor(x => x.Instructions).Must(i => i is null || i.Trim().Length <= SectionRewriteRules.InstructionsMaxLength)
+            .WithAppMessage(Messages.Invalid("Yêu cầu thêm cho AI", $"tối đa {SectionRewriteRules.InstructionsMaxLength} ký tự"));
+    }
+}
+
+/// <summary>
+/// Cấu trúc yêu cầu viết lại một phần. Việc đối chiếu loại phần với khung của cấp lớp, đoạn trích tư liệu gốc (không viết lại, vì phải nguyên văn) và năm của mốc nằm ở dịch vụ.
+/// </summary>
+public sealed class RewriteSectionRequestValidator : AbstractValidator<RewriteSectionRequest>
+{
+    public RewriteSectionRequestValidator()
+    {
+        var typeRequired = Messages.Required("loại phần cần viết lại");
+        RuleFor(x => x.SectionType).Must(t => t is { } type && Enum.IsDefined(type))
+            .WithErrorCode(typeRequired.Code).WithMessage(typeRequired.Text);
+        RuleFor(x => x.Text).Must(t => !string.IsNullOrWhiteSpace(t))
+            .WithAppMessage(Messages.Required("chữ của phần cần viết lại"));
+        RuleFor(x => x.Text).Must(t => t is null || t.Length <= SectionRewriteRules.TextMaxLength)
+            .WithAppMessage(Messages.Invalid("Chữ của phần cần viết lại", $"tối đa {SectionRewriteRules.TextMaxLength} ký tự"));
+        RuleFor(x => x.Title).Must(t => t is null || t.Trim().Length <= LessonRules.SectionTitleMaxLength)
+            .WithAppMessage(Messages.Invalid("Tiêu đề phần", $"tối đa {LessonRules.SectionTitleMaxLength} ký tự"));
+        RuleFor(x => x.Instructions).Must(i => i is null || i.Trim().Length <= SectionRewriteRules.InstructionsMaxLength)
+            .WithAppMessage(Messages.Invalid("Yêu cầu thêm cho AI", $"tối đa {SectionRewriteRules.InstructionsMaxLength} ký tự"));
+    }
+}
+
+/// <summary>Lý do từ chối hoặc gỡ bài mẫu: bắt buộc, 1-500 ký tự.</summary>
+public sealed class RejectLessonSampleRequestValidator : AbstractValidator<RejectLessonSampleRequest>
+{
+    public RejectLessonSampleRequestValidator()
+    {
+        RuleFor(x => x.Note).Must(n => !string.IsNullOrWhiteSpace(n))
+            .WithAppMessage(Messages.Required("lý do từ chối hoặc gỡ bài mẫu"));
+        RuleFor(x => x.Note).Must(n => n is null || n.Trim().Length <= LessonSampleRules.NoteMaxLength)
+            .WithAppMessage(Messages.Invalid("Lý do", $"tối đa {LessonSampleRules.NoteMaxLength} ký tự"));
     }
 }
 

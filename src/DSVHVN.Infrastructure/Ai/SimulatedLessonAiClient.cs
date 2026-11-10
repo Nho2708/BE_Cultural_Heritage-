@@ -24,6 +24,7 @@ public sealed partial class SimulatedLessonAiClient : ILessonAiClient
     // Nhắm tới số từ trong cửa sổ [aim, aim + WindowWords) nằm gọn trong khoảng của cấp, kể cả mức Chi tiết (đã chừa lề so với trần).
     private const int WindowWords = 10;
     private const int Level1SentenceMaxWords = 10;
+    private const int Level1MaxWords = 50;
 
     public string ModelName => Name;
 
@@ -38,6 +39,31 @@ public sealed partial class SimulatedLessonAiClient : ILessonAiClient
             _ => throw new AiServiceException("Cấp học phải là 1, 2 hoặc 3.", retryable: false),
         };
         return Task.FromResult(result);
+    }
+
+    /// <summary>
+    /// Viết lại một phần (giả lập, tất định): trả lại chữ cũ đã chuẩn hóa khoảng trắng, không đổi tiêu đề (trả null). Cấp 1 cắt bớt các câu cuối nếu quá
+    /// <see cref="Level1MaxWords"/> từ (giữ ít nhất một câu). Bản giả lập bỏ qua yêu cầu của giáo viên.
+    /// </summary>
+    public Task<AiRewriteSectionResult> RewriteSectionAsync(AiRewriteSectionRequest request, string correlationId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (request.GradeLevel is < 1 or > 3)
+            throw new AiServiceException("Cấp học phải là 1, 2 hoặc 3.", retryable: false);
+
+        var text = Spaces().Replace(request.CurrentText ?? string.Empty, " ").Trim();
+        if (request.GradeLevel == 1 && LessonText.CountWords(text) > Level1MaxWords)
+        {
+            var kept = new List<string>();
+            foreach (var sentence in SpeechRules.SplitSentences(text))
+            {
+                if (kept.Count > 0 && LessonText.CountWords(string.Join(' ', kept.Append(sentence))) > Level1MaxWords) break;
+                kept.Add(sentence);
+            }
+            text = string.Join(' ', kept);
+        }
+        return Task.FromResult(new AiRewriteSectionResult(text, null, Name,
+            new AiUsage(((request.CurrentText?.Length ?? 0) + request.LessonContent.Length) / 4, text.Length / 4)));
     }
 
     // ---- Cấp 1: chuyện kể từng bước, mỗi bước một hình ----

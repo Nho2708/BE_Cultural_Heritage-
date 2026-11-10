@@ -77,8 +77,10 @@ public sealed class HttpLessonAiClientTests
         Assert.Equal("https://x/a.jpg", heritage.GetProperty("images")[0].GetProperty("url").GetString());
         Assert.Contains("Hoàng thành", body);                       // không bị escape \uXXXX
         // Không có trường nào mang dữ liệu cá nhân.
+        // (teacherNote là yêu cầu thêm của giáo viên, không phải thông tin cá nhân.)
+        var withoutNote = body.Replace("teacherNote", string.Empty);
         foreach (var forbidden in new[] { "email", "student", "teacher", "className", "fullName" })
-            Assert.DoesNotContain(forbidden, body, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(forbidden, withoutNote, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -181,4 +183,85 @@ public sealed class HttpLessonAiClientTests
     [InlineData(45, 6)]
     public void Wait_and_retry_values_must_be_reasonable(double seconds, int retries) =>
         Assert.True(Validate(new AiOptions { AttemptTimeoutSeconds = seconds, MaxRetries = retries }).Failed);
+
+    // ---- Soạn bài có yêu cầu thêm, và viết lại một phần ----
+
+    [Fact]
+    public async Task The_teacher_note_of_the_compose_request_goes_out_as_teacherNote()
+    {
+        var handler = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)));
+
+        await Assert.ThrowsAsync<AiServiceException>(() =>
+            Client(handler).ComposeLessonAsync(Request with { TeacherNote = "Nhấn mạnh kiến trúc; dùng ví dụ gần gũi" }, "x", CancellationToken.None));
+
+        using var json = JsonDocument.Parse(handler.Seen.Single().Body);
+        Assert.Equal("Nhấn mạnh kiến trúc; dùng ví dụ gần gũi", json.RootElement.GetProperty("teacherNote").GetString());
+        Assert.Equal(string.Empty, JsonDocument.Parse(JsonSerializer.Serialize(Request, new JsonSerializerOptions(JsonSerializerDefaults.Web)))
+            .RootElement.GetProperty("teacherNote").GetString());
+    }
+
+    private static readonly AiRewriteSectionRequest RewriteRequest = new(
+        7, 9, 2, LessonSectionType.MILESTONE, "Vua dời đô về Thăng Long.", "1010", 1010, "Ngắn hơn", "Nội dung chính của bài.",
+        [new AiHeritageInput(1, "Hoàng thành", "Mô tả", "Nội dung", [], [], [])]);
+
+    [Fact]
+    public async Task A_good_rewrite_response_is_parsed_and_the_request_follows_the_contract()
+    {
+        var handler = new StubHandler((_, _) => Task.FromResult(Json(new
+        {
+            text = "Năm 1010, vua Lý dời đô.",
+            title = (string?)null,
+            model = "mo-hinh-that",
+            usage = new { inputTokens = 80, outputTokens = 20 },
+        })));
+
+        var result = await Client(handler).RewriteSectionAsync(RewriteRequest, "ma-truy-vet-0002", CancellationToken.None);
+
+        Assert.Equal(("Năm 1010, vua Lý dời đô.", (string?)null, "mo-hinh-that", 20), (result.Text, result.Title, result.Model, result.Usage.OutputTokens));
+        var (sent, body) = Assert.Single(handler.Seen);
+        Assert.Equal(HttpMethod.Post, sent.Method);
+        Assert.Equal("http://ai.local:8000/v1/rewrite-section", sent.RequestUri!.ToString());
+        Assert.Equal("khoa-noi-bo", sent.Headers.GetValues("X-Internal-Key").Single());
+        Assert.Equal("ma-truy-vet-0002", sent.Headers.GetValues("X-Correlation-Id").Single());
+
+        using var json = JsonDocument.Parse(body);
+        var root = json.RootElement;
+        Assert.Equal((7, 9, 2, "MILESTONE", "Vua dời đô về Thăng Long."),
+            (root.GetProperty("generationId").GetInt32(), root.GetProperty("lessonId").GetInt32(), root.GetProperty("gradeLevel").GetInt32(),
+                root.GetProperty("kind").GetString(), root.GetProperty("currentText").GetString()));
+        Assert.Equal(("1010", 1010, "Ngắn hơn", "Nội dung chính của bài."),
+            (root.GetProperty("title").GetString(), root.GetProperty("year").GetInt32(), root.GetProperty("teacherNote").GetString(),
+                root.GetProperty("lessonContent").GetString()));
+        Assert.Equal("Hoàng thành", root.GetProperty("heritages")[0].GetProperty("name").GetString());
+        Assert.Contains("Vua dời đô về Thăng Long", body);          // không bị escape \uXXXX
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError, true)]
+    [InlineData(HttpStatusCode.TooManyRequests, true)]
+    [InlineData(HttpStatusCode.RequestTimeout, true)]
+    [InlineData(HttpStatusCode.BadRequest, false)]
+    [InlineData(HttpStatusCode.Unauthorized, false)]
+    [InlineData(HttpStatusCode.UnprocessableEntity, false)]
+    public async Task Rewrite_errors_are_classified_like_compose_errors(HttpStatusCode status, bool retryable)
+    {
+        var handler = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage(status)));
+
+        var ex = await Assert.ThrowsAsync<AiServiceException>(() => Client(handler).RewriteSectionAsync(RewriteRequest, "x", CancellationToken.None));
+
+        Assert.Equal(retryable, ex.Retryable);
+    }
+
+    [Fact]
+    public async Task A_rewrite_response_with_the_wrong_shape_or_no_body_can_be_retried()
+    {
+        var wrongShape = new StubHandler((_, _) => Task.FromResult(Json(new { text = 5, usage = "x" })));
+        Assert.True((await Assert.ThrowsAsync<AiServiceException>(() => Client(wrongShape).RewriteSectionAsync(RewriteRequest, "x", CancellationToken.None))).Retryable);
+
+        var empty = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("null", System.Text.Encoding.UTF8, "application/json") }));
+        Assert.True((await Assert.ThrowsAsync<AiServiceException>(() => Client(empty).RewriteSectionAsync(RewriteRequest, "x", CancellationToken.None))).Retryable);
+
+        var down = new StubHandler((_, _) => throw new HttpRequestException("connection refused"));
+        Assert.True((await Assert.ThrowsAsync<AiServiceException>(() => Client(down).RewriteSectionAsync(RewriteRequest, "x", CancellationToken.None))).Retryable);
+    }
 }

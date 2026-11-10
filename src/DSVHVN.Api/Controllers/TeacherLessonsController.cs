@@ -19,7 +19,8 @@ namespace DSVHVN.Api.Controllers;
 [Authorize(Policy = Policies.Teacher)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status403Forbidden)]
-public sealed class TeacherLessonsController(LessonService lessons, LessonAiService ai, StudentLessonService studentView, StudentNotificationService notifications) : ApiControllerBase
+public sealed class TeacherLessonsController(
+    LessonService lessons, LessonAiService ai, LessonSampleService samples, StudentLessonService studentView, StudentNotificationService notifications) : ApiControllerBase
 {
     /// <summary>Danh sách bài học của giáo viên ở mọi lớp: tiêu đề, lớp, di sản, trạng thái, mã bài học, số bài kiểm tra. Lọc theo lớp, trạng thái, loại di sản, độ khó (EASY, MEDIUM, HARD), từ khóa trong tiêu đề. Độ khó không lưu: là mức khó chiếm nhiều câu nhất trong các bài kiểm tra của bài (hòa thì lấy mức cao hơn); bài chưa có bài kiểm tra nào có câu hiện "Chưa có bài kiểm tra" và không khớp bộ lọc nào.</summary>
     [HttpGet]
@@ -72,6 +73,7 @@ public sealed class TeacherLessonsController(LessonService lessons, LessonAiServ
     /// <summary>
     /// Lưu bài (Nháp hoặc Đã xuất bản). Trường null thì giữ nguyên, có giá trị thì thay toàn bộ. Loại phần phải thuộc khung của cấp lớp, hình và
     /// sự kiện phải thuộc di sản của bài. Bài Đã xuất bản phải giữ đủ điều kiện xuất bản (422 nếu không). Di sản chỉ đổi được khi bài là Nháp.
+    /// Bài đang ở thư viện bài mẫu mà lần lưu đổi nội dung thì tự về chờ duyệt lại và câu trả lời có thêm câu báo.
     /// </summary>
     [HttpPut("{lessonId:long}")]
     [ProducesResponseType<ApiResponse<LessonDetailDto>>(StatusCodes.Status200OK)]
@@ -79,7 +81,11 @@ public sealed class TeacherLessonsController(LessonService lessons, LessonAiServ
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
     public async Task<ActionResult<ApiResponse<LessonDetailDto>>> Update(long lessonId, UpdateLessonRequest request, CancellationToken ct)
-        => OkEnvelope(await lessons.UpdateAsync(CurrentActor, lessonId, request, ct), Messages.Success("Lưu bài học").Text);
+    {
+        var result = await lessons.SaveAsync(CurrentActor, lessonId, request, ct);
+        var message = Messages.Success("Lưu bài học").Text;
+        return OkEnvelope(result.Lesson, result.SampleReset ? $"{message} {Messages.LessonSampleResetNotice}" : message);
+    }
 
     /// <summary>Xóa mềm bài chưa có bài kiểm tra nào; bài đã có bài kiểm tra chỉ lưu trữ được.</summary>
     [HttpDelete("{lessonId:long}")]
@@ -144,6 +150,31 @@ public sealed class TeacherLessonsController(LessonService lessons, LessonAiServ
         return CreatedEnvelope(result, result.Message);
     }
 
+    /// <summary>
+    /// Đề xuất bài vào thư viện bài mẫu dùng chung (chỉ giáo viên chủ bài). Bài phải Đã xuất bản và đủ điều kiện xuất bản; thành công thì bài chờ quản trị hệ thống duyệt.
+    /// 422 BLOCKED khi bài Nháp, Lưu trữ, đang chờ duyệt hoặc đã trong thư viện; 422 NOT_READY khi chưa đủ điều kiện xuất bản.
+    /// </summary>
+    [HttpPost("{lessonId:long}/sample-request")]
+    [ProducesResponseType<ApiResponse<LessonSampleResultDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<ApiResponse<LessonSampleResultDto>>> RequestSample(long lessonId, CancellationToken ct)
+    {
+        var result = await samples.RequestAsync(CurrentActor, lessonId, ct);
+        return OkEnvelope(result, result.Message);
+    }
+
+    /// <summary>Rút bài khỏi thư viện bài mẫu (từ chờ duyệt, đã trong thư viện hoặc bị từ chối). 422 BLOCKED khi bài chưa ở thư viện.</summary>
+    [HttpDelete("{lessonId:long}/sample-request")]
+    [ProducesResponseType<ApiResponse<LessonSampleResultDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<ApiResponse<LessonSampleResultDto>>> WithdrawSample(long lessonId, CancellationToken ct)
+    {
+        var result = await samples.WithdrawAsync(CurrentActor, lessonId, ct);
+        return OkEnvelope(result, result.Message);
+    }
+
     /// <summary>Ảnh (kèm ghi công) và sự kiện trên dòng thời gian của các di sản đang xuất bản của bài, để chọn hình và mốc thời gian.</summary>
     [HttpGet("{lessonId:long}/materials")]
     [ProducesResponseType<ApiResponse<LessonMaterialsDto>>(StatusCodes.Status200OK)]
@@ -170,5 +201,26 @@ public sealed class TeacherLessonsController(LessonService lessons, LessonAiServ
     {
         var draft = await ai.ComposeAsync(CurrentActor, lessonId, request, HttpContext.TraceIdentifier, ct);
         return OkEnvelope(draft, draft.Message);
+    }
+
+    /// <summary>
+    /// Viết lại MỘT phần của bài bằng AI: nhận chữ đang sửa (chưa cần lưu), trả bản mới để xem cạnh bản cũ; không lưu vào bài. <c>sectionType</c> thuộc khung của cấp lớp và
+    /// không phải đoạn trích tư liệu gốc (phải nguyên văn); <c>text</c> 1-4000 ký tự; <c>year</c> chỉ với mốc thời gian; <c>instructions</c> tối đa 500 ký tự.
+    /// Mỗi lần là một lượt AI của trường và tính chung giới hạn 10 lần mỗi phút với các API AI khác của giáo viên. 422 khi không có gói hiệu lực, hết lượt hoặc bài Lưu trữ;
+    /// 503 khi dịch vụ AI lỗi sau các lần thử (lượt không bị tính).
+    /// </summary>
+    [HttpPost("{lessonId:long}/ai/rewrite-section")]
+    [RateLimit(RateLimitKind.TeacherAi)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<ApiResponse<LessonSectionRewriteDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<ApiResponse<LessonSectionRewriteDto>>> RewriteSection(long lessonId, RewriteSectionRequest request, CancellationToken ct)
+    {
+        var rewrite = await ai.RewriteSectionAsync(CurrentActor, lessonId, request, HttpContext.TraceIdentifier, ct);
+        return OkEnvelope(rewrite, rewrite.Message);
     }
 }

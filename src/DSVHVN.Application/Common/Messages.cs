@@ -37,6 +37,11 @@ public static class MessageCodes
     public const string LessonDuplicated = "LESSON_DUPLICATED";
     public const string LessonCodeInvalid = "LESSON_CODE_INVALID";
     public const string LessonCodeBlocked = "LESSON_CODE_BLOCKED";
+    public const string LessonSampleRequested = "LESSON_SAMPLE_REQUESTED";
+    public const string LessonSampleWithdrawn = "LESSON_SAMPLE_WITHDRAWN";
+    public const string LessonSampleApproved = "LESSON_SAMPLE_APPROVED";
+    public const string LessonSampleRejected = "LESSON_SAMPLE_REJECTED";
+    public const string LessonSampleUsed = "LESSON_SAMPLE_USED";
     public const string PlanRequired = "PLAN_REQUIRED";
     public const string AiQuotaReached = "AI_QUOTA_REACHED";
     public const string AiUnavailable = "AI_UNAVAILABLE";
@@ -254,6 +259,38 @@ public static class Messages
         if (copiedQuizzes > 0) text += $" Đã chép {copiedQuizzes} bài kiểm tra thành bản nháp; hãy đặt lại giờ mở và giờ đóng.";
         if (skippedQuestions > 0) text += $" Bỏ qua {skippedQuestions} câu hỏi đã ẩn hoặc không dùng được ở cấp của lớp.";
         return new AppMessage(MessageCodes.LessonDuplicated, text);
+    }
+
+    // ---- Thư viện bài mẫu ----
+
+    /// <summary>Giáo viên vừa đề xuất bài vào thư viện bài mẫu; chờ quản trị hệ thống duyệt.</summary>
+    public static readonly AppMessage LessonSampleRequested = new(MessageCodes.LessonSampleRequested,
+        "Đã gửi đề xuất. Bài học sẽ vào thư viện bài mẫu khi quản trị hệ thống duyệt.");
+
+    /// <summary>Giáo viên rút bài khỏi thư viện bài mẫu.</summary>
+    public static readonly AppMessage LessonSampleWithdrawn = new(MessageCodes.LessonSampleWithdrawn,
+        "Đã rút bài học khỏi thư viện bài mẫu.");
+
+    /// <summary>Quản trị hệ thống duyệt bài mẫu.</summary>
+    public static AppMessage LessonSampleApproved(string? title) => new(MessageCodes.LessonSampleApproved,
+        $"Đã duyệt bài mẫu \"{title}\". Giáo viên mọi trường dùng được bài này từ thư viện.");
+
+    /// <summary>Quản trị hệ thống từ chối đề xuất đang chờ duyệt, hoặc gỡ bài đang ở trong thư viện.</summary>
+    public static AppMessage LessonSampleRejected(bool removedFromLibrary) => new(MessageCodes.LessonSampleRejected, removedFromLibrary
+        ? "Đã gỡ bài khỏi thư viện bài mẫu và gửi lý do cho giáo viên."
+        : "Đã từ chối đề xuất bài mẫu và gửi lý do cho giáo viên.");
+
+    /// <summary>Câu báo thêm vào lần lưu khi bài đang ở thư viện bị sửa nên tự về chờ duyệt lại.</summary>
+    public const string LessonSampleResetNotice = "Bài đang ở thư viện bài mẫu nên sẽ chờ quản trị duyệt lại.";
+
+    /// <summary>Dùng bài mẫu xong: giống nhân bản nhưng nhắc bài được tạo từ thư viện.</summary>
+    public static AppMessage LessonSampleUsed(string className, int skippedHeritages, int copiedQuizzes = 0, int skippedQuestions = 0)
+    {
+        var text = $"Đã tạo bài học nháp ở lớp {className} từ bài mẫu. Hãy xem lại và chỉnh cho hợp lớp của bạn.";
+        if (skippedHeritages > 0) text += $" Bỏ qua {skippedHeritages} di sản đã ẩn.";
+        if (copiedQuizzes > 0) text += $" Đã chép {copiedQuizzes} bài kiểm tra thành bản nháp; hãy đặt lại giờ mở và giờ đóng.";
+        if (skippedQuestions > 0) text += $" Bỏ qua {skippedQuestions} câu hỏi đã ẩn hoặc không dùng được ở cấp của lớp.";
+        return new AppMessage(MessageCodes.LessonSampleUsed, text);
     }
 
     /// <summary>Lớp đích khác cấp với lớp nguồn khi nhân bản bài học: nội dung vẫn được chép nguyên, cảnh báo giáo viên xem lại.</summary>

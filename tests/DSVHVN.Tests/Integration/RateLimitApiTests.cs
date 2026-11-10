@@ -64,6 +64,26 @@ public sealed class RateLimitApiTests(LowLimitApiFactory factory) : IClassFixtur
         Assert.NotEqual(HttpStatusCode.TooManyRequests, other.StatusCode);
     }
 
+    [Fact]
+    public async Task Rewriting_a_section_shares_the_teacher_ai_limit_with_compose()
+    {
+        var (school, schoolClass) = await _lessons.SchoolWithClassAsync(2);
+        var heritage = await _lessons.HeritageAsync("Hoàng thành", events: 2);
+        var lesson = await _lessons.CreateLessonAsync(school.TeacherToken, schoolClass.Id, [heritage.Id]);
+        var compose = $"{LessonTestKit.Teacher}/{lesson.Id}/ai/compose";
+        var rewrite = $"{LessonTestKit.Teacher}/{lesson.Id}/ai/rewrite-section";
+        var section = new { sectionType = "READING", text = "Đoạn bài đọc cần viết lại." };
+
+        Assert.Equal(HttpStatusCode.OK, (await Http.PostAsync<object>(compose, new { length = "SHORT" }, school.TeacherToken)).Response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await Http.PostAsync<object>(rewrite, section, school.TeacherToken)).Response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await Http.PostAsync<object>(rewrite, section, school.TeacherToken)).Response.StatusCode);
+
+        var (blocked, body) = await Http.PostAsync<object>(rewrite, section, school.TeacherToken);
+        AssertTooMany(blocked, body);
+        var (blockedCompose, composeBody) = await Http.PostAsync<object>(compose, new { length = "SHORT" }, school.TeacherToken);
+        AssertTooMany(blockedCompose, composeBody);
+    }
+
     // ---- AI dịch và tóm tắt của quản trị hệ thống ----
 
     [Fact]

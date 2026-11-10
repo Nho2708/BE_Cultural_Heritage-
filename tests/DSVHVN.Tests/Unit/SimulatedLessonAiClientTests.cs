@@ -195,4 +195,56 @@ public sealed class SimulatedLessonAiClientTests
         var ex = await Assert.ThrowsAsync<AiServiceException>(() => Compose(Request(4, LessonLength.SHORT)));
         Assert.False(ex.Retryable);
     }
+
+    // ---- Viết lại một phần ----
+
+    private static AiRewriteSectionRequest Rewrite(int level, LessonSectionType kind, string text, string? title = null, int? year = null) =>
+        new(7, 9, level, kind, text, title, year, "Ngắn hơn", "Nội dung chính của bài.", [Heritage()]);
+
+    [Fact]
+    public async Task Rewriting_returns_the_old_text_with_whitespace_normalized_and_keeps_the_title()
+    {
+        var result = await _ai.RewriteSectionAsync(Rewrite(2, LessonSectionType.MILESTONE, "  Vua dời đô\n\n về   Thăng Long. ", "1010", 1010), "x", CancellationToken.None);
+
+        Assert.Equal("Vua dời đô về Thăng Long.", result.Text);
+        Assert.Null(result.Title);
+        Assert.Equal(SimulatedLessonAiClient.Name, result.Model);
+        Assert.True(result.Usage.InputTokens >= 0 && result.Usage.OutputTokens > 0);
+    }
+
+    [Fact]
+    public async Task Rewriting_is_deterministic_and_ignores_the_teacher_note()
+    {
+        var first = await _ai.RewriteSectionAsync(Rewrite(3, LessonSectionType.REFLECTION, "Vì sao di sản cần được gìn giữ?"), "x", CancellationToken.None);
+        var second = await _ai.RewriteSectionAsync(Rewrite(3, LessonSectionType.REFLECTION, "Vì sao di sản cần được gìn giữ?") with { TeacherNote = "Sinh động hơn" }, "y", CancellationToken.None);
+
+        Assert.Equal(first.Text, second.Text);
+    }
+
+    [Fact]
+    public async Task At_level_one_a_text_over_50_words_loses_its_last_sentences_but_keeps_at_least_one()
+    {
+        string Sentence(int n) => string.Join(' ', Enumerable.Range(1, 12).Select(i => $"chữ{n}{i}")) + ".";
+        var long1 = string.Join(' ', Enumerable.Range(1, 6).Select(Sentence));   // 72 từ
+
+        var cut = await _ai.RewriteSectionAsync(Rewrite(1, LessonSectionType.STORY, long1), "x", CancellationToken.None);
+
+        Assert.Equal(string.Join(' ', Enumerable.Range(1, 4).Select(Sentence)), cut.Text);
+        Assert.InRange(Words(cut.Text), 1, 50);
+
+        // Một câu dài hơn 50 từ vẫn giữ nguyên một câu (không cắt giữa câu).
+        var oneLong = string.Join(' ', Enumerable.Range(1, 60).Select(i => $"từ{i}")) + ".";
+        Assert.Equal(oneLong, (await _ai.RewriteSectionAsync(Rewrite(1, LessonSectionType.STORY, oneLong), "x", CancellationToken.None)).Text);
+
+        // Cấp 2 và 3 không cắt.
+        Assert.Equal(long1, (await _ai.RewriteSectionAsync(Rewrite(2, LessonSectionType.READING, long1), "x", CancellationToken.None)).Text);
+    }
+
+    [Fact]
+    public async Task Rewriting_an_unknown_level_is_a_client_error_that_is_not_retried()
+    {
+        var ex = await Assert.ThrowsAsync<AiServiceException>(() => _ai.RewriteSectionAsync(Rewrite(4, LessonSectionType.READING, "Chữ."), "x", CancellationToken.None));
+
+        Assert.False(ex.Retryable);
+    }
 }
