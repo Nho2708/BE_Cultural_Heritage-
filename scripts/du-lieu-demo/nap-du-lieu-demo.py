@@ -56,7 +56,7 @@ STUDENT_NAMES = {
     8: ["Ngô Đức Anh", "Dương Thùy Chi", "Lý Hoàng Long", "Đỗ Phương Thảo", "Trịnh Minh Quân", "Phan Hải Yến", "Võ Thành Đạt", "Đinh Mai Phương"],
     11: ["Nguyễn Hữu Phúc", "Lê Thị Kim Ngân", "Trần Quang Vinh", "Phạm Thu Hà", "Hồ Gia Bảo", "Mai Xuân Trang", "Cao Tiến Dũng", "Lương Thanh Tâm"],
 }
-CLASSES = [(3, "3A", 0), (8, "8A1", 0), (11, "11A2", 1)]  # (khối, tên lớp, chỉ số giáo viên phụ trách)
+CLASSES = [(8, "8A1", 0), (11, "11A2", 1)]  # (khối, tên lớp, chỉ số giáo viên phụ trách) - Đã ẩn lớp 3A (Cấp 1) theo định hướng nhóm
 # Di sản được dịch, tóm tắt (12 di sản tiêu biểu theo mã nạp từ tệp JSON) và di sản gắn mô hình 3D mẫu khi chưa có tệp mô hình thật.
 TRANSLATED_HERITAGE_IDS = [1, 2, 5, 6, 7, 9, 11, 12, 14, 15, 16, 17]
 MODEL_HERITAGE_IDS = [1, 14]
@@ -238,48 +238,10 @@ def main_models_only():
 # Ảnh lấy theo từ khoá trong chú thích ảnh của di sản (ảnh phải nằm trong thư viện ảnh của di sản được gắn).
 # ---------------------------------------------------------------------------------------------------------------------
 def question_sets():
-    """Trả về danh sách bài học: mỗi bài có khối, tiêu đề, mã di sản, bài kiểm tra và các câu hỏi (dựng khi đã có ảnh)."""
+    """Trả về danh sách bài học: mỗi bài có khối, tiêu đề, mã di sản, bài kiểm tra và các câu hỏi (dựng khi đã có ảnh).
+    Đã ẩn các bài học Khối 3 (Cấp 1) để tập trung demo Cấp 2 và Cấp 3.
+    """
     return [
-        {"grade": 3, "title": "Hoàng thành Thăng Long qua hình ảnh", "heritage": 1, "quiz": "Trò chơi khám phá Hoàng thành Thăng Long",
-         "questions": lambda img: [
-             {"type": "TRUE_FALSE", "difficulty": "EASY", "content": "Em hãy xem hình: đây là Đoan Môn, cửa phía nam dẫn vào khu cung cấm của Hoàng thành.",
-              "explanation": "Đúng, đây là Đoan Môn của Hoàng thành Thăng Long.", "imageUrl": img("Đoan Môn"), "answerIsTrue": True},
-             {"type": "TRUE_FALSE", "difficulty": "EASY", "content": "Em hãy xem hình: đây là cổng Đoan Môn của Hoàng thành.",
-              "explanation": "Hình này là khu điện Kính Thiên, không phải cổng Đoan Môn.", "imageUrl": img("Kính Thiên"), "answerIsTrue": False},
-             {"type": "IMAGE_CHOICE", "difficulty": "EASY", "content": "Em hãy chọn hình có tên: Điện Kính Thiên.",
-              "explanation": "Hình thứ hai là khu điện Kính Thiên với bậc thềm rồng đá.",
-              "options": [{"content": "Đoan Môn", "imageUrl": img("Đoan Môn"), "isCorrect": False},
-                          {"content": "Điện Kính Thiên", "imageUrl": img("Kính Thiên"), "isCorrect": True},
-                          {"content": "Khu khảo cổ", "imageUrl": img("khảo cổ 18 Hoàng Diệu", 0), "isCorrect": False}]},
-             {"type": "MATCHING", "difficulty": "MEDIUM", "content": "Em hãy ghép mỗi hình với tên của hình đó.",
-              "explanation": "Mỗi tên là chú thích của hình trong thư viện ảnh di sản.",
-              "pairs": [{"leftImageUrl": img("Đoan Môn"), "right": "Đoan Môn"}, {"leftImageUrl": img("Kính Thiên"), "right": "Điện Kính Thiên"},
-                        {"leftImageUrl": img("Hố khai quật"), "right": "Hố khai quật"}, {"leftImageUrl": img("đất nung"), "right": "Vật liệu đất nung"}]},
-             {"type": "ORDERING", "difficulty": "MEDIUM", "content": "Hãy sắp xếp các sự kiện của Hoàng thành Thăng Long theo thứ tự thời gian.",
-              "explanation": "Xếp theo năm: dời đô 1010, dựng điện Kính Thiên thế kỷ 15, xếp hạng đặc biệt 2009, UNESCO 2010.",
-              "steps": ["Năm 1010: vua Lý Thái Tổ dời đô ra Thăng Long", "Thế kỷ 15: triều Lê sơ dựng điện Kính Thiên",
-                        "Năm 2009: xếp hạng di tích quốc gia đặc biệt", "Năm 2010: UNESCO ghi danh Di sản thế giới"]},
-         ]},
-        {"grade": 3, "title": "Vịnh Hạ Long và quần đảo Cát Bà", "heritage": 5, "quiz": "Trò chơi khám phá Vịnh Hạ Long",
-         "questions": lambda img: [
-             {"type": "TRUE_FALSE", "difficulty": "EASY", "content": "Em hãy xem hình: đây là loài voọc sống ở Vườn quốc gia Cát Bà.",
-              "explanation": "Đúng, đây là voọc Cát Bà.", "imageUrl": img("Voọc"), "answerIsTrue": True},
-             {"type": "TRUE_FALSE", "difficulty": "EASY", "content": "Em hãy xem hình: đây là hang Sửng Sốt trên vịnh Hạ Long.",
-              "explanation": "Hình này là vịnh Lan Hạ thuộc quần đảo Cát Bà, không phải hang Sửng Sốt.", "imageUrl": img("Lan Hạ"), "answerIsTrue": False},
-             {"type": "IMAGE_CHOICE", "difficulty": "EASY", "content": "Em hãy chọn hình có tên: Hang Sửng Sốt.",
-              "explanation": "Hình thứ hai là hang Sửng Sốt.",
-              "options": [{"content": "Đảo đá vôi", "imageUrl": img("Đảo đá vôi"), "isCorrect": False},
-                          {"content": "Hang Sửng Sốt", "imageUrl": img("Hang Sửng Sốt"), "isCorrect": True},
-                          {"content": "Vịnh Lan Hạ", "imageUrl": img("Lan Hạ"), "isCorrect": False}]},
-             {"type": "MATCHING", "difficulty": "MEDIUM", "content": "Em hãy ghép mỗi hình với tên của hình đó.",
-              "explanation": "Mỗi tên là chú thích của hình trong thư viện ảnh di sản.",
-              "pairs": [{"leftImageUrl": img("Đảo đá vôi"), "right": "Đảo đá vôi"}, {"leftImageUrl": img("Hang Sửng Sốt"), "right": "Hang Sửng Sốt"},
-                        {"leftImageUrl": img("Lan Hạ"), "right": "Vịnh Lan Hạ"}, {"leftImageUrl": img("Voọc"), "right": "Voọc Cát Bà"}]},
-             {"type": "ORDERING", "difficulty": "MEDIUM", "content": "Hãy sắp xếp các mốc của Vịnh Hạ Long theo thứ tự thời gian.",
-              "explanation": "Xếp theo năm: 1994, 2000, 2023.",
-              "steps": ["Năm 1994: UNESCO ghi danh vịnh Hạ Long", "Năm 2000: UNESCO công nhận thêm giá trị địa chất, địa mạo",
-                        "Năm 2023: ghi danh Vịnh Hạ Long - Quần đảo Cát Bà"]},
-         ]},
         {"grade": 8, "title": "Quần thể di tích Cố đô Huế", "heritage": 14, "quiz": "Kiểm tra Cố đô Huế",
          "questions": lambda img: [
              {"type": "SINGLE_CHOICE", "difficulty": "EASY", "content": "Quần thể di tích Cố đô Huế được UNESCO ghi danh Di sản văn hóa thế giới vào năm nào?",
