@@ -9,6 +9,10 @@ public static class NarrationMessages
     public static readonly AppMessage SummaryChanged = new(MessageCodes.NarrationStale,
         "Bản tóm tắt đã đổi sau khi tạo giọng. Hãy lấy lại danh sách còn thiếu và tạo lại thuyết minh cho bản mới.");
 
+    /// <summary>Như <see cref="SummaryChanged"/> cho thuyết minh toàn bộ nội dung.</summary>
+    public static readonly AppMessage ContentChanged = new(MessageCodes.NarrationStale,
+        "Nội dung di sản đã đổi sau khi tạo giọng. Hãy lấy lại danh sách còn thiếu và tạo lại thuyết minh cho bản mới.");
+
     /// <summary>Hai lần tải lên cùng một (di sản, ngôn ngữ) chạm nhau ở ràng buộc không trùng.</summary>
     public static readonly AppMessage Concurrent = new(MessageCodes.Blocked,
         "Thuyết minh này vừa được một lần tải lên khác ghi. Hãy lấy lại danh sách còn thiếu rồi thử lại nếu vẫn cần.");

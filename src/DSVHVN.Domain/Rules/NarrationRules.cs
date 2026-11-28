@@ -58,6 +58,30 @@ public static partial class NarrationRules
     /// </summary>
     public static string TextHash(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
+    /// <summary>
+    /// Chữ để đọc toàn bộ nội dung di sản: bỏ ký hiệu Markdown (tiêu đề, gạch đầu dòng, chữ đậm, liên kết) và phần ghi nguồn; mỗi tiêu đề, đoạn,
+    /// gạch đầu dòng là một dòng và được thêm dấu chấm khi thiếu dấu kết câu để giọng đọc ngắt nghỉ. Rỗng khi nội dung không có gì để đọc.
+    /// </summary>
+    public static string ContentSpeechText(string? content)
+    {
+        var lines = new List<string>();
+        var inSources = false;
+        foreach (var raw in (content ?? string.Empty).Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0) continue;
+            var heading = line.StartsWith('#');
+            if (heading) line = line.TrimStart('#').Trim();
+            line = LinkPattern().Replace(line, "$1");
+            line = BulletPattern().Replace(line, string.Empty).Replace("**", string.Empty).Trim();
+            // Mục "Nguồn" bỏ cả mục (tới tiêu đề kế tiếp); dòng ghi nguồn đứng riêng thì bỏ dòng đó.
+            if (heading) inSources = line.StartsWith("Nguồn", StringComparison.OrdinalIgnoreCase);
+            if (inSources || line.Length == 0 || SourceLinePattern().IsMatch(line)) continue;
+            lines.Add(".!?…:;".Contains(line[^1]) ? line : line + ".");
+        }
+        return string.Join('\n', lines);
+    }
+
     /// <summary>Băm do người gọi gửi lên có đúng dạng 64 ký tự hex thường không.</summary>
     public static bool IsValidHash(string? hash) => hash is not null && HashPattern().IsMatch(hash);
 
@@ -105,6 +129,15 @@ public static partial class NarrationRules
         var cloud = CloudinaryNarrationUrl().Match(value);
         return cloud.Success ? cloud.Groups["key"].Value : null;
     }
+
+    [GeneratedRegex(@"\[([^\]]*)\]\([^)]*\)")]
+    private static partial Regex LinkPattern();
+
+    [GeneratedRegex(@"^[-*]\s+")]
+    private static partial Regex BulletPattern();
+
+    [GeneratedRegex(@"^(Nguồn\s*:|Nội dung trích)", RegexOptions.IgnoreCase)]
+    private static partial Regex SourceLinePattern();
 
     [GeneratedRegex("^[0-9a-f]{64}$")]
     private static partial Regex HashPattern();

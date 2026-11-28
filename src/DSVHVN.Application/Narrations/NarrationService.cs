@@ -22,6 +22,7 @@ namespace DSVHVN.Application.Narrations;
 /// mà chưa có thuyết minh, hoặc thuyết minh có băm khác chữ hiện tại (tóm tắt đã sửa hoặc dịch lại). Kèm băm để công cụ gửi lại khi tải lên.</item>
 /// <item>Tải lên: kiểm các trường chữ trước, đối chiếu băm với chữ hiện tại (lệch thì 409, không nhận tệp), kiểm tệp MP3 bằng nội dung rồi mới lưu vào kho;
 /// ghi dòng không được thì tệp vừa lưu bị gỡ lại. Tải lên lần nữa thay dòng cũ; tệp cũ vẫn nằm trong kho như cách các tệp bị thay khác (kho chỉ xóa để hoàn tác).</item>
+/// <item>Phần <c>content</c>: thuyết minh đọc toàn bộ nội dung di sản đã xuất bản, hiện chỉ tiếng Việt; chữ đọc lấy từ <c>NarrationRules.ContentSpeechText</c> và băm tính trên chữ đó.</item>
 /// <item>Mỗi lần lưu ghi nhật ký thao tác <c>HERITAGE_NARRATION_CHANGED</c> (di sản, ngôn ngữ, giọng, thời lượng, số câu, dung lượng; không ghi đường dẫn tệp).</item>
 /// </list>
 /// </summary>
@@ -42,16 +43,17 @@ public sealed class NarrationService(
     // ---- Danh sách còn thiếu ----
 
     /// <summary>Tóm tắt đang hiện công khai ở <paramref name="language"/> mà chưa có thuyết minh khớp băm, theo mã di sản tăng dần, tối đa <paramref name="limit"/> mục (1..1000, mặc định 500).</summary>
-    public async Task<MissingNarrationsDto> ListMissingAsync(string? language, int? limit, CancellationToken ct)
+    public async Task<MissingNarrationsDto> ListMissingAsync(string? language, int? limit, CancellationToken ct, string? part = null)
     {
         var lang = ParseLanguage(language, "xem thuyết minh còn thiếu");
+        var narrationPart = ParsePart(part, lang);
         var size = limit ?? DefaultLimit;
         if (size is < 1 or > MaxLimit)
             throw AppException.Validation("limit", Messages.Invalid("Số mục", $"từ 1 đến {MaxLimit}"));
 
-        var shown = await summaries.ListShownAsync(lang, ct);
+        var shown = narrationPart == NarrationPart.CONTENT ? await ListContentsAsync(ct) : await summaries.ListShownAsync(lang, ct);
         var existing = await db.HeritageNarrations.AsNoTracking()
-            .Where(n => n.LanguageCode == lang)
+            .Where(n => n.LanguageCode == lang && n.Part == narrationPart)
             .Select(n => new { n.HeritageId, n.TextHash })
             .ToDictionaryAsync(n => n.HeritageId, n => n.TextHash, ct);
 
@@ -63,30 +65,56 @@ public sealed class NarrationService(
         return new MissingNarrationsDto(missing.Take(size).ToList(), missing.Count);
     }
 
+    /// <summary>Chữ đọc toàn bộ nội dung của mọi di sản đã xuất bản có nội dung (tiếng Việt), theo mã di sản tăng dần.</summary>
+    private async Task<IReadOnlyList<PublicSummaryService.ShownSummary>> ListContentsAsync(CancellationToken ct)
+    {
+        var rows = await db.Heritages.AsNoTracking()
+            .Where(h => h.DeletedAt == null && h.Status == ContentStatus.PUBLISHED && h.Content != null)
+            .OrderBy(h => h.Id)
+            .Select(h => new { h.Id, h.Slug, h.Name, h.Content })
+            .ToListAsync(ct);
+        return rows
+            .Select(h => new PublicSummaryService.ShownSummary(h.Id, h.Slug ?? string.Empty, h.Name ?? string.Empty, NarrationRules.ContentSpeechText(h.Content)))
+            .Where(h => h.ShortText.Length > 0)
+            .ToList();
+    }
+
     // ---- Tải lên ----
 
     /// <summary>
     /// Lưu thuyết minh của một (di sản, ngôn ngữ): thay dòng cũ nếu có. 404 khi không có di sản hoặc không có tóm tắt ngôn ngữ đó; 409 khi băm gửi lên
     /// khác băm của bản tóm tắt ngắn hiện tại (tóm tắt đã đổi, tạo lại); 400 khi trường chữ hoặc tệp không hợp lệ.
     /// </summary>
-    public async Task<HeritageNarrationDto> UploadAsync(Actor actor, long heritageId, string? language, UploadNarrationRequest request, UploadedFile? audio, CancellationToken ct)
+    public async Task<HeritageNarrationDto> UploadAsync(Actor actor, long heritageId, string? language, UploadNarrationRequest request, UploadedFile? audio, CancellationToken ct,
+        string? part = null)
     {
         if (actor.Role != RoleCode.ADMIN) throw AppException.Forbidden(Messages.Forbidden);
         const string action = "lưu thuyết minh";
         var lang = ParseLanguage(language, action);
+        var narrationPart = ParsePart(part, lang);
         var (voice, durationMs, sentences) = Validate(request);
 
         var heritage = await db.FindHeritageAsync(heritageId, action, ct);
-        var summary = await db.HeritageSummaries.AsNoTracking()
-                          .Where(s => s.HeritageId == heritageId && s.LanguageCode == lang)
-                          .Select(s => new { s.ShortText }).SingleOrDefaultAsync(ct)
-                      ?? throw AppException.NotFound(Messages.NotFound(action, $"bản tóm tắt {Languages.InlineLabel(lang)}"));
-        var currentHash = NarrationRules.TextHash(summary.ShortText);
-        if (request.TextHash!.Trim() != currentHash) throw AppException.Conflict("textHash", NarrationMessages.SummaryChanged);
+        string spoken;
+        if (narrationPart == NarrationPart.CONTENT)
+        {
+            spoken = NarrationRules.ContentSpeechText(heritage.Content);
+            if (spoken.Length == 0) throw AppException.NotFound(Messages.NotFound(action, "nội dung di sản"));
+        }
+        else
+        {
+            spoken = await db.HeritageSummaries.AsNoTracking()
+                         .Where(s => s.HeritageId == heritageId && s.LanguageCode == lang)
+                         .Select(s => s.ShortText).SingleOrDefaultAsync(ct)
+                     ?? throw AppException.NotFound(Messages.NotFound(action, $"bản tóm tắt {Languages.InlineLabel(lang)}"));
+        }
+        var currentHash = NarrationRules.TextHash(spoken);
+        if (request.TextHash!.Trim() != currentHash)
+            throw AppException.Conflict("textHash", narrationPart == NarrationPart.CONTENT ? NarrationMessages.ContentChanged : NarrationMessages.SummaryChanged);
 
         CheckAudio(audio);
         // Tìm dòng cũ trước khi nhận tệp: hai lần tải lên cùng lúc thì lần thua chạm ràng buộc không trùng và tự gỡ tệp của mình.
-        var row = await db.HeritageNarrations.SingleOrDefaultAsync(n => n.HeritageId == heritageId && n.LanguageCode == lang, ct);
+        var row = await db.HeritageNarrations.SingleOrDefaultAsync(n => n.HeritageId == heritageId && n.LanguageCode == lang && n.Part == narrationPart, ct);
         var key = StoredFileRules.NarrationKey(Guid.NewGuid());
         await storage.SaveAsync(key, audio!.Content, ct);
 
@@ -94,7 +122,7 @@ public sealed class NarrationService(
         {
             if (row is null)
             {
-                row = new HeritageNarration { HeritageId = heritageId, LanguageCode = lang };
+                row = new HeritageNarration { HeritageId = heritageId, LanguageCode = lang, Part = narrationPart };
                 db.HeritageNarrations.Add(row);
             }
             row.TextHash = currentHash;
@@ -113,6 +141,7 @@ public sealed class NarrationService(
                     heritageId,
                     heritage = heritage.Name,
                     language = Short(lang),
+                    part = narrationPart.ToString(),
                     voice,
                     durationMs,
                     sentenceCount = sentences.Count,
@@ -195,6 +224,16 @@ public sealed class NarrationService(
     private static LanguageCode ParseLanguage(string? language, string action) =>
         Languages.TryParse(language)
         ?? throw AppException.Validation("language", Messages.Invalid("Ngôn ngữ", $"không thể {action} cho \"{language}\"; chỉ nhận vi, en, ko, zh-Hans hoặc ja"));
+
+    private static NarrationPart ParsePart(string? part, LanguageCode language)
+    {
+        if (string.IsNullOrWhiteSpace(part) || part.Equals("summary", StringComparison.OrdinalIgnoreCase)) return NarrationPart.SUMMARY;
+        if (!part.Equals("content", StringComparison.OrdinalIgnoreCase))
+            throw AppException.Validation("part", Messages.Invalid("Phần được đọc", "chỉ nhận summary hoặc content"));
+        if (language != LanguageCode.vi)
+            throw AppException.Validation("language", Messages.Invalid("Ngôn ngữ", "thuyết minh toàn bộ nội dung hiện chỉ có tiếng Việt"));
+        return NarrationPart.CONTENT;
+    }
 
     /// <summary>Mã ngắn lưu trong CSDL (zh, không phải zh-Hans), để công cụ tạo giọng gửi lại nguyên văn trên đường dẫn.</summary>
     private static string Short(LanguageCode language) => language.ToString();

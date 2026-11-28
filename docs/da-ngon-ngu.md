@@ -226,7 +226,11 @@ Không có khóa dịch vụ ngoài nào trong mã hay log: bản giả lập kh
 ## 14. Thuyết minh tạo sẵn (giọng tự host)
 
 Tab "Nghe" phát tệp MP3 tạo sẵn thay cho giọng của thiết bị khi có. Âm thanh tạo trên máy phát triển (tiếng Việt: VieNeu-TTS giọng "Mai Anh"; Anh, Hàn, Trung, Nhật: MeloTTS)
-rồi tải lên qua API quản trị; **máy chủ không tạo giọng**. Thứ được đọc là `heritage_summaries.short_text`.
+rồi tải lên qua API quản trị; **máy chủ không tạo giọng**. Thứ được đọc là `heritage_summaries.short_text` hoặc toàn bộ nội dung di sản.
+
+- Toàn bộ nội dung (migration `ThemPhanDuocDocCuaThuyetMinh`): cột `part` (`SUMMARY` mặc định, `CONTENT`), UNIQUE (`heritage_id`, `language_code`, `part`). Hai API quản trị dưới đây nhận thêm
+  `?part=content` (chỉ `vi`): chữ đọc là nội dung đã bỏ ký hiệu Markdown và phần ghi nguồn, băm tính trên chữ đó. `GET /public/heritages/{slug}` trả `contentNarration` khi xem tiếng Việt
+  và băm còn khớp; nội dung không đi qua cổng mở khóa của tóm tắt.
 
 - Bảng `heritage_narrations` (migration `ThemThuyetMinhTaoSan`, chỉ thêm bảng): `heritage_id` (Restrict), `language_code` (vi, en, ko, zh, ja; CHECK như `heritage_summaries`), `text_hash` char(64)
   (SHA-256 hex thường của `short_text` đúng như đang lưu, chỉ máy chủ tính), `audio_url` (tệp MP3 trong kho tệp, thư mục `thuyet-minh/`, tên ngẫu nhiên; Cloudinary lưu loại raw như mô hình 3D), `duration_ms` (> 0),

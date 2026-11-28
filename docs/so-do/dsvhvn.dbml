@@ -948,7 +948,8 @@ Table heritage_narrations {
   id bigint [pk, increment, note: 'Khóa chính, tự tăng.']
   heritage_id bigint [not null, note: 'Di sản có thuyết minh (trỏ tới heritages).']
   language_code language_code [not null, note: 'Ngôn ngữ của thuyết minh: vi, en, ko, zh, ja (CHECK CK_heritage_narrations_language_code). [enum language_code — lưu nvarchar(20) + CHECK IN (...)]']
-  text_hash char(64) [not null, note: 'Băm SHA-256 (64 ký tự hex thường) của chữ đã đọc, tức heritage_summaries.short_text lúc tạo giọng. Tóm tắt đổi chữ thì băm lệch và thuyết minh này không còn được trả cho khách.']
+  part nvarchar(20) [not null, default: 'SUMMARY', note: 'Phần được đọc: SUMMARY (bản tóm tắt ngắn) hoặc CONTENT (toàn bộ nội dung di sản, hiện chỉ tiếng Việt) (CHECK CK_heritage_narrations_part).']
+  text_hash char(64) [not null, note: 'Băm SHA-256 (64 ký tự hex thường) của chữ đã đọc lúc tạo giọng: bản tóm tắt ngắn hoặc chữ đọc rút từ nội dung. Chữ đổi thì băm lệch và thuyết minh này không còn được trả cho khách.']
   audio_url nvarchar(500) [not null, note: 'Đường dẫn tệp âm thanh MP3 trong kho tệp của nền tảng.']
   duration_ms int [not null, note: 'Thời lượng tệp (mili giây), lớn hơn 0 (CHECK CK_heritage_narrations_duration).']
   sentences "nvarchar(max)" [not null, note: 'Chuỗi JSON mảng câu theo thứ tự đọc, mỗi câu gồm chữ gốc để hiển thị, mốc bắt đầu và mốc kết thúc (mili giây) để tô sáng khi phát.']
@@ -957,15 +958,16 @@ Table heritage_narrations {
   updated_at datetime2(3) [note: 'Thời điểm cập nhật gần nhất.']
 
   indexes {
-    (heritage_id, language_code) [unique, name: 'UX_heritage_narrations_heritage_language', note: 'Mỗi di sản đúng một thuyết minh cho mỗi ngôn ngữ; tải lên lần nữa thì thay dòng cũ']
+    (heritage_id, language_code, part) [unique, name: 'UX_heritage_narrations_heritage_language_part', note: 'Mỗi di sản đúng một thuyết minh cho mỗi ngôn ngữ và mỗi phần được đọc; tải lên lần nữa thì thay dòng cũ']
   }
 
   checks {
     `duration_ms > 0` [name: 'CK_heritage_narrations_duration']
     `language_code IN ('vi', 'en', 'ko', 'zh', 'ja')` [name: 'CK_heritage_narrations_language_code']
+    `part IN ('SUMMARY', 'CONTENT')` [name: 'CK_heritage_narrations_part']
   }
 
-  Note: 'Thuyết minh tạo sẵn của bản tóm tắt ngắn theo ngôn ngữ: tệp MP3 do giọng tự host tạo ngoài máy chủ rồi tải lên qua API quản trị (máy chủ không tạo giọng), kèm mốc thời gian từng câu để tô sáng khi phát và băm của đoạn chữ đã đọc. Khi băm không còn khớp với tóm tắt hiện tại, tab Nghe đọc bằng giọng của thiết bị như trước.'
+  Note: 'Thuyết minh tạo sẵn của bản tóm tắt ngắn hoặc toàn bộ nội dung theo ngôn ngữ: tệp MP3 do giọng tự host tạo ngoài máy chủ rồi tải lên qua API quản trị (máy chủ không tạo giọng), kèm mốc thời gian từng câu để tô sáng khi phát và băm của đoạn chữ đã đọc. Khi băm không còn khớp với tóm tắt hiện tại, tab Nghe đọc bằng giọng của thiết bị như trước.'
 }
 
 // ---- Nhóm 10. Nhóm Khách tham quan và quảng cáo · bảng thêm ở phiên bản 4
