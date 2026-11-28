@@ -89,7 +89,7 @@ public sealed class PublicSummaryService(IAppDbContext db, HeritageLocalizer loc
     private async Task<PublicNarrationDto?> NarrationOfAsync(long heritageId, LanguageCode language, string shortText, CancellationToken ct)
     {
         var row = await db.HeritageNarrations.AsNoTracking()
-            .Where(n => n.HeritageId == heritageId && n.LanguageCode == language)
+            .Where(n => n.HeritageId == heritageId && n.LanguageCode == language && n.Part == NarrationPart.SUMMARY)
             .Select(n => new { n.TextHash, n.AudioUrl, n.DurationMs, n.Voice, n.Sentences })
             .SingleOrDefaultAsync(ct);
         if (row is null || row.TextHash != NarrationRules.TextHash(shortText)) return null;

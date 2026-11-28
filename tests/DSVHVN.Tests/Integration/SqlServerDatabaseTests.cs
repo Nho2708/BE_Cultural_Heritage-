@@ -43,12 +43,12 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.Equal("Vietnamese_CI_AI",
             (await SqlAsync<string>($"SELECT CAST(DATABASEPROPERTYEX(DB_NAME(), 'Collation') AS nvarchar(128)) AS [Value]")).Single());
         Assert.Equal(45, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")).Single());
-        Assert.Equal(412, (await SqlAsync<int>(   // 12 cột của curriculum_topics và 2 cột của heritage_curriculum_topics (chủ đề chương trình) + 6 cột thư viện bài mẫu của lessons (sample_status, sample_requested_at, sample_reviewed_at, sample_reviewed_by, sample_note, source_lesson_id) + quizzes.access_code + 5 cột của lesson_visits + 10 cột của student_notifications + 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 17 cột của heritage_models (luồng mô hình 3D) + 9 cột của attempt_answer_parts và 2 cột parts_total, parts_correct của attempt_answers (luồng học tập) + 9 cột của ad_unlocks (luồng quảng cáo Google) + 10 cột của heritage_narrations (thuyết minh tạo sẵn) + 4 cột của lesson_completions và attempt_answers.try_count (bài chơi dạng luyện tập) + 7 cột của speech_clips (giọng đọc tự host)
+        Assert.Equal(413, (await SqlAsync<int>(   // 12 cột của curriculum_topics và 2 cột của heritage_curriculum_topics (chủ đề chương trình) + 6 cột thư viện bài mẫu của lessons (sample_status, sample_requested_at, sample_reviewed_at, sample_reviewed_by, sample_note, source_lesson_id) + quizzes.access_code + 5 cột của lesson_visits + 10 cột của student_notifications + 233 cột của thiết kế v3 + search_name, search_text (luồng Khám phá di sản) + lesson_sections (12 cột) và ai_generations.heritage_id (luồng bài học theo cấp) + 5 cột của questions, 4 cột của answers (luồng ngân hàng câu hỏi) + 46 cột của năm bảng đa ngôn ngữ (luồng đa ngôn ngữ) + 17 cột của heritage_models (luồng mô hình 3D) + 9 cột của attempt_answer_parts và 2 cột parts_total, parts_correct của attempt_answers (luồng học tập) + 9 cột của ad_unlocks (luồng quảng cáo Google) + 11 cột của heritage_narrations (thuyết minh tạo sẵn) + 4 cột của lesson_completions và attempt_answers.try_count (bài chơi dạng luyện tập) + 7 cột của speech_clips (giọng đọc tự host)
             $"SELECT COUNT(*) AS [Value] FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id WHERE t.name <> '__EFMigrationsHistory'")).Single());
         Assert.Equal(73, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.foreign_keys")).Single());   // + hai khóa ngoại của heritage_curriculum_topics, lessons.sample_reviewed_by, lessons.source_lesson_id
         Assert.Equal(["fk_event_translations_event_id", "fk_heritage_curriculum_topics_topic_id", "fk_media_translations_media_id", "fk_password_reset_tokens_user_id", "fk_timeline_translations_timeline_id"],
             await SqlAsync<string>($"SELECT name AS [Value] FROM sys.foreign_keys WHERE delete_referential_action_desc = 'CASCADE' ORDER BY name"));
-        Assert.Equal(56, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());   // + CK_curriculum_topics_grade, CK_lessons_sample_status
+        Assert.Equal(57, (await SqlAsync<int>($"SELECT COUNT(*) AS [Value] FROM sys.check_constraints")).Single());   // + CK_curriculum_topics_grade, CK_lessons_sample_status, CK_heritage_narrations_part
 
         var filtered = await SqlAsync<string>(
             $"SELECT i.name + ' ' + i.filter_definition AS [Value] FROM sys.indexes i WHERE i.is_unique = 1 AND i.has_filter = 1 ORDER BY i.name");
@@ -79,14 +79,14 @@ public sealed class SqlServerDatabaseTests(SqlServerApiFactory factory) : IClass
         Assert.Equal(NullableForeignKeys, nullableFks);
 
         // Cột enum là nvarchar(20); DEFAULT của cột bit đúng thiết kế.
-        Assert.Equal(35, (await SqlAsync<int>($"""
+        Assert.Equal(36, (await SqlAsync<int>($"""
             SELECT COUNT(*) AS [Value] FROM sys.columns c
             WHERE TYPE_NAME(c.user_type_id) = 'nvarchar' AND c.max_length = 40
               AND EXISTS (SELECT 1 FROM sys.check_constraints k
                           WHERE k.parent_object_id = c.object_id AND k.definition LIKE '%[[]' + c.name + '] IN %'
                              OR k.parent_object_id = c.object_id AND k.definition LIKE '%[[]' + c.name + ']=''%')
             """)).Single());
-        Assert.Equal(["((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((1))", "((1))", "((1))", "((1))", "(CONVERT([smallint],(0)))", "(CONVERT([smallint],(1)))", "(CONVERT([tinyint],(0)))", "(CONVERT([tinyint],(1)))", "(CONVERT([tinyint],(3)))", "(N'vi')"],   // smallint: attempt_answers.parts_correct = 0, parts_total = 1; tinyint: attempt_answers.try_count = 0, questions.level_min = 1, level_max = 3; guest_devices.location_allowed = 0, language_code = 'vi' 
+        Assert.Equal(["((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((0))", "((1))", "((1))", "((1))", "((1))", "(CONVERT([smallint],(0)))", "(CONVERT([smallint],(1)))", "(CONVERT([tinyint],(0)))", "(CONVERT([tinyint],(1)))", "(CONVERT([tinyint],(3)))", "(N'SUMMARY')", "(N'vi')"],   // smallint: attempt_answers.parts_correct = 0, parts_total = 1; tinyint: attempt_answers.try_count = 0, questions.level_min = 1, level_max = 3; guest_devices.location_allowed = 0, language_code = 'vi' 
             await SqlAsync<string>($"SELECT definition AS [Value] FROM sys.default_constraints ORDER BY definition"));
 
         var roles = await factory.WithDbAsync(db => db.Roles.OrderBy(r => r.Id).Select(r => r.Name).ToListAsync());

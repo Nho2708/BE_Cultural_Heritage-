@@ -1,7 +1,9 @@
 ﻿using System.Linq.Expressions;
+using System.Text.Json;
 using DSVHVN.Application.Common;
 using DSVHVN.Application.Heritages;
 using DSVHVN.Application.Models;
+using DSVHVN.Application.Narrations;
 using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Heritages;
@@ -203,7 +205,20 @@ public sealed class DiscoveryService(IAppDbContext db, HeritageLocalizer localiz
                 eventCounts.GetValueOrDefault(t.Id))).ToList(),
             HeritageLocalizer.Describe(language, parts.Row),
             await localizer.HasSummaryAsync(heritage.Id, ct),
-            await models.HasVisibleAsync(heritage.Id, ct));
+            await models.HasVisibleAsync(heritage.Id, ct),
+            language == LanguageCode.vi ? await ContentNarrationAsync(heritage, ct) : null);
+    }
+
+    /// <summary>Thuyết minh toàn bộ nội dung (tiếng Việt); null khi chưa tạo hoặc nội dung đã đổi sau khi tạo.</summary>
+    private async Task<PublicNarrationDto?> ContentNarrationAsync(Heritage heritage, CancellationToken ct)
+    {
+        var row = await db.HeritageNarrations.AsNoTracking()
+            .Where(n => n.HeritageId == heritage.Id && n.LanguageCode == LanguageCode.vi && n.Part == NarrationPart.CONTENT)
+            .Select(n => new { n.TextHash, n.AudioUrl, n.DurationMs, n.Voice, n.Sentences })
+            .SingleOrDefaultAsync(ct);
+        if (row is null || row.TextHash != NarrationRules.TextHash(NarrationRules.ContentSpeechText(heritage.Content))) return null;
+        var sentences = JsonSerializer.Deserialize<List<NarrationSentenceDto>>(row.Sentences, JsonSerializerOptions.Web) ?? [];
+        return new PublicNarrationDto(row.AudioUrl, row.DurationMs, row.Voice, sentences);
     }
 
     // ---- Timeline ----

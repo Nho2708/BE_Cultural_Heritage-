@@ -2,6 +2,7 @@ using System.Text.Json;
 using DSVHVN.Application;
 using DSVHVN.Application.Ads;
 using DSVHVN.Application.Common;
+using DSVHVN.Application.Discovery;
 using DSVHVN.Application.Files;
 using DSVHVN.Application.Narrations;
 using DSVHVN.Application.Translations;
@@ -172,6 +173,48 @@ public sealed class NarrationServiceTests : IDisposable
         }
         var language = await Assert.ThrowsAsync<AppException>(() => RunAsync(s => s.ListMissingAsync("zh-TW", null, default)));
         Assert.Equal((400, "language"), (language.StatusCode, language.Errors!.Keys.Single()));
+    }
+
+    // ---- Toàn bộ nội dung ----
+
+    [Fact]
+    public void The_content_speech_text_drops_markdown_marks_and_source_notes()
+    {
+        const string content = "## Giới thiệu\r\nThành **cổ** ở [Huế](https://example.vn).\n\n- Cửa Bắc\n- Cửa Nam!\nNguồn: Cục Di sản văn hóa.\n## Nguồn\nTrang tham khảo";
+        Assert.Equal("Giới thiệu.\nThành cổ ở Huế.\nCửa Bắc.\nCửa Nam!", NarrationRules.ContentSpeechText(content));
+        Assert.Equal(string.Empty, NarrationRules.ContentSpeechText(null));
+    }
+
+    [Fact]
+    public async Task A_content_narration_is_listed_uploaded_and_kept_apart_from_the_summary_narration()
+    {
+        var id = await SeedAsync("hoi-giong", ContentStatus.PUBLISHED, (LanguageCode.vi, TranslationStatus.APPROVED, false));
+        await DbAsync(async db =>
+        {
+            (await db.Heritages.SingleAsync(h => h.Id == id)).Content = "## Giới thiệu\nHội Gióng là lễ hội ở Phù Đổng.";
+            return await db.SaveChangesAsync();
+        });
+        const string spoken = "Giới thiệu.\nHội Gióng là lễ hội ở Phù Đổng.";
+
+        var missing = await RunAsync(s => s.ListMissingAsync("vi", null, default, "content"));
+        Assert.Equal((id, spoken, Hash(spoken)), (missing.Items.Single().HeritageId, missing.Items.Single().ShortText, missing.Items.Single().TextHash));
+
+        await RunAsync(s => s.UploadAsync(_admin, id, "vi", Request(Hash(ViText)), Mp3(), default));
+        await RunAsync(s => s.UploadAsync(_admin, id, "vi", Request(Hash(spoken)), Mp3(), default, "content"));
+
+        Assert.Equal(2, await DbAsync(db => db.HeritageNarrations.CountAsync()));
+        Assert.Empty((await RunAsync(s => s.ListMissingAsync("vi", null, default, "content"))).Items);
+        Assert.NotNull((await PublicSummaryAsync("hoi-giong", LanguageCode.vi)).Narration);
+        await using (var scope = _root.CreateAsyncScope())
+        {
+            var detail = await scope.ServiceProvider.GetRequiredService<DiscoveryService>().GetDetailAsync("hoi-giong", LanguageCode.vi, default);
+            Assert.NotNull(detail.ContentNarration);
+        }
+
+        var stale = await Assert.ThrowsAsync<AppException>(() => RunAsync(s => s.UploadAsync(_admin, id, "vi", Request(Hash("chữ cũ")), Mp3(), default, "content")));
+        Assert.Equal(409, stale.StatusCode);
+        var language = await Assert.ThrowsAsync<AppException>(() => RunAsync(s => s.ListMissingAsync("en", null, default, "content")));
+        Assert.Equal(400, language.StatusCode);
     }
 
     // ---- Tải lên ----

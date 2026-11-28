@@ -1,4 +1,5 @@
 using DSVHVN.Application.Heritages;
+using DSVHVN.Application.Narrations;
 using DSVHVN.Application.Translations;
 using DSVHVN.Domain.Enums;
 using DSVHVN.Domain.Rules;
@@ -129,7 +130,8 @@ public sealed record PublicHeritageDetailDto(
     IReadOnlyList<TimelinePhaseSummaryDto> Timeline,
     LocalizationDto? Localization = null,
     bool HasSummary = false,
-    bool HasModel = false);
+    bool HasModel = false,
+    PublicNarrationDto? ContentNarration = null);
 
 /// <summary>
 /// Sự kiện của giai đoạn. Năm âm là trước Công nguyên. <c>DateLabel</c> là chữ hiển thị sẵn ("15/03/1010", "1010",

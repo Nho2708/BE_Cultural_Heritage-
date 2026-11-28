@@ -47,11 +47,12 @@ public sealed class AdminNarrationsController(NarrationService narrations) : Api
     /// Tóm tắt ngắn đang hiện công khai ở một ngôn ngữ (đúng quy tắc chọn tóm tắt của <c>GET /public/heritages/{slug}/summary</c>) mà chưa có thuyết minh, hoặc thuyết minh
     /// có băm khác chữ hiện tại: <c>items[]</c> (<c>heritageId</c>, <c>slug</c>, <c>name</c>, <c>language</c>, <c>shortText</c>, <c>textHash</c>) tối đa <c>limit</c> mục (1..1000, mặc định 500) và <c>total</c>.
     /// </summary>
+    /// <remarks><c>part=content</c> (chỉ <c>language=vi</c>) liệt kê và nhận thuyết minh toàn bộ nội dung; <c>shortText</c> khi đó là chữ đọc rút từ nội dung.</remarks>
     [HttpGet("narrations/missing")]
     [ProducesResponseType<ApiResponse<MissingNarrationsDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ApiResponse<MissingNarrationsDto>>> Missing([FromQuery] string? language, [FromQuery] int? limit, CancellationToken ct)
-        => OkEnvelope(await narrations.ListMissingAsync(language, limit, ct));
+    public async Task<ActionResult<ApiResponse<MissingNarrationsDto>>> Missing([FromQuery] string? language, [FromQuery] int? limit, [FromQuery] string? part, CancellationToken ct)
+        => OkEnvelope(await narrations.ListMissingAsync(language, limit, ct, part));
 
     /// <summary>
     /// Tải thuyết minh của một (di sản, ngôn ngữ) lên: tệp MP3 (≤ 10 MB, kiểm bằng nội dung), <c>textHash</c> phải bằng băm của bản tóm tắt ngắn hiện tại (khác thì 409
@@ -68,10 +69,10 @@ public sealed class AdminNarrationsController(NarrationService narrations) : Api
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ApiResponse<object>>(StatusCodes.Status413PayloadTooLarge)]
-    public async Task<ActionResult<ApiResponse<HeritageNarrationDto>>> Upload(long heritageId, string language, [FromForm] UploadNarrationForm form, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<HeritageNarrationDto>>> Upload(long heritageId, string language, [FromQuery] string? part, [FromForm] UploadNarrationForm form, CancellationToken ct)
     {
         var saved = await narrations.UploadAsync(CurrentActor, heritageId, language, form.ToRequest(),
-            await FormFiles.ReadAsync(form.Audio, StoredFileRules.MaxNarrationBytes, ct), ct);
+            await FormFiles.ReadAsync(form.Audio, StoredFileRules.MaxNarrationBytes, ct), ct, part);
         return OkEnvelope(saved, NarrationMessages.Saved(Languages.InlineLabel(Languages.TryParse(language)!.Value)).Text);
     }
 }

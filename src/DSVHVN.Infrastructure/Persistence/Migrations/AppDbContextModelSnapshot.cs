@@ -1103,6 +1103,15 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("language_code");
 
+                    b.Property<string>("Part")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("SUMMARY")
+                        .HasColumnName("part");
+
                     b.Property<string>("Sentences")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")
@@ -1130,15 +1139,17 @@ namespace DSVHVN.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("PK_heritage_narrations");
 
-                    b.HasIndex("HeritageId", "LanguageCode")
+                    b.HasIndex("HeritageId", "LanguageCode", "Part")
                         .IsUnique()
-                        .HasDatabaseName("UX_heritage_narrations_heritage_language");
+                        .HasDatabaseName("UX_heritage_narrations_heritage_language_part");
 
                     b.ToTable("heritage_narrations", null, t =>
                         {
                             t.HasCheckConstraint("CK_heritage_narrations_duration", "[duration_ms] > 0");
 
                             t.HasCheckConstraint("CK_heritage_narrations_language_code", "[language_code] IN ('vi', 'en', 'ko', 'zh', 'ja')");
+
+                            t.HasCheckConstraint("CK_heritage_narrations_part", "[part] IN ('SUMMARY', 'CONTENT')");
                         });
                 });
 

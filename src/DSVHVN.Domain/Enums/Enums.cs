@@ -312,3 +312,10 @@ public enum AdNetwork
     ADMOB,
     AD_MANAGER,
 }
+
+/// <summary><c>heritage_narrations.part</c>: thuyết minh đọc bản tóm tắt ngắn hay toàn bộ nội dung di sản.</summary>
+public enum NarrationPart
+{
+    SUMMARY,
+    CONTENT,
+}

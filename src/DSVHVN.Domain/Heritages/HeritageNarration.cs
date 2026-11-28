@@ -4,9 +4,9 @@ using DSVHVN.Domain.Enums;
 namespace DSVHVN.Domain.Heritages;
 
 /// <summary>
-/// Bảng <c>heritage_narrations</c>: thuyết minh tạo sẵn của bản tóm tắt ngắn (<c>heritage_summaries.short_text</c>) theo ngôn ngữ (vi, en, ko, zh, ja):
+/// Bảng <c>heritage_narrations</c>: thuyết minh tạo sẵn của bản tóm tắt ngắn (<c>heritage_summaries.short_text</c>) hoặc của toàn bộ nội dung di sản (xem <c>NarrationPart</c>) theo ngôn ngữ (vi, en, ko, zh, ja):
 /// tệp MP3 do giọng tự host tạo trên máy phát triển rồi tải lên qua API quản trị (máy chủ không tạo giọng), mốc thời gian từng câu để tô sáng khi phát,
-/// và băm của chính đoạn chữ đã đọc. Mỗi (di sản, ngôn ngữ) đúng một dòng: tải lên lần nữa thì thay dòng cũ. Tóm tắt đổi chữ thì băm lệch và
+/// và băm của chính đoạn chữ đã đọc. Mỗi (di sản, ngôn ngữ, phần được đọc) đúng một dòng: tải lên lần nữa thì thay dòng cũ. Tóm tắt đổi chữ thì băm lệch và
 /// bản thuyết minh không còn được trả cho khách cho tới khi tạo lại; khi đó tab "Nghe" đọc bằng giọng thiết bị như trước.
 /// </summary>
 public class HeritageNarration : IHasCreatedAt, IHasUpdatedAt
@@ -18,7 +18,9 @@ public class HeritageNarration : IHasCreatedAt, IHasUpdatedAt
 
     public LanguageCode LanguageCode { get; set; }
 
-    /// <summary>SHA-256 (64 ký tự hex thường) của <c>short_text</c> đúng như đang lưu lúc tạo giọng.</summary>
+    public NarrationPart Part { get; set; } = NarrationPart.SUMMARY;
+
+    /// <summary>SHA-256 (64 ký tự hex thường) của đoạn chữ đã đọc lúc tạo giọng: <c>short_text</c>, hoặc chữ đọc rút từ nội dung di sản.</summary>
     public string TextHash { get; set; } = string.Empty;
 
     /// <summary>Đường dẫn tệp MP3 trong kho tệp của nền tảng (<c>/files/thuyet-minh/{mã}.mp3</c> hoặc địa chỉ đầy đủ của kho).</summary>
